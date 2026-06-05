@@ -1,0 +1,8 @@
+{
+  "name": "Kothapalli's Farms",
+  "description": "A collaborative farm ledger and partner settlement tool with Google Sheets data integration, stock costing, activity timeline, and debt simplification.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
