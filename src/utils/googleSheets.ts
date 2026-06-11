@@ -150,6 +150,8 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
     { title: 'StockUsage', columnCount: 10, rowCount: 1000 },
     { title: 'HarvestRevenue', columnCount: 10, rowCount: 1000 },
     { title: 'AuditLogs', columnCount: 10, rowCount: 5000 },
+    { title: 'CreditAccounts', columnCount: 10, rowCount: 500 },
+    { title: 'CreditRepayments', columnCount: 10, rowCount: 1000 },
   ];
 
   const missingSheets = requiredSheets.filter(s => !existingTitles.has(s.title));
@@ -202,6 +204,8 @@ export async function pushDataToSpreadsheet(
     usages: any[];
     revenues: any[];
     auditLogs: any[];
+    creditAccounts?: any[];
+    creditRepayments?: any[];
   }
 ): Promise<void> {
   // Gracefully ensure all relevant sheet tabs exist beforehand
@@ -227,20 +231,20 @@ export async function pushDataToSpreadsheet(
       values: toSheetRows(data.activities, ['id', 'date', 'fieldId', 'seasonId', 'type', 'notes', 'weatherNote', 'photos']),
     },
     {
-      range: 'Expenses!A1:O1000',
-      values: toSheetRows(data.expenses, ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto']),
+      range: 'Expenses!A1:Q1000',
+      values: toSheetRows(data.expenses, ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId']),
     },
     {
-      range: 'Labor!A1:J1000',
-      values: toSheetRows(data.labours, ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId']),
+      range: 'Labor!A1:L1000',
+      values: toSheetRows(data.labours, ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId']),
     },
     {
       range: 'StockItems!A1:J200',
       values: toSheetRows(data.stockItems, ['id', 'name', 'type', 'unit', 'quantityOnHand', 'weightedAverageCost', 'totalCostSpent', 'fundingByMember']),
     },
     {
-      range: 'StockPurchases!A1:J1000',
-      values: toSheetRows(data.purchases, ['id', 'stockItemId', 'quantity', 'totalCost', 'date', 'paidByMemberId']),
+      range: 'StockPurchases!A1:L1000',
+      values: toSheetRows(data.purchases, ['id', 'stockItemId', 'quantity', 'totalCost', 'date', 'paidByMemberId', 'isCredit', 'creditAccountId']),
     },
     {
       range: 'StockUsage!A1:J1000',
@@ -253,6 +257,14 @@ export async function pushDataToSpreadsheet(
     {
       range: 'AuditLogs!A1:J5000',
       values: toSheetRows(data.auditLogs, ['id', 'timestamp', 'actionType', 'entityType', 'entityId', 'description', 'memberId']),
+    },
+    {
+      range: 'CreditAccounts!A1:E500',
+      values: toSheetRows(data.creditAccounts || [], ['id', 'name', 'phone', 'type', 'notes']),
+    },
+    {
+      range: 'CreditRepayments!A1:F1000',
+      values: toSheetRows(data.creditRepayments || [], ['id', 'creditAccountId', 'memberId', 'amount', 'date', 'notes']),
     },
   ];
 
@@ -278,6 +290,8 @@ export async function pushDataToSpreadsheet(
     'StockUsage',
     'HarvestRevenue',
     'AuditLogs',
+    'CreditAccounts',
+    'CreditRepayments',
   ]) {
     try {
       await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${tabName}!A1:Z5000:clear`, {
@@ -382,6 +396,8 @@ export async function pullDataFromSpreadsheet(
     'StockUsage',
     'HarvestRevenue',
     'AuditLogs',
+    'CreditAccounts',
+    'CreditRepayments',
   ];
 
   const ranges = tabNames.map(name => `${name}!A1:Z5000`).join('&ranges=');
@@ -419,6 +435,10 @@ export async function pullDataFromSpreadsheet(
           ? 'revenues'
           : name === 'AuditLogs'
           ? 'auditLogs'
+          : name === 'CreditAccounts'
+          ? 'creditAccounts'
+          : name === 'CreditRepayments'
+          ? 'creditRepayments'
           : name.toLowerCase();
 
       data[collectionName] = parseSheetRows(rows);

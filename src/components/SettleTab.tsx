@@ -13,7 +13,9 @@ import {
   HarvestRevenue,
   StockUsage,
   StockItem,
-  StockPurchase
+  StockPurchase,
+  CreditAccount,
+  CreditRepayment
 } from '../types';
 import { buildSettlementLedger, computeStockLevels } from '../utils/calculations';
 import { CheckCircle2, AlertOctagon, Download, Share2, Printer, ClipboardCheck } from 'lucide-react';
@@ -30,19 +32,23 @@ interface SettleTabProps {
   stockItems: StockItem[];
   purchases: StockPurchase[];
   currency: string;
+  creditAccounts?: CreditAccount[];
+  creditRepayments?: CreditRepayment[];
 }
 
 export const SettleTab: React.FC<SettleTabProps> = ({
-  fields,
-  seasons,
-  members,
-  expenses,
-  labours,
-  revenues,
-  usages,
-  stockItems,
-  purchases,
-  currency
+  fields = [],
+  seasons = [],
+  members = [],
+  expenses = [],
+  labours = [],
+  revenues = [],
+  usages = [],
+  stockItems = [],
+  purchases = [],
+  currency,
+  creditAccounts = [],
+  creditRepayments = []
 }) => {
   const [selectedSeasonIds, setSelectedSeasonIds] = useState<string[]>(
     seasons.map(s => s.id)
@@ -96,7 +102,9 @@ export const SettleTab: React.FC<SettleTabProps> = ({
     usages,
     stockItems,
     purchases,
-    selectedSeasonIds
+    selectedSeasonIds,
+    creditAccounts,
+    creditRepayments
   );
 
   // Run per-season matching to get sub-entries (individual season simplified debts)

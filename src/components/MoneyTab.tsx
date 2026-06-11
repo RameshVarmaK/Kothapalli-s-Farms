@@ -12,7 +12,8 @@ import {
   Season,
   Member,
   Activity,
-  CommonAllocationType
+  CommonAllocationType,
+  CreditAccount
 } from '../types';
 import { Plus, Filter, Trash2, ArrowUpRight, ArrowDownLeft, Users, Receipt, Calendar, Pencil, AlertTriangle } from 'lucide-react';
 import { calculateAllocations } from '../utils/calculations';
@@ -26,6 +27,7 @@ interface MoneyTabProps {
   members: Member[];
   activities: Activity[];
   currency: string;
+  creditAccounts?: CreditAccount[];
   onAddExpense: (expense: Expense) => void;
   onEditExpense: (expense: Expense) => void;
   onDeleteExpense: (id: string) => void;
@@ -38,14 +40,15 @@ interface MoneyTabProps {
 }
 
 export const MoneyTab: React.FC<MoneyTabProps> = ({
-  expenses,
-  labours,
-  revenues,
-  fields,
-  seasons,
-  members,
-  activities,
+  expenses = [],
+  labours = [],
+  revenues = [],
+  fields = [],
+  seasons = [],
+  members = [],
+  activities = [],
   currency,
+  creditAccounts = [],
   onAddExpense,
   onEditExpense,
   onDeleteExpense,
@@ -92,6 +95,9 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   const [revenueQuantity, setRevenueQuantity] = useState('');
   const [buyerName, setBuyerName] = useState('');
 
+  const [isCredit, setIsCredit] = useState(false);
+  const [creditAccountId, setCreditAccountId] = useState('');
+
   // Compiling transactional ledger timeline
   const ledgerItems: {
     id: string;
@@ -109,7 +115,13 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
   // Parse expenses
   expenses.forEach(e => {
-    const payer = members.find(m => m.id === e.paidByMemberId)?.name || 'Unknown';
+    let payer = '';
+    if (e.isCredit) {
+      const creditor = creditAccounts.find(c => c.id === e.creditAccountId);
+      payer = creditor ? `Credit: ${creditor.name}` : 'Credit';
+    } else {
+      payer = members.find(m => m.id === e.paidByMemberId)?.name || 'Unknown';
+    }
     let fieldSeasonName = 'Common / All';
     if (e.targetType === 'single' && e.targetSeasonId) {
       const s = seasons.find(sea => sea.id === e.targetSeasonId);
@@ -125,7 +137,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       type: 'expense',
       date: e.date,
       description: e.category,
-      subtext: `Paid by ${payer}`,
+      subtext: e.isCredit ? payer : `Paid by ${payer}`,
       amount: e.amount,
       party: payer,
       fieldSeasonName,
@@ -135,7 +147,13 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
   // Parse labour
   labours.forEach(l => {
-    const payer = members.find(m => m.id === l.paidByMemberId)?.name || 'Unknown';
+    let payer = '';
+    if (l.isCredit) {
+      const creditor = creditAccounts.find(c => c.id === l.creditAccountId);
+      payer = creditor ? `Credit: ${creditor.name}` : 'Credit';
+    } else {
+      payer = members.find(m => m.id === l.paidByMemberId)?.name || 'Unknown';
+    }
     const s = seasons.find(sea => sea.id === l.seasonId);
     const f = fields.find(fd => fd.id === l.fieldId);
     const fieldSeasonName = s ? `${s.cropName} (${f ? f.name : ''})` : 'Unknown';
@@ -145,7 +163,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       type: 'labour',
       date: l.date,
       description: `Labour (${l.workersCount} worker(s) at ${currency}${l.wageRate})`,
-      subtext: `Paid by ${payer}`,
+      subtext: l.isCredit ? payer : `Paid by ${payer}`,
       amount: l.totalCost,
       party: payer,
       fieldSeasonName,
@@ -214,6 +232,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     setAddTab(type);
     setDate(rawRecord.date);
     setPaidBy(type === 'revenue' ? rawRecord.receivedByMemberId : rawRecord.paidByMemberId);
+    setIsCredit(!!rawRecord.isCredit);
+    setCreditAccountId(rawRecord.creditAccountId || '');
     
     if (type === 'expense') {
       setAmount(String(rawRecord.amount));
@@ -260,30 +280,34 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     const baseExpense = editingRecordId ? expenses.find(exp => exp.id === editingRecordId) : null;
 
     if (targetType === 'single') {
-      const season = seasons.find(s => s.id === selectedSeasonId)!;
+      const season = seasons.find(s => s.id === selectedSeasonId);
+      if (!season) return;
       expensePost = {
         ...(baseExpense || {}),
         id: editingRecordId || `exp_${Date.now()}`,
         date,
         amount: amt,
-        paidByMemberId: paidBy,
+        paidByMemberId: isCredit ? '' : paidBy,
         category,
         linkedActivityId: linkedActivityId || undefined,
         targetType: 'single',
         targetFieldId: season.fieldId,
-        targetSeasonId: season.id
+        targetSeasonId: season.id,
+        isCredit,
+        creditAccountId: isCredit ? creditAccountId : undefined
       } as Expense;
     } else {
       // Allocate common
       const participatingDetailed = selectedParticipatingSeasons.map(sid => {
-        const s = seasons.find(sea => sea.id === sid)!;
-        const f = fields.find(field => field.id === s.fieldId)!;
+        const s = seasons.find(sea => sea.id === sid);
+        if (!s) return null;
+        const f = fields.find(field => field.id === s.fieldId);
         return {
           fieldId: s.fieldId,
           seasonId: s.id,
           fieldArea: f?.area || 1
         };
-      });
+      }).filter((v): v is { fieldId: string; seasonId: string; fieldArea: number } => v !== null);
 
       const parsedManual: { [key: string]: number } = {};
       Object.keys(manualAllocations).forEach(k => {
@@ -297,12 +321,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         id: editingRecordId || `exp_${Date.now()}`,
         date,
         amount: amt,
-        paidByMemberId: paidBy,
+        paidByMemberId: isCredit ? '' : paidBy,
         category,
         linkedActivityId: linkedActivityId || undefined,
         targetType: 'common',
         commonAllocationRule: allocationRule,
-        allocations: calculatedAlloc
+        allocations: calculatedAlloc,
+        isCredit,
+        creditAccountId: isCredit ? creditAccountId : undefined
       } as Expense;
     }
 
@@ -335,7 +361,9 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       workersCount: count || 0,
       wageRate: rate || 0,
       totalCost: computedTotal,
-      paidByMemberId: paidBy
+      paidByMemberId: isCredit ? '' : paidBy,
+      isCredit,
+      creditAccountId: isCredit ? creditAccountId : undefined
     } as Labour;
 
     if (editingRecordId) {
@@ -392,6 +420,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     setBuyerName('');
     setSelectedParticipatingSeasons([]);
     setManualAllocations({});
+    setIsCredit(false);
+    setCreditAccountId('');
   };
 
   const handleDelete = (id: string, type: 'expense' | 'labour' | 'revenue') => {
@@ -573,6 +603,49 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Billing Type</label>
+                    <select
+                      value={isCredit ? 'credit' : 'direct'}
+                      onChange={e => {
+                        const creditMode = e.target.value === 'credit';
+                        setIsCredit(creditMode);
+                        if (creditMode && creditAccounts.length > 0 && !creditAccountId) {
+                          setCreditAccountId(creditAccounts[0].id);
+                        }
+                      }}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="direct">Direct Paid by Partner</option>
+                      <option value="credit">Hire or Buy on Credit</option>
+                    </select>
+                  </div>
+                </div>
+
+                {isCredit ? (
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                      <span>Select Creditor Profile *</span>
+                      <span className="text-[9px] text-amber-600 font-extrabold uppercase">Outstanding Debt</span>
+                    </label>
+                    <select
+                      value={creditAccountId}
+                      required
+                      onChange={e => setCreditAccountId(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="">-- Choose Creditor --</option>
+                      {creditAccounts.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                      ))}
+                    </select>
+                    {creditAccounts.length === 0 && (
+                      <p className="text-[10px] text-rose-500 font-extrabold mt-1">
+                        ⚠️ Please add a Creditor profile first in the "Credits & Payables" tab.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payer (Who Paid?)</label>
                     <select
                       value={paidBy}
@@ -584,7 +657,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       ))}
                     </select>
                   </div>
-                </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -721,13 +794,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                                             parseFloat(amount) || 0,
                                             allocationRule,
                                             selectedParticipatingSeasons.map(sid => {
-                                              const targetS = seasons.find(sea => sea.id === sid)!;
+                                              const targetS = seasons.find(sea => sea.id === sid);
+                                              if (!targetS) return null;
                                               return {
                                                 fieldId: targetS.fieldId,
                                                 seasonId: targetS.id,
                                                 fieldArea: fields.find(fd => fd.id === targetS.fieldId)?.area || 1
                                               };
-                                            })
+                                            }).filter((v): v is { fieldId: string; seasonId: string; fieldArea: number } => v !== null)
                                           ).find(al => al.seasonId === s.id)?.amount || 0
                                         )}
                                       </>
@@ -792,6 +866,49 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Billing Type</label>
+                    <select
+                      value={isCredit ? 'credit' : 'direct'}
+                      onChange={e => {
+                        const creditMode = e.target.value === 'credit';
+                        setIsCredit(creditMode);
+                        if (creditMode && creditAccounts.length > 0 && !creditAccountId) {
+                          setCreditAccountId(creditAccounts[0].id);
+                        }
+                      }}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="direct">Direct Paid by Partner</option>
+                      <option value="credit">Hire or Buy on Credit</option>
+                    </select>
+                  </div>
+                </div>
+
+                {isCredit ? (
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center justify-between">
+                      <span>Select Creditor Profile *</span>
+                      <span className="text-[9px] text-amber-600 font-extrabold uppercase">Outstanding Debt</span>
+                    </label>
+                    <select
+                      value={creditAccountId}
+                      required
+                      onChange={e => setCreditAccountId(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    >
+                      <option value="">-- Choose Creditor --</option>
+                      {creditAccounts.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
+                      ))}
+                    </select>
+                    {creditAccounts.length === 0 && (
+                      <p className="text-[10px] text-rose-500 font-extrabold mt-1">
+                        ⚠️ Please add a Creditor profile first in the "Credits & Payables" tab.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payer (Who Paid?)</label>
                     <select
                       value={paidBy}
@@ -803,7 +920,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       ))}
                     </select>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Crop Cycle</label>

@@ -16,7 +16,9 @@ import {
   FieldSeasonLedger,
   MemberStatement,
   SimplifiedDebt,
-  SettlementSummary
+  SettlementSummary,
+  CreditAccount,
+  CreditRepayment
 } from '../types';
 
 /**
@@ -27,15 +29,19 @@ import {
  * - Funding tracker tracks total rupees spent by each member on the stock item to compute consumption attribution.
  */
 export function computeStockLevels(
-  stockItems: StockItem[],
-  purchases: StockPurchase[],
-  usages: StockUsage[]
+  stockItems: StockItem[] = [],
+  purchases: StockPurchase[] = [],
+  usages: StockUsage[] = []
 ): StockItem[] {
-  // Sort purchases chronologically
-  const sortedPurchases = [...purchases].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const sortedUsages = [...usages].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const safeStockItems = stockItems || [];
+  const safePurchases = purchases || [];
+  const safeUsages = usages || [];
 
-  return stockItems.map(item => {
+  // Sort purchases chronologically
+  const sortedPurchases = [...safePurchases].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const sortedUsages = [...safeUsages].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return safeStockItems.map(item => {
     let quantity = 0;
     let avgCost = 0;
     let totalInvested = 0;
@@ -146,42 +152,57 @@ export function calculateAllocations(
  * Creates the ledger, balances, and entitlernents for selected crop seasons.
  */
 export function buildSettlementLedger(
-  fields: Field[],
-  seasons: Season[],
-  members: Member[],
-  expenses: Expense[],
-  labours: Labour[],
-  revenues: HarvestRevenue[],
-  usages: StockUsage[],
-  stockItems: StockItem[],
-  purchases: StockPurchase[],
-  selectedSeasonIds: string[]
+  fields: Field[] = [],
+  seasons: Season[] = [],
+  members: Member[] = [],
+  expenses: Expense[] = [],
+  labours: Labour[] = [],
+  revenues: HarvestRevenue[] = [],
+  usages: StockUsage[] = [],
+  stockItems: StockItem[] = [],
+  purchases: StockPurchase[] = [],
+  selectedSeasonIds: string[] = [],
+  creditAccounts: CreditAccount[] = [],
+  creditRepayments: CreditRepayment[] = []
 ): SettlementSummary {
-  const activeSeasons = seasons.filter(s => selectedSeasonIds.includes(s.id));
-  const computedStockItems = computeStockLevels(stockItems, purchases, usages);
+  const safeFields = fields || [];
+  const safeSeasons = seasons || [];
+  const safeMembers = members || [];
+  const safeExpenses = expenses || [];
+  const safeLabours = labours || [];
+  const safeRevenues = revenues || [];
+  const safeUsages = usages || [];
+  const safeStockItems = stockItems || [];
+  const safePurchases = purchases || [];
+  const safeSelectedSeasonIds = selectedSeasonIds || [];
+  const safeCreditAccounts = creditAccounts || [];
+  const safeCreditRepayments = creditRepayments || [];
+
+  const activeSeasons = safeSeasons.filter(s => safeSelectedSeasonIds.includes(s.id));
+  const computedStockItems = computeStockLevels(safeStockItems, safePurchases, safeUsages);
 
   const ledgers: FieldSeasonLedger[] = activeSeasons.map(season => {
-    const field = fields.find(f => f.id === season.fieldId)!;
+    const field = safeFields.find(f => f.id === season.fieldId);
     const fieldName = field ? field.name : 'Unknown Field';
 
-    // Direct Expenses
-    const directExpenses = expenses.filter(e => e.targetType === 'single' && e.targetSeasonId === season.id);
+    // Direct Expenses (all direct costs, including credit)
+    const directExpenses = safeExpenses.filter(e => e.targetType === 'single' && e.targetSeasonId === season.id);
     const totalDirectExpense = directExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-    // Allocated Expenses
-    const allocatedExpenses = expenses.filter(e => e.targetType === 'common');
+    // Allocated Expenses (all allocated costs, including credit)
+    const allocatedExpenses = safeExpenses.filter(e => e.targetType === 'common');
     const totalAllocatedExpense = allocatedExpenses.reduce((sum, e) => {
       const alloc = e.allocations?.find(al => al.seasonId === season.id);
       return sum + (alloc ? alloc.amount : 0);
     }, 0);
 
-    // Labour Expenses
-    const directLabour = labours.filter(l => l.seasonId === season.id);
+    // Labour Expenses (all wages, including credit)
+    const directLabour = safeLabours.filter(l => l.seasonId === season.id);
     const totalLabourExpense = directLabour.reduce((sum, l) => sum + l.totalCost, 0);
 
     // Stock Usage Expense
     // For each stock usage, cost charged = quantityUsed * weighted_average_cost
-    const directUsages = usages.filter(u => u.targetType === 'single' && u.targetSeasonId === season.id);
+    const directUsages = safeUsages.filter(u => u.targetType === 'single' && u.targetSeasonId === season.id);
     const resolvedStockItemsMap = new Map(computedStockItems.map(item => [item.id, item]));
 
     const totalDirectStockExpense = directUsages.reduce((sum, u) => {
@@ -191,7 +212,7 @@ export function buildSettlementLedger(
     }, 0);
 
     // Allocated stock usages
-    const commonUsages = usages.filter(u => u.targetType === 'common');
+    const commonUsages = safeUsages.filter(u => u.targetType === 'common');
     const totalCommonStockExpense = commonUsages.reduce((sum, u) => {
       const info = resolvedStockItemsMap.get(u.stockItemId);
       const costRate = info ? info.weightedAverageCost : 0;
@@ -205,30 +226,30 @@ export function buildSettlementLedger(
     const totalExpense = Number((totalDirectExpense + totalAllocatedExpense + totalStockExpense + totalLabourExpense).toFixed(2));
 
     // Direct Revenues
-    const fieldRevenues = revenues.filter(r => r.seasonId === season.id);
+    const fieldRevenues = safeRevenues.filter(r => r.seasonId === season.id);
     const totalRevenue = fieldRevenues.reduce((sum, r) => sum + r.saleAmount, 0);
 
     const netProfit = Number((totalRevenue - totalExpense).toFixed(2));
 
     // Construct Member Statements for this Field-Season
-    const statements: MemberStatement[] = members.map(m => {
+    const statements: MemberStatement[] = safeMembers.map(m => {
       const shareObj = (season.shares && season.shares.length > 0)
         ? season.shares.find(sh => sh.memberId === m.id)
-        : field.shares.find(sh => sh.memberId === m.id);
+        : field?.shares?.find(sh => sh.memberId === m.id);
       const shareRatio = shareObj ? shareObj.percentage / 100 : 0;
 
       // Entitled = share_ratio * Net Profit (R - E)
       const entitledAmount = Number((shareRatio * netProfit).toFixed(2));
 
-      // Paid_m = (direct field expenses paid by m) + (allocated common expenses paid by m) + (labour paid by m) + (stock funded by m consumed here)
-      const mDirectExp = directExpenses.filter(e => e.paidByMemberId === m.id).reduce((sum, e) => sum + e.amount, 0);
+      // Paid_m = (direct field non-credit expenses paid by m) + (allocated common non-credit expenses paid by m) + (non-credit labour paid by m) + (stock funded by m consumed here) + (m's crop-proportional credit repayments)
+      const mDirectExp = directExpenses.filter(e => !e.isCredit && e.paidByMemberId === m.id).reduce((sum, e) => sum + e.amount, 0);
       
-      const mCommonAllocExp = allocatedExpenses.filter(e => e.paidByMemberId === m.id).reduce((sum, e) => {
+      const mCommonAllocExp = allocatedExpenses.filter(e => !e.isCredit && e.paidByMemberId === m.id).reduce((sum, e) => {
         const alloc = e.allocations?.find(al => al.seasonId === season.id);
         return sum + (alloc ? alloc.amount : 0);
       }, 0);
 
-      const mLabour = directLabour.filter(l => l.paidByMemberId === m.id).reduce((sum, l) => sum + l.totalCost, 0);
+      const mLabour = directLabour.filter(l => !l.isCredit && l.paidByMemberId === m.id).reduce((sum, l) => sum + l.totalCost, 0);
 
       // Stock funding consumption:
       // For each direct usage on this field, how much did m spend on this stock item?
@@ -255,7 +276,48 @@ export function buildSettlementLedger(
         return sum + (totalUsedCost * (mInvested / totalStockInvested));
       }, 0);
 
-      const paidAmount = Number((mDirectExp + mCommonAllocExp + mLabour + mDirectStockFunding + mCommonStockFunding).toFixed(2));
+      // Distribute credit repayments from member m to this season proportionally
+      let mCreditRepaymentsAttributed = 0;
+      if (safeCreditRepayments && safeCreditRepayments.length > 0) {
+        const mRepayments = safeCreditRepayments.filter(r => r.memberId === m.id);
+        
+        mRepayments.forEach(rep => {
+          const credId = rep.creditAccountId;
+          
+          // Find all credit expenses/labours globally to determine total volume for that creditor
+          const credExp = safeExpenses.filter(e => e.isCredit && e.creditAccountId === credId);
+          const credLab = safeLabours.filter(l => l.isCredit && l.creditAccountId === credId);
+          
+          let totalCredIncurredGlobal = 0;
+          credExp.forEach(e => { totalCredIncurredGlobal += e.amount; });
+          credLab.forEach(l => { totalCredIncurredGlobal += l.totalCost; });
+
+          // Find credit incurred specifically in this season
+          let credIncurredInThisSeason = 0;
+          credExp.forEach(e => {
+            if (e.targetType === 'single' && e.targetSeasonId === season.id) {
+              credIncurredInThisSeason += e.amount;
+            } else if (e.targetType === 'common') {
+              const alloc = e.allocations?.find(al => al.seasonId === season.id);
+              if (alloc) {
+                credIncurredInThisSeason += alloc.amount;
+              }
+            }
+          });
+          credLab.forEach(l => {
+            if (l.seasonId === season.id) {
+              credIncurredInThisSeason += l.totalCost;
+            }
+          });
+
+          if (totalCredIncurredGlobal > 0) {
+            const proportion = credIncurredInThisSeason / totalCredIncurredGlobal;
+            mCreditRepaymentsAttributed += rep.amount * proportion;
+          }
+        });
+      }
+
+      const paidAmount = Number((mDirectExp + mCommonAllocExp + mLabour + mDirectStockFunding + mCommonStockFunding + mCreditRepaymentsAttributed).toFixed(2));
 
       // Received_m = revenue actually received by m
       const receivedAmount = fieldRevenues.filter(r => r.receivedByMemberId === m.id).reduce((sum, r) => sum + r.saleAmount, 0);
@@ -275,7 +337,7 @@ export function buildSettlementLedger(
     });
 
     return {
-      fieldId: field.id,
+      fieldId: field ? field.id : '',
       fieldName,
       seasonId: season.id,
       cropName: season.cropName,
@@ -292,7 +354,7 @@ export function buildSettlementLedger(
 
   // Roll up statements across all fields/seasons
   const membersTotalStatements: { [memberId: string]: MemberStatement } = {};
-  for (const m of members) {
+  for (const m of safeMembers) {
     membersTotalStatements[m.id] = {
       memberId: m.id,
       memberName: m.name,

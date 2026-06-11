@@ -13,10 +13,22 @@ import {
   StockItem,
   StockPurchase,
   StockUsage,
-  Member
+  Member,
+  CreditAccount,
+  CreditRepayment
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
-import { TrendingUp, TrendingDown, IndianRupee, Layers, Sprout } from 'lucide-react';
+import { TrendingUp, TrendingDown, IndianRupee, Layers, Sprout, Coins } from 'lucide-react';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 interface DashboardTabProps {
   fields: Field[];
@@ -30,21 +42,25 @@ interface DashboardTabProps {
   purchases: StockPurchase[];
   currency: string;
   areaUnit: string;
+  creditAccounts?: CreditAccount[];
+  creditRepayments?: CreditRepayment[];
   onSelectTab: (tab: string) => void;
 }
 
 export const DashboardTab: React.FC<DashboardTabProps> = ({
-  fields,
-  seasons,
-  members,
-  expenses,
-  labours,
-  revenues,
-  usages,
-  stockItems,
-  purchases,
+  fields = [],
+  seasons = [],
+  members = [],
+  expenses = [],
+  labours = [],
+  revenues = [],
+  usages = [],
+  stockItems = [],
+  purchases = [],
   currency,
   areaUnit,
+  creditAccounts = [],
+  creditRepayments = [],
   onSelectTab
 }) => {
   const [statusFilter, setStatusFilter] = useState<'active' | 'closed' | 'all'>('active');
@@ -64,12 +80,72 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     usages,
     stockItems,
     purchases,
-    allSeasonIds
+    allSeasonIds,
+    creditAccounts,
+    creditRepayments
   );
 
   const totalExpense = summary.ledgers.reduce((sum, l) => sum + l.totalExpense, 0);
   const totalRevenue = summary.ledgers.reduce((sum, l) => sum + l.totalRevenue, 0);
   const totalProfit = totalRevenue - totalExpense;
+
+  // Calculate member investment contribution data
+  const memberContributions = members.map(m => {
+    const expenseTotal = expenses
+      .filter(e => e.paidByMemberId === m.id)
+      .reduce((sum, e) => sum + e.amount, 0);
+
+    const stockTotal = purchases
+      .filter(p => p.paidByMemberId === m.id)
+      .reduce((sum, p) => sum + p.totalCost, 0);
+
+    const labourTotal = labours
+      .filter(l => l.paidByMemberId === m.id)
+      .reduce((sum, l) => sum + l.totalCost, 0);
+
+    const total = expenseTotal + stockTotal + labourTotal;
+
+    return {
+      name: m.name,
+      Expenses: Number(expenseTotal.toFixed(2)),
+      'Stock Purchase': Number(stockTotal.toFixed(2)),
+      'Labour/Wages': Number(labourTotal.toFixed(2)),
+      total: Number(total.toFixed(2))
+    };
+  });
+
+  const totalCombinedInvested = memberContributions.reduce((sum, mc) => sum + mc.total, 0);
+
+  // Custom responsive tooltip for the bar chart
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 shadow-xl text-xs font-sans">
+          <p className="font-bold border-b border-slate-800 pb-1.5 mb-1.5 text-slate-200">{label}</p>
+          <div className="space-y-1.5">
+            {payload.map((entry: any) => (
+              <div key={entry.name} className="flex justify-between items-center gap-6">
+                <span className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                  <span className="text-slate-400">{entry.name}:</span>
+                </span>
+                <span className="font-bold font-mono text-slate-100">
+                  {currency}{entry.value.toLocaleString('en-IN')}
+                </span>
+              </div>
+            ))}
+            <div className="flex justify-between items-center gap-6 pt-1.5 border-t border-slate-800 mt-1.5 font-bold text-emerald-400">
+              <span>Total Contribution:</span>
+              <span className="font-mono">
+                {currency}{(payload.reduce((sum: number, entry: any) => sum + entry.value, 0)).toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   // Filter ledgers to display
   const filteredLedgers = summary.ledgers.filter(ledger => {
@@ -154,7 +230,70 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             <span>Ledgers balanced to zero</span>
           </div>
         </div>
-      </div>      {/* Main Sections */}
+      </div>
+
+      {/* Member Contribution Chart Section */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div>
+            <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Coins className="text-amber-500" size={16} />
+              Partner Investment Standing
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">Total operational cash and materials funded by each agricultural partner</p>
+          </div>
+          <div className="bg-slate-50 border border-slate-100 px-3.5 py-1.5 rounded-xl font-medium text-xs text-slate-600 flex items-center gap-1.5">
+            <span>Overall Capital Spent:</span>
+            <span className="font-bold font-mono text-slate-800">{currency}{totalCombinedInvested.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+
+        {totalCombinedInvested === 0 ? (
+          <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-200 rounded-xl">
+            <p className="text-slate-400 text-xs">No investments recorded yet. Register expenses, stock purchases, or labour services to see standings.</p>
+          </div>
+        ) : (
+          <div className="w-full" style={{ minHeight: '320px' }}>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart
+                data={memberContributions}
+                margin={{ top: 10, right: 10, left: 10, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis 
+                  dataKey="name" 
+                  stroke="#94a3b8" 
+                  fontSize={11} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  dy={8}
+                />
+                <YAxis 
+                  stroke="#94a3b8" 
+                  fontSize={10} 
+                  tickLine={false} 
+                  axisLine={false} 
+                  dx={-8}
+                  tickFormatter={(v) => `${currency}${v.toLocaleString('en-IN')}`} 
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc', opacity: 0.4 }} />
+                <Legend 
+                  verticalAlign="top" 
+                  height={36} 
+                  iconType="circle" 
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: '11px', fontWeight: 600 }}
+                />
+                <Bar dataKey="Expenses" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={36} />
+                <Bar dataKey="Stock Purchase" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={36} />
+                <Bar dataKey="Labour/Wages" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={36} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Main Sections */}
       <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-105 pb-4 print:hidden">
           <div className="flex items-center gap-3">

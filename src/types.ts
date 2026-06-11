@@ -65,6 +65,8 @@ export interface Expense {
   commonAllocationRule?: CommonAllocationType;
   allocations?: Allocation[];  // list of field-season allocations
   receiptPhoto?: string;       // base64
+  isCredit?: boolean;
+  creditAccountId?: string;
 }
 
 export interface StockItem {
@@ -85,6 +87,8 @@ export interface StockPurchase {
   totalCost: number;
   date: string;
   paidByMemberId: string;
+  isCredit?: boolean;
+  creditAccountId?: string;
 }
 
 export interface StockUsageAllocation {
@@ -117,6 +121,8 @@ export interface Labour {
   wageRate: number; // per worker rate
   totalCost: number; // lump sum or workersCount * wageRate
   paidByMemberId: string;
+  isCredit?: boolean;
+  creditAccountId?: string;
 }
 
 export interface HarvestRevenue {
@@ -190,3 +196,21 @@ export interface SettlementSummary {
   isBalanced: boolean;
   totalSettlementDiscrepancy: number; // should be 0
 }
+
+export interface CreditAccount {
+  id: string;
+  name: string;
+  phone?: string;
+  type: 'Labour' | 'Tractor' | 'Vendor' | 'Other';
+  notes?: string;
+}
+
+export interface CreditRepayment {
+  id: string;
+  creditAccountId: string;
+  memberId: string; // The partner/member who paid
+  amount: number;
+  date: string;
+  notes?: string;
+}
+

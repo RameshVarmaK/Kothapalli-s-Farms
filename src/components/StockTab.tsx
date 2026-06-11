@@ -32,13 +32,13 @@ interface StockTabProps {
 }
 
 export const StockTab: React.FC<StockTabProps> = ({
-  stockItems,
-  purchases,
-  usages,
-  fields,
-  seasons,
-  members,
-  activities,
+  stockItems = [],
+  purchases = [],
+  usages = [],
+  fields = [],
+  seasons = [],
+  members = [],
+  activities = [],
   currency,
   onAddStockItem,
   onAddPurchase,
@@ -128,7 +128,8 @@ export const StockTab: React.FC<StockTabProps> = ({
     let newUsage: StockUsage;
 
     if (usageTargetType === 'single') {
-      const s = seasons.find(sea => sea.id === usageSeasonId)!;
+      const s = seasons.find(sea => sea.id === usageSeasonId);
+      if (!s) return;
       newUsage = {
         id: `use_${Date.now()}`,
         stockItemId: selectedItemId,
@@ -142,14 +143,15 @@ export const StockTab: React.FC<StockTabProps> = ({
     } else {
       // Common stock allocation
       const participatingDetailed = usageParticipatingSeasons.map(sid => {
-        const s = seasons.find(sea => sea.id === sid)!;
-        const f = fields.find(field => field.id === s.fieldId)!;
+        const s = seasons.find(sea => sea.id === sid);
+        if (!s) return null;
+        const f = fields.find(field => field.id === s.fieldId);
         return {
           fieldId: s.fieldId,
           seasonId: s.id,
           fieldArea: f?.area || 1
         };
-      });
+      }).filter((v): v is { fieldId: string; seasonId: string; fieldArea: number } => v !== null);
 
       const parsedManual: { [key: string]: number } = {};
       Object.keys(manualUsageAllocations).forEach(k => {
@@ -735,7 +737,8 @@ export const StockTab: React.FC<StockTabProps> = ({
                                             parseFloat(usageQty) || 0,
                                             usageAllocationRule,
                                             usageParticipatingSeasons.map(sid => {
-                                              const targetS = seasons.find(sea => sea.id === sid)!;
+                                              const targetS = seasons.find(sea => sea.id === sid);
+                                              if (!targetS) return { fieldId: '', seasonId: sid, fieldArea: 1 };
                                               return {
                                                 fieldId: targetS.fieldId,
                                                 seasonId: targetS.id,

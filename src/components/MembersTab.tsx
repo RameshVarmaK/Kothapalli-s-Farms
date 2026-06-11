@@ -14,7 +14,9 @@ import {
   StockUsage,
   StockItem,
   StockPurchase,
-  Activity
+  Activity,
+  CreditAccount,
+  CreditRepayment
 } from '../types';
 import { buildSettlementLedger, computeStockLevels } from '../utils/calculations';
 import { Plus, Users, Grid, Sliders, Sprout, AlertTriangle, Trash2, CheckCircle, FileText, Copy, Check, X, Calendar, DollarSign, Package } from 'lucide-react';
@@ -31,6 +33,8 @@ interface MembersTabProps {
   purchases: StockPurchase[];
   activities: Activity[];
   currency: string;
+  creditAccounts?: CreditAccount[];
+  creditRepayments?: CreditRepayment[];
   onAddMember: (item: Member) => void;
   onAddField: (item: Field) => void;
   onAddSeason: (item: Season) => void;
@@ -41,17 +45,19 @@ interface MembersTabProps {
 }
 
 export const MembersTab: React.FC<MembersTabProps> = ({
-  fields,
-  seasons,
-  members,
-  expenses,
-  labours,
-  revenues,
-  usages,
-  stockItems,
-  purchases,
-  activities,
+  fields = [],
+  seasons = [],
+  members = [],
+  expenses = [],
+  labours = [],
+  revenues = [],
+  usages = [],
+  stockItems = [],
+  purchases = [],
+  activities = [],
   currency,
+  creditAccounts = [],
+  creditRepayments = [],
   onAddMember,
   onAddField,
   onAddSeason,
@@ -121,7 +127,9 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     usages,
     stockItems,
     purchases,
-    seasons.map(s => s.id)
+    seasons.map(s => s.id),
+    creditAccounts,
+    creditRepayments
   );
 
   const checkSeasonSettled = (seasonId: string) => {

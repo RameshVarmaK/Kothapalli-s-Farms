@@ -15,7 +15,9 @@ import {
   StockUsage,
   HarvestRevenue,
   AuditLog,
-  Settings
+  Settings,
+  CreditAccount,
+  CreditRepayment
 } from '../types';
 
 export interface LocalDatabase {
@@ -31,6 +33,8 @@ export interface LocalDatabase {
   revenues: HarvestRevenue[];
   auditLogs: AuditLog[];
   settings: Settings;
+  creditAccounts?: CreditAccount[];
+  creditRepayments?: CreditRepayment[];
 }
 
 const STORAGE_KEY = 'farm_ledger_database';
@@ -65,7 +69,23 @@ export function getInitialDatabase(): LocalDatabase {
   const localData = localStorage.getItem(STORAGE_KEY);
   if (localData) {
     try {
-      return JSON.parse(localData);
+      const parsed = JSON.parse(localData) || {};
+      return {
+        members: parsed.members || DEFAULT_MEMBERS || [],
+        fields: parsed.fields || DEFAULT_FIELDS || [],
+        seasons: parsed.seasons || DEFAULT_SEASONS || [],
+        activities: parsed.activities || [],
+        expenses: parsed.expenses || DEFAULT_EXPENSES || [],
+        labours: parsed.labours || DEFAULT_LABOUR || [],
+        stockItems: parsed.stockItems || DEFAULT_STOCK || [],
+        purchases: parsed.purchases || DEFAULT_PURCHASES || [],
+        usages: parsed.usages || DEFAULT_USAGES || [],
+        revenues: parsed.revenues || DEFAULT_REVENUES || [],
+        auditLogs: parsed.auditLogs || [],
+        settings: parsed.settings || DEFAULT_SETTINGS,
+        creditAccounts: parsed.creditAccounts || [],
+        creditRepayments: parsed.creditRepayments || []
+      };
     } catch (e) {
       console.error('Error parsing localstorage database:', e);
     }
@@ -84,7 +104,9 @@ export function getInitialDatabase(): LocalDatabase {
     usages: DEFAULT_USAGES,
     revenues: DEFAULT_REVENUES,
     auditLogs: DEFAULT_AUDIT,
-    settings: DEFAULT_SETTINGS
+    settings: DEFAULT_SETTINGS,
+    creditAccounts: [],
+    creditRepayments: []
   };
 
   saveDatabase(db);

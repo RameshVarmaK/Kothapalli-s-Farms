@@ -24,7 +24,9 @@ import {
   StockUsage,
   HarvestRevenue,
   Settings,
-  AuditLog
+  AuditLog,
+  CreditAccount,
+  CreditRepayment
 } from './types';
 import { DashboardTab } from './components/DashboardTab';
 import { MoneyTab } from './components/MoneyTab';
@@ -33,8 +35,9 @@ import { TimelineTab } from './components/TimelineTab';
 import { SettleTab } from './components/SettleTab';
 import { MembersTab } from './components/MembersTab';
 import { SettingsTab } from './components/SettingsTab';
+import { CreditsTab } from './components/CreditsTab';
 import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet } from './utils/googleSheets';
-import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard } from 'lucide-react';
 
 const formatErrorTextWithLinks = (text: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -61,7 +64,7 @@ const formatErrorTextWithLinks = (text: string) => {
 export default function App() {
   const [db, setDb] = useState<LocalDatabase | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings'
+    'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings' | 'credits'
   >('dashboard');
 
   // Unified Google Firebase Authentication state
@@ -132,7 +135,14 @@ export default function App() {
     // Bootstrap continuous Firebase auth flow state listener
     const unsubscribe = initAuth(
       (currentUser, token) => {
-        setUser(currentUser);
+        setUser(prevUser => {
+          if (prevUser && prevUser.uid !== currentUser.uid) {
+            console.log("Detected Google profile switch. Purging old database local cache...");
+            localStorage.removeItem('farm_ledger_database');
+            setDb(getInitialDatabase());
+          }
+          return currentUser;
+        });
         setAccessToken(token);
       },
       () => {
@@ -190,6 +200,26 @@ export default function App() {
           }
 
           if (sheetData) {
+            const currentLocalDb = db || getInitialDatabase();
+            const isSheetDataEmpty = 
+              (!sheetData.members || sheetData.members.length === 0) &&
+              (!sheetData.fields || sheetData.fields.length === 0) &&
+              (!sheetData.seasons || sheetData.seasons.length === 0) &&
+              (!sheetData.expenses || sheetData.expenses.length === 0);
+
+            const isLocalDataNotEmpty = 
+              (currentLocalDb.members && currentLocalDb.members.length > 0) ||
+              (currentLocalDb.fields && currentLocalDb.fields.length > 0) ||
+              (currentLocalDb.seasons && currentLocalDb.seasons.length > 0);
+
+            if (isSheetDataEmpty && isLocalDataNotEmpty) {
+              console.log("Newly linked Google Sheet is empty, but local database has valuable offline records. Pushing local state to Sheets to prevent data clearing...");
+              await pushDataToSpreadsheet(accessToken, targetSheetId!, currentLocalDb);
+              sheetData = {
+                ...currentLocalDb,
+              };
+            }
+
             setDb(prev => {
               const base = prev || {
                 members: [],
@@ -203,17 +233,31 @@ export default function App() {
                 usages: [],
                 revenues: [],
                 auditLogs: [],
-                settings: { currency: "₹", areaUnit: "acres", googleDriveLinked: true, linkedSpreadsheetId: targetSheetId }
+                settings: { currency: "₹", areaUnit: "acres", googleDriveLinked: true, linkedSpreadsheetId: targetSheetId },
+                creditAccounts: [],
+                creditRepayments: []
               };
-              const finalDb = {
-                ...base,
-                ...sheetData,
+              const finalDb: LocalDatabase = {
+                members: sheetData.members ?? base.members ?? [],
+                fields: sheetData.fields ?? base.fields ?? [],
+                seasons: sheetData.seasons ?? base.seasons ?? [],
+                activities: sheetData.activities ?? base.activities ?? [],
+                expenses: sheetData.expenses ?? base.expenses ?? [],
+                labours: sheetData.labours ?? base.labours ?? [],
+                stockItems: sheetData.stockItems ?? base.stockItems ?? [],
+                purchases: sheetData.purchases ?? base.purchases ?? [],
+                usages: sheetData.usages ?? base.usages ?? [],
+                revenues: sheetData.revenues ?? base.revenues ?? [],
+                auditLogs: sheetData.auditLogs ?? base.auditLogs ?? [],
+                creditAccounts: sheetData.creditAccounts ?? base.creditAccounts ?? [],
+                creditRepayments: sheetData.creditRepayments ?? base.creditRepayments ?? [],
                 settings: {
                   ...base.settings,
+                  ...(sheetData.settings || {}),
                   googleDriveLinked: true,
                   linkedSpreadsheetId: targetSheetId
                 }
-              } as LocalDatabase;
+              };
               saveDatabase(finalDb);
               return finalDb;
             });
@@ -268,6 +312,11 @@ export default function App() {
       }
       const result = await googleSignIn();
       if (result) {
+        if (user && user.uid !== result.user.uid) {
+          console.log("Logged in different user. Cleaning stale local state cache...");
+          localStorage.removeItem('farm_ledger_database');
+          setDb(getInitialDatabase());
+        }
         setUser(result.user);
         setAccessToken(result.accessToken);
         return result.accessToken;
@@ -288,6 +337,9 @@ export default function App() {
       await logout();
       setUser(null);
       setAccessToken(null);
+      console.log("Logged out active slot. Removing local storage cache cleanly...");
+      localStorage.removeItem('farm_ledger_database');
+      setDb(getInitialDatabase());
     } catch (error) {
       console.error('Unified Google Auth Disconnect error:', error);
     }
@@ -409,19 +461,21 @@ export default function App() {
 
 
   const {
-    members,
-    fields,
-    seasons,
-    expenses,
-    labours,
-    revenues,
-    stockItems,
-    purchases,
-    usages,
-    activities,
-    settings,
-    auditLogs
-  } = db;
+    members = [],
+    fields = [],
+    seasons = [],
+    expenses = [],
+    labours = [],
+    revenues = [],
+    stockItems = [],
+    purchases = [],
+    usages = [],
+    activities = [],
+    settings = { currency: '₹', areaUnit: 'acres', googleDriveLinked: false },
+    auditLogs = [],
+    creditAccounts = [],
+    creditRepayments = []
+  } = db || {};
 
   // Persist helper
   const handleUpdateDatabase = (updatedFields: Partial<LocalDatabase>) => {
@@ -656,6 +710,87 @@ export default function App() {
       setDb(finalDb);
     } else {
       handleUpdateDatabase({ revenues: nextList });
+    }
+  };
+
+  // ACTIONS: Credit Profiles & Repayments
+  const handleAddCreditAccount = (acc: CreditAccount) => {
+    const nextList = [...creditAccounts, acc];
+    const newDb = { ...db, creditAccounts: nextList };
+    const finalDb = addAuditLog(
+      newDb,
+      'create',
+      'CreditAccount' as any,
+      acc.id,
+      `Registered creditor profile: "${acc.name}" (${acc.type})`
+    );
+    setDb(finalDb);
+  };
+
+  const handleEditCreditAccount = (updatedAcc: CreditAccount) => {
+    const nextList = creditAccounts.map(c => c.id === updatedAcc.id ? updatedAcc : c);
+    const newDb = { ...db, creditAccounts: nextList };
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'CreditAccount' as any,
+      updatedAcc.id,
+      `Updated creditor profile details: "${updatedAcc.name}" (${updatedAcc.type})`
+    );
+    setDb(finalDb);
+  };
+
+  const handleDeleteCreditAccount = (id: string) => {
+    const target = creditAccounts.find(c => c.id === id);
+    const nextList = creditAccounts.filter(c => c.id !== id);
+    const newDb = { ...db, creditAccounts: nextList };
+    if (target) {
+      const finalDb = addAuditLog(
+        newDb,
+        'delete',
+        'CreditAccount' as any,
+        id,
+        `Removed creditor: "${target.name}"`
+      );
+      setDb(finalDb);
+    } else {
+      handleUpdateDatabase({ creditAccounts: nextList });
+    }
+  };
+
+  const handleAddCreditRepayment = (rep: CreditRepayment) => {
+    const nextList = [...creditRepayments, rep];
+    const newDb = { ...db, creditRepayments: nextList };
+    const creditor = creditAccounts.find(c => c.id === rep.creditAccountId);
+    const memberName = members.find(m => m.id === rep.memberId)?.name || 'Unknown Partner';
+    const finalDb = addAuditLog(
+      newDb,
+      'create',
+      'CreditRepayment' as any,
+      rep.id,
+      `Paid settlement repayment of ${settings.currency}${rep.amount} to creditor "${creditor ? creditor.name : 'Unknown'}" by partner "${memberName}"`,
+      rep.memberId
+    );
+    setDb(finalDb);
+  };
+
+  const handleDeleteCreditRepayment = (id: string) => {
+    const target = creditRepayments.find(r => r.id === id);
+    const nextList = creditRepayments.filter(r => r.id !== id);
+    const newDb = { ...db, creditRepayments: nextList };
+    if (target) {
+      const creditor = creditAccounts.find(c => c.id === target.creditAccountId);
+      const finalDb = addAuditLog(
+        newDb,
+        'delete',
+        'CreditRepayment' as any,
+        id,
+        `Voided repayment of ${settings.currency}${target.amount} to creditor "${creditor ? creditor.name : 'Unknown'}"`,
+        target.memberId
+      );
+      setDb(finalDb);
+    } else {
+      handleUpdateDatabase({ creditRepayments: nextList });
     }
   };
 
@@ -1053,6 +1188,18 @@ export default function App() {
             <span>Fields & Directory</span>
           </button>
 
+          <button
+            onClick={() => setActiveTab('credits')}
+            className={`flex flex-col md:flex-row items-center gap-1.5 md:gap-3 px-3 py-2.5 rounded-xl text-[10px] md:text-xs font-semibold tracking-wide transition-all w-full md:text-left cursor-pointer border md:border-l-4 ${
+              activeTab === 'credits'
+                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
+            }`}
+          >
+            <CreditCard size={16} />
+            <span>Credit & Payables</span>
+          </button>
+
           <div className="hidden md:block border-t border-slate-200 my-3 pt-3" />
 
           <button
@@ -1083,6 +1230,8 @@ export default function App() {
               stockItems={stockItems}
               currency={settings.currency}
               areaUnit={settings.areaUnit}
+              creditAccounts={creditAccounts}
+              creditRepayments={creditRepayments}
               onSelectTab={(tab) => setActiveTab(tab as any)}
             />
           )}
@@ -1097,6 +1246,7 @@ export default function App() {
               members={members}
               activities={activities}
               currency={settings.currency}
+              creditAccounts={creditAccounts}
               onAddExpense={handleAddExpense}
               onEditExpense={handleEditExpense}
               onDeleteExpense={handleDeleteExpense}
@@ -1152,6 +1302,8 @@ export default function App() {
               stockItems={stockItems}
               purchases={purchases}
               currency={settings.currency}
+              creditAccounts={creditAccounts}
+              creditRepayments={creditRepayments}
             />
           )}
 
@@ -1168,6 +1320,8 @@ export default function App() {
               purchases={purchases}
               activities={activities}
               currency={settings.currency}
+              creditAccounts={creditAccounts}
+              creditRepayments={creditRepayments}
               onAddMember={handleAddMember}
               onAddField={handleAddField}
               onAddSeason={handleAddSeason}
@@ -1175,6 +1329,24 @@ export default function App() {
               onDeleteMember={handleDeleteMember}
               onDeleteField={handleDeleteField}
               onDeleteSeason={handleDeleteSeason}
+            />
+          )}
+
+          {activeTab === 'credits' && (
+            <CreditsTab
+              creditAccounts={creditAccounts}
+              creditRepayments={creditRepayments}
+              members={members}
+              expenses={expenses}
+              labours={labours}
+              seasons={seasons}
+              fields={fields}
+              currency={settings.currency}
+              onAddCreditAccount={handleAddCreditAccount}
+              onEditCreditAccount={handleEditCreditAccount}
+              onDeleteCreditAccount={handleDeleteCreditAccount}
+              onAddCreditRepayment={handleAddCreditRepayment}
+              onDeleteCreditRepayment={handleDeleteCreditRepayment}
             />
           )}
 

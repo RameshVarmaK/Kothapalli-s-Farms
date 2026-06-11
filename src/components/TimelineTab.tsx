@@ -30,14 +30,14 @@ interface TimelineTabProps {
 }
 
 export const TimelineTab: React.FC<TimelineTabProps> = ({
-  activities,
-  fields,
-  seasons,
-  members,
-  expenses,
-  labours,
-  usages,
-  stockItems,
+  activities = [],
+  fields = [],
+  seasons = [],
+  members = [],
+  expenses = [],
+  labours = [],
+  usages = [],
+  stockItems = [],
   currency,
   onAddActivity
 }) => {
