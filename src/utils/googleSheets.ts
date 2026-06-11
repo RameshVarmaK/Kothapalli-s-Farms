@@ -28,18 +28,23 @@ export async function findExistingSpreadsheet(accessToken: string): Promise<stri
     });
 
     if (!res.ok) {
-      throw new Error(`Failed to list Drive files: ${res.statusText}`);
+      let errBody = '';
+      try {
+        errBody = await res.text();
+      } catch (_) {}
+      console.warn(`findExistingSpreadsheet check failed with status ${res.status}. Falling back to Sheets creation. Details:`, errBody);
+      return null;
     }
 
     const result = await res.json();
     if (result.files && result.files.length > 0) {
       return result.files[0].id;
     }
-    return null;
-  } catch (error) {
-    console.error('findExistingSpreadsheet error:', error);
+  } catch (err) {
+    console.warn('findExistingSpreadsheet check threw exception, falling back to Sheets creation:', err);
     return null;
   }
+  return null;
 }
 
 /**
@@ -76,7 +81,11 @@ export async function createSpreadsheet(accessToken: string): Promise<string> {
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to create Google Sheet: ${res.statusText}`);
+    let errBody = '';
+    try {
+      errBody = await res.text();
+    } catch (_) {}
+    throw new Error(`Failed to create Google Sheet: ${res.status} ${res.statusText || ''} - ${errBody}`);
   }
 
   const result = await res.json();
@@ -88,7 +97,9 @@ export async function createSpreadsheet(accessToken: string): Promise<string> {
  */
 function toSheetRows<T extends object>(data: T[], headers: string[]): any[][] {
   const rows = [headers];
+  if (!data) return rows;
   data.forEach(item => {
+    if (!item) return;
     const row = headers.map(header => {
       const val = (item as any)[header];
       if (val === undefined || val === null) return '';
@@ -329,7 +340,9 @@ function parseSheetRows<T>(rows: any[][]): T[] {
         item[header] = val;
       }
     });
-    items.push(item as T);
+    if (item.id && String(item.id).trim() !== '') {
+      items.push(item as T);
+    }
   }
 
   return items;

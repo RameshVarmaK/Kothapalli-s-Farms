@@ -4,17 +4,29 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const getFirebaseConfig = () => {
   const custom = localStorage.getItem('farmledger_custom_firebase_config');
+  let config = firebaseConfig;
   if (custom) {
     try {
       const parsed = JSON.parse(custom);
       if (parsed.apiKey && parsed.projectId) {
-        return parsed;
+        config = parsed;
       }
     } catch (e) {
       console.error('Failed to parse custom firebase config:', e);
     }
   }
-  return firebaseConfig;
+
+  // Automatically override the authDomain if deployed on Vercel to support Google Sign-in on custom domains
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname.includes('vercel.app') || hostname === 'project-xdybw.vercel.app') {
+      return {
+        ...config,
+        authDomain: hostname
+      };
+    }
+  }
+  return config;
 };
 
 const app = getApps().length === 0 ? initializeApp(getFirebaseConfig()) : getApp();
@@ -71,9 +83,13 @@ export const initAuth = (
 
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
+      if (isSigningIn) {
+        // Sign-in is currently in-progress. Let the ongoing sign-in set the fresh token instead of using stale token.
+        return;
+      }
       if (cachedAccessToken) {
         if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
+      } else {
         // If we have a user but no cached token, they need to sign in again to obtain a token
         cachedAccessToken = null;
         if (onAuthFailure) onAuthFailure();
@@ -129,6 +145,13 @@ export const getAccessToken = (): string | null => {
 
 export const logout = async () => {
   await auth.signOut();
+  cachedAccessToken = null;
+  try {
+    localStorage.removeItem('farmledger_google_access_token');
+  } catch (e) {}
+};
+
+export const clearGoogleAccessToken = () => {
   cachedAccessToken = null;
   try {
     localStorage.removeItem('farmledger_google_access_token');

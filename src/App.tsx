@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { initAuth, googleSignIn, googleSignInRedirect, logout } from './utils/auth';
+import { initAuth, googleSignIn, googleSignInRedirect, logout, clearGoogleAccessToken } from './utils/auth';
 import {
   getInitialDatabase,
   saveDatabase,
@@ -33,8 +33,30 @@ import { TimelineTab } from './components/TimelineTab';
 import { SettleTab } from './components/SettleTab';
 import { MembersTab } from './components/MembersTab';
 import { SettingsTab } from './components/SettingsTab';
-import { pullDataFromSpreadsheet, pushDataToSpreadsheet } from './utils/googleSheets';
+import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet } from './utils/googleSheets';
 import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle } from 'lucide-react';
+
+const formatErrorTextWithLinks = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      const hrefValue = part.replace(/[.,;"]$/, '');
+      return (
+        <a
+          key={index}
+          href={hrefValue}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-700 hover:text-indigo-900 underline font-black inline-flex items-center gap-1 bg-white border border-indigo-200 px-3 py-1.5 rounded-xl ml-1 hover:shadow-xs transition-all my-1"
+        >
+          Enable Google Sheets API ↗
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
 
 export default function App() {
   const [db, setDb] = useState<LocalDatabase | null>(null);
@@ -65,9 +87,20 @@ export default function App() {
   const syncDatabaseAcrossCloud = async (currentDb?: LocalDatabase) => {
     const dbToSync = currentDb || db;
     if (!accessToken || !dbToSync) return;
+
+    if (loadingData) {
+      console.log('Postponing cloud sync because database is currently loading data...');
+      return;
+    }
+
+    const targetSheetId = dbToSync.settings?.linkedSpreadsheetId;
+    if (!targetSheetId || targetSheetId === "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts") {
+      console.log('Postponing cloud sync because spreadsheet ID is absent or placeholder. Auto-fetch will resolve this.');
+      return;
+    }
+
     setSyncingState('syncing');
     try {
-      const targetSheetId = dbToSync.settings?.linkedSpreadsheetId || "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts";
       await pushDataToSpreadsheet(accessToken, targetSheetId, dbToSync);
       setSyncingState('success');
       setSyncMessage('Successfully synced with cloud Sheets!');
@@ -75,7 +108,19 @@ export default function App() {
     } catch (err: any) {
       console.error('Unified Auto-sync failed:', err);
       setSyncingState('failed');
-      setSyncMessage(err.message || String(err));
+      const errMsg = err.message || String(err);
+      const isAuthError = errMsg.includes("401") || 
+                          errMsg.toLowerCase().includes("unauthenticated") || 
+                          errMsg.toLowerCase().includes("invalid credentials");
+      if (isAuthError) {
+        clearGoogleAccessToken();
+        setSyncMessage('Your Google session has expired. Clearing session to re-authorize...');
+        setTimeout(() => {
+          setAccessToken(null);
+        }, 2000);
+      } else {
+        setSyncMessage(errMsg);
+      }
     }
   };
 
@@ -105,8 +150,45 @@ export default function App() {
         setLoadingData(true);
         setFetchError(null);
         try {
-          const targetSheetId = db?.settings?.linkedSpreadsheetId || "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts";
-          const sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
+          let targetSheetId = db?.settings?.linkedSpreadsheetId;
+          const isPlaceholder = !targetSheetId || targetSheetId === "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts";
+          let sheetData = null;
+
+          if (!isPlaceholder) {
+            try {
+              sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId!);
+            } catch (pullError) {
+              console.warn(`Could not pull from spreadsheet ${targetSheetId}. Searching for 'FarmLedger Database'...`, pullError);
+              const foundId = await findExistingSpreadsheet(accessToken);
+              if (foundId) {
+                console.log(`Found existing spreadsheet: ${foundId}`);
+                targetSheetId = foundId;
+                sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
+              } else {
+                console.log("No existing spreadsheet found on Drive. Creating a new one...");
+                const newId = await createSpreadsheet(accessToken);
+                targetSheetId = newId;
+                const localDb = db || getInitialDatabase();
+                await pushDataToSpreadsheet(accessToken, targetSheetId, localDb);
+                sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
+              }
+            }
+          } else {
+            const foundId = await findExistingSpreadsheet(accessToken);
+            if (foundId) {
+              console.log(`Found existing spreadsheet: ${foundId}`);
+              targetSheetId = foundId;
+              sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
+            } else {
+              console.log("No existing spreadsheet found on Drive. Creating a new one...");
+              const newId = await createSpreadsheet(accessToken);
+              targetSheetId = newId;
+              const localDb = db || getInitialDatabase();
+              await pushDataToSpreadsheet(accessToken, targetSheetId, localDb);
+              sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
+            }
+          }
+
           if (sheetData) {
             setDb(prev => {
               const base = prev || {
@@ -140,10 +222,22 @@ export default function App() {
           }
         } catch (err: any) {
           console.error("Autopull on login failed:", err);
-          setFetchError(err.message || String(err));
-          // Clear token if pulling fails due to expired or permission error
-          // so they get prompted to re-authorize again
-          setAccessToken(null);
+          const errMsg = err.message || String(err);
+          const isAuthError = errMsg.includes("401") || 
+                              errMsg.toLowerCase().includes("unauthenticated") || 
+                              errMsg.toLowerCase().includes("invalid credentials") ||
+                              errMsg.toLowerCase().includes("unauthorized-domain") ||
+                              errMsg.toLowerCase().includes("auth/");
+          if (isAuthError) {
+            setFetchError("session-expired");
+            clearGoogleAccessToken();
+            setAccessToken(null);
+          } else {
+            setFetchError(errMsg);
+            setSyncingState('failed');
+            setSyncMessage(errMsg);
+            // We do NOT clear or set accessToken to null so they stay logged in inside the app
+          }
         } finally {
           setLoadingData(false);
         }
@@ -167,6 +261,7 @@ export default function App() {
   const handleLogin = async (mode: 'popup' | 'redirect' = 'popup'): Promise<string | null> => {
     try {
       setAuthError(null);
+      setFetchError(null);
       if (mode === 'redirect') {
         await googleSignInRedirect();
         return null; // Will trigger redirect, so page will unload
@@ -273,9 +368,19 @@ export default function App() {
           {/* Live Auth state indicators */}
           {fetchError && (
             <div className="w-full mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-xs text-red-600 leading-relaxed font-medium">
-              <p className="font-bold mb-1">Could not synchronize database:</p>
-              <p className="break-words">{fetchError}</p>
-              <p className="mt-2 text-[10px] text-slate-400">Please make sure your Google Account is permitted to access Sheet <strong>{db?.settings?.linkedSpreadsheetId || "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts"}</strong>.</p>
+              {fetchError === "session-expired" ? (
+                <>
+                  <p className="font-bold mb-1">Google Session Expired</p>
+                  <p className="break-words">Your Google Authorization session has expired or was revoked. This is a standard security measure after 1 hour of inactivity.</p>
+                  <p className="mt-2 text-[10px] text-emerald-600 font-bold">Please click the button below to sign in again and refresh access to your sheets.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold mb-1">Could not synchronize database:</p>
+                  <p className="break-words">{formatErrorTextWithLinks(fetchError)}</p>
+                  <p className="mt-2 text-[10px] text-slate-400">Please make sure your Google Account is permitted to access Sheet <strong>{db?.settings?.linkedSpreadsheetId || "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts"}</strong>.</p>
+                </>
+              )}
             </div>
           )}
 
@@ -678,10 +783,11 @@ export default function App() {
   const handleCloseSeason = (id: string, endDate: string) => {
     const nextList = seasons.map(s => s.id === id ? { ...s, isClosed: true, endDate } : s);
     const target = seasons.find(s => s.id === id);
+    if (!target) return;
 
     const harvestAct: Activity = {
       id: `act_harvest_${Date.now()}`,
-      fieldId: target!.fieldId,
+      fieldId: target.fieldId,
       seasonId: id,
       date: endDate,
       type: 'Harvesting',
@@ -689,18 +795,14 @@ export default function App() {
     };
 
     const newDb = { ...db, seasons: nextList, activities: [...activities, harvestAct] };
-    if (target) {
-      const finalDb = addAuditLog(
-        newDb,
-        'edit',
-        'Season',
-        id,
-        `Closed cropping cycle crop season: "${target.cropName}" marked harvested`
-      );
-      setDb(finalDb);
-    } else {
-      handleUpdateDatabase({ seasons: nextList, activities: [...activities, harvestAct] });
-    }
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'Season',
+      id,
+      `Closed cropping cycle crop season: "${target.cropName}" marked harvested`
+    );
+    setDb(finalDb);
   };
 
   const handleDeleteSeason = (id: string) => {

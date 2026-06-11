@@ -10,6 +10,28 @@ import { exportDatabaseJSON } from '../utils/database';
 import { findExistingSpreadsheet, createSpreadsheet, pushDataToSpreadsheet, pullDataFromSpreadsheet } from '../utils/googleSheets';
 import { Cloud, CheckCircle, ExternalLink, RefreshCw, Key, Download, Upload, Eye, FileText, AlertTriangle } from 'lucide-react';
 
+const formatErrorTextWithLinks = (text: string) => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      const hrefValue = part.replace(/[.,;"]$/, '');
+      return (
+        <a
+          key={index}
+          href={hrefValue}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-indigo-950 hover:text-black underline font-black inline-flex items-center gap-1 bg-white border border-indigo-200 px-2 py-1 rounded ml-1 hover:shadow-xs transition-all animate-bounce"
+        >
+          Enable Sheets API ↗
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+};
+
 interface SettingsTabProps {
   settings: Settings;
   auditLogs: AuditLog[];
@@ -276,7 +298,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
             syncStatus === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-100' :
             syncStatus === 'failed' ? 'bg-red-50 text-red-800 border-red-100' : 'bg-blue-50 text-blue-700 border-blue-100'
           }`}>
-            <span>{statusMessage}</span>
+            <span>{formatErrorTextWithLinks(statusMessage)}</span>
             {syncStatus === 'success' && <CheckCircle size={16} className="text-emerald-700 shrink-0" />}
           </div>
         )}
