@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Field,
   Season,
@@ -15,7 +15,8 @@ import {
   StockUsage,
   Member,
   CreditAccount,
-  CreditRepayment
+  CreditRepayment,
+  SettlementSummary,
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
 import { TrendingUp, TrendingDown, IndianRupee, Layers, Sprout, Coins } from 'lucide-react';
@@ -69,20 +70,29 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const openSeasonIds = seasons.filter(s => !s.isClosed).map(s => s.id);
   const allSeasonIds = seasons.map(s => s.id);
 
-  // Compute stats for all seasons
-  const summary = buildSettlementLedger(
-    fields,
-    seasons,
-    members,
-    expenses,
-    labours,
-    revenues,
-    usages,
-    stockItems,
-    purchases,
-    allSeasonIds,
-    creditAccounts,
-    creditRepayments
+  // Compute stats for all seasons. Memoised so each render of a sibling
+  // component (e.g. flipping the season filter) doesn't re-run the full
+  // settlement engine over every record.
+  const summary: SettlementSummary = useMemo(
+    (): SettlementSummary => buildSettlementLedger(
+      fields,
+      seasons,
+      members,
+      expenses,
+      labours,
+      revenues,
+      usages,
+      stockItems,
+      purchases,
+      allSeasonIds,
+      creditAccounts,
+      creditRepayments,
+    ),
+    [
+      fields, seasons, members, expenses, labours, revenues,
+      usages, stockItems, purchases, allSeasonIds,
+      creditAccounts, creditRepayments,
+    ],
   );
 
   const totalExpense = summary.ledgers.reduce((sum, l) => sum + l.totalExpense, 0);

@@ -268,42 +268,16 @@ export async function pushDataToSpreadsheet(
     },
   ];
 
-  // Google Sheets batch update requires clearing old cells or batch overwriting them
-  // We can write user_entered values
+  // Google Sheets batch update requires clearing old cells or batch overwriting them.
+  // SAFETY NOTE: Previous versions cleared every tab BEFORE writing. If the
+  // batchUpdate then failed (network/auth/quota), the spreadsheet would be
+  // left wiped. We now write first, and only clear cells beyond the new
+  // data range after a successful write so the worst-case failure mode is
+  // "stale rows remain" rather than "data lost".
   const payload: SheetsBatchUpdatePayload = {
     valueInputOption: 'USER_ENTERED',
     data: batchData,
   };
-
-  // First, we should clear existing cells so deletions also sync properly
-  // To keep it simple, we can just POST the batch update. Since we overwrite from row 1, any excess rows are retained unless cleared.
-  // Let's first clear the sheets to ensure no stale leftover rows exist.
-  for (const tabName of [
-    'Members',
-    'Fields',
-    'Seasons',
-    'Activities',
-    'Expenses',
-    'Labor',
-    'StockItems',
-    'StockPurchases',
-    'StockUsage',
-    'HarvestRevenue',
-    'AuditLogs',
-    'CreditAccounts',
-    'CreditRepayments',
-  ]) {
-    try {
-      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${tabName}!A1:Z5000:clear`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      });
-    } catch (e) {
-      console.warn(`Could not clear ${tabName}:` , e);
-    }
-  }
 
   const res = await fetch(url, {
     method: 'POST',
@@ -318,6 +292,30 @@ export async function pushDataToSpreadsheet(
     const errorDetails = await res.text();
     throw new Error(`Google Sheets batch update failed: ${errorDetails}`);
   }
+
+  // Now that the write succeeded, clean up any leftover stale rows that
+  // sit below the data we just wrote. We compute the safe starting row per
+  // tab (header row + data rows + 1) so we never erase rows we just wrote.
+  const trailingClears: { tab: string; startRow: number }[] = batchData.map(b => {
+    const tab = b.range.split('!')[0];
+    const startRow = (b.values?.length || 0) + 1; // 1-indexed; +1 to start AFTER the last data row
+    return { tab, startRow };
+  });
+
+  await Promise.all(trailingClears.map(async ({ tab, startRow }) => {
+    try {
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${tab}!A${startRow}:Z5000:clear`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
+    } catch (e) {
+      // Non-fatal: stale tail rows are an aesthetic issue, not a data-loss one.
+      console.warn(`Could not clear trailing rows of ${tab}:`, e);
+    }
+  }));
 }
 
 /**

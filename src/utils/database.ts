@@ -39,6 +39,50 @@ export interface LocalDatabase {
 
 const STORAGE_KEY = 'farm_ledger_database';
 
+/**
+ * Placeholder spreadsheet ID baked into the legacy settings. Treated as
+ * "no real spreadsheet linked yet" by the auto-fetch and sync code paths.
+ * Keep in sync with the default in `SettingsTab.tsx`.
+ */
+export const PLACEHOLDER_SPREADSHEET_ID = '1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts';
+
+export function isPlaceholderSpreadsheetId(id: string | undefined | null): boolean {
+  return !id || id === PLACEHOLDER_SPREADSHEET_ID;
+}
+
+/**
+ * Safe wrappers around the localStorage API. localStorage can throw in
+ * Safari private mode, when the user has site-data disabled, or when
+ * storage is full. The original code only wrapped *some* call sites; these
+ * helpers consolidate the protection.
+ */
+export function safeStorageGet(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch (e) {
+    console.warn(`safeStorageGet(${key}) failed:`, e);
+    return null;
+  }
+}
+
+export function safeStorageSet(key: string, value: string): boolean {
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (e) {
+    console.warn(`safeStorageSet(${key}) failed:`, e);
+    return false;
+  }
+}
+
+export function safeStorageRemove(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch (e) {
+    console.warn(`safeStorageRemove(${key}) failed:`, e);
+  }
+}
+
 const DEFAULT_MEMBERS: Member[] = [];
 
 const DEFAULT_FIELDS: Field[] = [];
@@ -66,7 +110,7 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export function getInitialDatabase(): LocalDatabase {
-  const localData = localStorage.getItem(STORAGE_KEY);
+  const localData = safeStorageGet(STORAGE_KEY);
   if (localData) {
     try {
       const parsed = JSON.parse(localData) || {};
@@ -114,7 +158,7 @@ export function getInitialDatabase(): LocalDatabase {
 }
 
 export function saveDatabase(db: LocalDatabase): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  safeStorageSet(STORAGE_KEY, JSON.stringify(db));
 }
 
 /**
@@ -129,7 +173,7 @@ export function addAuditLog(
   memberId?: string
 ): LocalDatabase {
   const newLog: AuditLog = {
-    id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     timestamp: new Date().toISOString(),
     actionType,
     entityType,

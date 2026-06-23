@@ -6,7 +6,13 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
 import { Settings, AuditLog, Member } from '../types';
-import { exportDatabaseJSON } from '../utils/database';
+import {
+  exportDatabaseJSON,
+  PLACEHOLDER_SPREADSHEET_ID,
+  safeStorageGet,
+  safeStorageSet,
+  safeStorageRemove,
+} from '../utils/database';
 import { findExistingSpreadsheet, createSpreadsheet, pushDataToSpreadsheet, pullDataFromSpreadsheet } from '../utils/googleSheets';
 import { Cloud, CheckCircle, ExternalLink, RefreshCw, Key, Download, Upload, Eye, FileText, AlertTriangle, GitMerge, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
@@ -189,16 +195,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [areaUnit, setAreaUnit] = useState(settings.areaUnit);
   const [customClientId, setCustomClientId] = useState('');
   const [customAccessToken, setCustomAccessToken] = useState('');
-  const [linkedSheetId, setLinkedSheetId] = useState(settings.linkedSpreadsheetId || '1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts');
+  const [linkedSheetId, setLinkedSheetId] = useState(settings.linkedSpreadsheetId || PLACEHOLDER_SPREADSHEET_ID);
   const [customFirebaseConfig, setCustomFirebaseConfig] = useState('');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'authorizing' | 'syncing' | 'success' | 'failed'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
 
   useEffect(() => {
     // Attempt to read custom credentials stored in localstorage
-    const cid = localStorage.getItem('farmledger_custom_client_id') || '';
-    const token = localStorage.getItem('farmledger_custom_access_token') || '';
-    const fconf = localStorage.getItem('farmledger_custom_firebase_config') || '';
+    const cid = safeStorageGet('farmledger_custom_client_id') || '';
+    const token = safeStorageGet('farmledger_custom_access_token') || '';
+    const fconf = safeStorageGet('farmledger_custom_firebase_config') || '';
     setCustomClientId(cid);
     setCustomAccessToken(token);
     setCustomFirebaseConfig(fconf);
@@ -258,7 +264,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     setSyncStatus('syncing');
     setStatusMessage('Searching files on Google Drive...');
     if (customAccessToken) {
-      localStorage.setItem('farmledger_custom_access_token', customAccessToken);
+      safeStorageSet('farmledger_custom_access_token', customAccessToken);
     }
 
     try {
@@ -648,7 +654,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       value={customAccessToken}
                       onChange={e => {
                         setCustomAccessToken(e.target.value.trim());
-                        localStorage.setItem('farmledger_custom_access_token', e.target.value.trim());
+                        safeStorageSet('farmledger_custom_access_token', e.target.value.trim());
                       }}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-705 font-mono"
                     />
@@ -678,7 +684,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                       onChange={e => {
                         const val = e.target.value;
                         setCustomFirebaseConfig(val);
-                        localStorage.setItem('farmledger_custom_firebase_config', val.trim());
+                        safeStorageSet('farmledger_custom_firebase_config', val.trim());
                       }}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-705 font-mono leading-relaxed"
                     />
@@ -703,8 +709,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
                            type="button"
                            onClick={() => {
                              if (confirm("Reset to default AI Studio Firebase project settings? The page will reload.")) {
-                               setCustomFirebaseConfig('');
-                               localStorage.removeItem('farmledger_custom_firebase_config');
+                              setCustomFirebaseConfig('');
+                              safeStorageRemove('farmledger_custom_firebase_config');
                                window.location.reload();
                              }
                            }}

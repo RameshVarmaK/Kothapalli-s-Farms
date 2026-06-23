@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Field,
   Season,
@@ -15,11 +15,12 @@ import {
   StockItem,
   StockPurchase,
   CreditAccount,
-  CreditRepayment
+  CreditRepayment,
+  SettlementSummary,
 } from '../types';
 import { buildSettlementLedger, computeStockLevels } from '../utils/calculations';
 import { CheckCircle2, AlertOctagon, Download, Share2, Printer, ClipboardCheck } from 'lucide-react';
-import { convertToCSV, downloadFile } from '../utils/database';
+import { convertToCSV, downloadFile, safeStorageGet, safeStorageSet } from '../utils/database';
 
 interface SettleTabProps {
   fields: Field[];
@@ -55,13 +56,21 @@ export const SettleTab: React.FC<SettleTabProps> = ({
   );
 
   const [clearedDebts, setClearedDebts] = useState<string[]>(() => {
-    const saved = localStorage.getItem('farmledger_cleared_debts');
-    return saved ? JSON.parse(saved) : [];
+    const saved = safeStorageGet('farmledger_cleared_debts');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [clearedSubEntries, setClearedSubEntries] = useState<string[]>(() => {
-    const saved = localStorage.getItem('farmledger_cleared_sub_entries');
-    return saved ? JSON.parse(saved) : [];
+    const saved = safeStorageGet('farmledger_cleared_sub_entries');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const toggleClearedDebt = (key: string) => {
@@ -69,7 +78,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
       const next = prev.includes(key)
         ? prev.filter(k => k !== key)
         : [...prev, key];
-      localStorage.setItem('farmledger_cleared_debts', JSON.stringify(next));
+      safeStorageSet('farmledger_cleared_debts', JSON.stringify(next));
       return next;
     });
   };
@@ -92,19 +101,26 @@ export const SettleTab: React.FC<SettleTabProps> = ({
 
   const [copiedCSV, setCopiedCSV] = useState(false);
 
-  const summary = buildSettlementLedger(
-    fields,
-    seasons,
-    members,
-    expenses,
-    labours,
-    revenues,
-    usages,
-    stockItems,
-    purchases,
-    selectedSeasonIds,
-    creditAccounts,
-    creditRepayments
+  const summary: SettlementSummary = useMemo(
+    (): SettlementSummary => buildSettlementLedger(
+      fields,
+      seasons,
+      members,
+      expenses,
+      labours,
+      revenues,
+      usages,
+      stockItems,
+      purchases,
+      selectedSeasonIds,
+      creditAccounts,
+      creditRepayments,
+    ),
+    [
+      fields, seasons, members, expenses, labours, revenues,
+      usages, stockItems, purchases, selectedSeasonIds,
+      creditAccounts, creditRepayments,
+    ],
   );
 
   // Run per-season matching to get sub-entries (individual season simplified debts)
@@ -155,14 +171,14 @@ export const SettleTab: React.FC<SettleTabProps> = ({
       const next = prev.includes(subKey)
         ? prev.filter(k => k !== subKey)
         : [...prev, subKey];
-      localStorage.setItem('farmledger_cleared_sub_entries', JSON.stringify(next));
+      safeStorageSet('farmledger_cleared_sub_entries', JSON.stringify(next));
       return next;
     });
 
     // Unchecking any sub-entry immediately voids main explicit clearing
     setClearedDebts(prev => {
       const next = prev.filter(k => k !== parentDebtKey);
-      localStorage.setItem('farmledger_cleared_debts', JSON.stringify(next));
+      safeStorageSet('farmledger_cleared_debts', JSON.stringify(next));
       return next;
     });
   };
@@ -172,14 +188,14 @@ export const SettleTab: React.FC<SettleTabProps> = ({
 
     setClearedDebts(prev => {
       const next = prev.includes(debtKey) ? prev : [...prev, debtKey];
-      localStorage.setItem('farmledger_cleared_debts', JSON.stringify(next));
+      safeStorageSet('farmledger_cleared_debts', JSON.stringify(next));
       return next;
     });
 
     const subKeysToAdd = subEntries.map(s => `${s.seasonId}:${s.fromId}:${s.toId}:${Math.round(s.amount)}`);
     setClearedSubEntries(prev => {
       const next = [...new Set([...prev, ...subKeysToAdd])];
-      localStorage.setItem('farmledger_cleared_sub_entries', JSON.stringify(next));
+      safeStorageSet('farmledger_cleared_sub_entries', JSON.stringify(next));
       return next;
     });
   };
@@ -189,14 +205,14 @@ export const SettleTab: React.FC<SettleTabProps> = ({
 
     setClearedDebts(prev => {
       const next = prev.filter(k => k !== debtKey);
-      localStorage.setItem('farmledger_cleared_debts', JSON.stringify(next));
+      safeStorageSet('farmledger_cleared_debts', JSON.stringify(next));
       return next;
     });
 
     const subKeysToRemove = new Set(subEntries.map(s => `${s.seasonId}:${s.fromId}:${s.toId}:${Math.round(s.amount)}`));
     setClearedSubEntries(prev => {
       const next = prev.filter(key => !subKeysToRemove.has(key));
-      localStorage.setItem('farmledger_cleared_sub_entries', JSON.stringify(next));
+      safeStorageSet('farmledger_cleared_sub_entries', JSON.stringify(next));
       return next;
     });
   };

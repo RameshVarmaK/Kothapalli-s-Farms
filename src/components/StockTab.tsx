@@ -15,7 +15,7 @@ import {
   CommonAllocationType
 } from '../types';
 import { Plus, Archive, History, Coins, Hammer, AlertTriangle } from 'lucide-react';
-import { computeStockLevels, calculateAllocations } from '../utils/calculations';
+import { computeStockLevels, calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
 
 interface StockTabProps {
   stockItems: StockItem[];
@@ -141,6 +141,26 @@ export const StockTab: React.FC<StockTabProps> = ({
         linkedActivityId: usageLinkedActivityId || undefined
       };
     } else {
+      // Guard rail: when using the 'manual' rule for stock usages we must
+      // ensure per-season quantities sum to the headline quantity. Without
+      // this, the consumption math becomes inconsistent with the on-hand
+      // count and settlement allocation. See MoneyTab for the equivalent
+      // expense-side check.
+      if (usageAllocationRule === 'manual') {
+        const parsedManual: { [key: string]: number } = {};
+        Object.keys(manualUsageAllocations).forEach(k => {
+          parsedManual[k] = parseFloat(manualUsageAllocations[k]) || 0;
+        });
+        const diff = allocationDiscrepancy(qty, parsedManual);
+        if (Math.abs(diff) > 0.001) {
+          setErrorMessage(
+            `Manual quantities are off by ${diff > 0 ? '+' : ''}${diff.toFixed(3)}. ` +
+            `Per-season quantities must sum to exactly ${qty}. Adjust before saving.`,
+          );
+          return;
+        }
+      }
+
       // Common stock allocation
       const participatingDetailed = usageParticipatingSeasons.map(sid => {
         const s = seasons.find(sea => sea.id === sid);

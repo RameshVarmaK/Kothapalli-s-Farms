@@ -74,7 +74,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
     if (!credName.trim()) return;
 
     const newCreditor: CreditAccount = {
-      id: `cred_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      id: `cred_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       name: credName.trim(),
       phone: credPhone.trim() || undefined,
       type: credType,
@@ -99,7 +99,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
     if (!creditorId || !repMemberId || !repAmount || isNaN(Number(repAmount)) || Number(repAmount) <= 0) return;
 
     const newRepayment: CreditRepayment = {
-      id: `rep_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      id: `rep_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       creditAccountId: creditorId,
       memberId: repMemberId,
       amount: Number(repAmount),

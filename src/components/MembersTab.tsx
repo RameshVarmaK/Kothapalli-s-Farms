@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Member,
   Field,
@@ -16,9 +16,11 @@ import {
   StockPurchase,
   Activity,
   CreditAccount,
-  CreditRepayment
+  CreditRepayment,
+  SettlementSummary,
 } from '../types';
 import { buildSettlementLedger, computeStockLevels } from '../utils/calculations';
+import { safeStorageGet } from '../utils/database';
 import { Plus, Users, Grid, Sliders, Sprout, AlertTriangle, Trash2, CheckCircle, FileText, Copy, Check, X, Calendar, DollarSign, Package } from 'lucide-react';
 
 interface MembersTabProps {
@@ -116,20 +118,28 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   // Expand and view profile detail sub-record
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
-  // Roll up ledger statements targeting all seasons
-  const summary = buildSettlementLedger(
-    fields,
-    seasons,
-    members,
-    expenses,
-    labours,
-    revenues,
-    usages,
-    stockItems,
-    purchases,
-    seasons.map(s => s.id),
-    creditAccounts,
-    creditRepayments
+  // Roll up ledger statements targeting all seasons. Memoised because every
+  // open of the partner-detail accordion would otherwise re-evaluate the
+  // full settlement engine.
+  const summary: SettlementSummary = useMemo(
+    (): SettlementSummary => buildSettlementLedger(
+      fields,
+      seasons,
+      members,
+      expenses,
+      labours,
+      revenues,
+      usages,
+      stockItems,
+      purchases,
+      seasons.map(s => s.id),
+      creditAccounts,
+      creditRepayments,
+    ),
+    [
+      fields, seasons, members, expenses, labours, revenues,
+      usages, stockItems, purchases, creditAccounts, creditRepayments,
+    ],
   );
 
   const checkSeasonSettled = (seasonId: string) => {
@@ -171,8 +181,13 @@ export const MembersTab: React.FC<MembersTabProps> = ({
 
     if (seasonSimplifiedDebts.length === 0) return true;
 
-    const saved = localStorage.getItem('farmledger_cleared_sub_entries');
-    const clearedKeys: string[] = saved ? JSON.parse(saved) : [];
+    const saved = safeStorageGet('farmledger_cleared_sub_entries');
+    let clearedKeys: string[] = [];
+    try {
+      clearedKeys = saved ? JSON.parse(saved) : [];
+    } catch {
+      clearedKeys = [];
+    }
 
     return seasonSimplifiedDebts.every(sub => {
       const subKey = `${sub.seasonId}:${sub.fromId}:${sub.toId}:${Math.round(sub.amount)}`;

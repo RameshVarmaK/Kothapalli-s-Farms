@@ -3,14 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, googleSignInRedirect, logout, clearGoogleAccessToken } from './utils/auth';
 import {
   getInitialDatabase,
   saveDatabase,
   addAuditLog,
-  LocalDatabase
+  LocalDatabase,
+  PLACEHOLDER_SPREADSHEET_ID,
+  isPlaceholderSpreadsheetId,
+  safeStorageRemove
 } from './utils/database';
 import {
   Member,
@@ -87,6 +90,12 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
 
+  // Single-flight guard so rapid local edits don't fire overlapping push
+  // requests (which would race against each other and could leave the Sheet
+  // in a half-cleared state). `useRef` keeps the flag stable across renders.
+  const syncInFlightRef = useRef(false);
+  const syncQueuedRef = useRef(false);
+
   const syncDatabaseAcrossCloud = async (currentDb?: LocalDatabase) => {
     const dbToSync = currentDb || db;
     if (!accessToken || !dbToSync) return;
@@ -97,11 +106,19 @@ export default function App() {
     }
 
     const targetSheetId = dbToSync.settings?.linkedSpreadsheetId;
-    if (!targetSheetId || targetSheetId === "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts") {
+    if (isPlaceholderSpreadsheetId(targetSheetId)) {
       console.log('Postponing cloud sync because spreadsheet ID is absent or placeholder. Auto-fetch will resolve this.');
       return;
     }
 
+    if (syncInFlightRef.current) {
+      // Coalesce: remember that another push is needed once the current
+      // one finishes so we never lose the latest local state.
+      syncQueuedRef.current = true;
+      return;
+    }
+
+    syncInFlightRef.current = true;
     setSyncingState('syncing');
     try {
       await pushDataToSpreadsheet(accessToken, targetSheetId, dbToSync);
@@ -124,6 +141,13 @@ export default function App() {
       } else {
         setSyncMessage(errMsg);
       }
+    } finally {
+      syncInFlightRef.current = false;
+      if (syncQueuedRef.current) {
+        syncQueuedRef.current = false;
+        // Fire-and-forget: use the latest in-state db, not the stale snapshot.
+        setTimeout(() => syncDatabaseAcrossCloud(), 0);
+      }
     }
   };
 
@@ -138,7 +162,7 @@ export default function App() {
         setUser(prevUser => {
           if (prevUser && prevUser.uid !== currentUser.uid) {
             console.log("Detected Google profile switch. Purging old database local cache...");
-            localStorage.removeItem('farm_ledger_database');
+            safeStorageRemove('farm_ledger_database');
             setDb(getInitialDatabase());
           }
           return currentUser;
@@ -161,7 +185,7 @@ export default function App() {
         setFetchError(null);
         try {
           let targetSheetId = db?.settings?.linkedSpreadsheetId;
-          const isPlaceholder = !targetSheetId || targetSheetId === "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts";
+          const isPlaceholder = isPlaceholderSpreadsheetId(targetSheetId);
           let sheetData = null;
 
           if (!isPlaceholder) {
@@ -314,7 +338,7 @@ export default function App() {
       if (result) {
         if (user && user.uid !== result.user.uid) {
           console.log("Logged in different user. Cleaning stale local state cache...");
-          localStorage.removeItem('farm_ledger_database');
+          safeStorageRemove('farm_ledger_database');
           setDb(getInitialDatabase());
         }
         setUser(result.user);
@@ -338,7 +362,7 @@ export default function App() {
       setUser(null);
       setAccessToken(null);
       console.log("Logged out active slot. Removing local storage cache cleanly...");
-      localStorage.removeItem('farm_ledger_database');
+      safeStorageRemove('farm_ledger_database');
       setDb(getInitialDatabase());
     } catch (error) {
       console.error('Unified Google Auth Disconnect error:', error);
@@ -430,7 +454,7 @@ export default function App() {
                 <>
                   <p className="font-bold mb-1">Could not synchronize database:</p>
                   <p className="break-words">{formatErrorTextWithLinks(fetchError)}</p>
-                  <p className="mt-2 text-[10px] text-slate-400">Please make sure your Google Account is permitted to access Sheet <strong>{db?.settings?.linkedSpreadsheetId || "1r820DlxdJEOZTYhh1DxGXdyv121d6isnFXix-n_C-Ts"}</strong>.</p>
+                  <p className="mt-2 text-[10px] text-slate-400">Please make sure your Google Account is permitted to access Sheet <strong>{db?.settings?.linkedSpreadsheetId || PLACEHOLDER_SPREADSHEET_ID}</strong>.</p>
                 </>
               )}
             </div>
@@ -511,7 +535,7 @@ export default function App() {
 
       if (exp.targetType === 'single' && exp.targetSeasonId && exp.targetFieldId) {
         const autoAct: Activity = {
-          id: `act_auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          id: `act_auto_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
           date: exp.date,
           fieldId: exp.targetFieldId,
           seasonId: exp.targetSeasonId,
@@ -522,7 +546,7 @@ export default function App() {
       } else if (exp.targetType === 'common' && exp.allocations && exp.allocations.length > 0) {
         exp.allocations.forEach((alloc, idx) => {
           const autoAct: Activity = {
-            id: `act_auto_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 5)}`,
+            id: `act_auto_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
             date: exp.date,
             fieldId: alloc.fieldId,
             seasonId: alloc.seasonId,
@@ -591,7 +615,7 @@ export default function App() {
       const notes = `Registered daily wage labor shift: ${lab.workersCount} worker(s) at ${settings.currency}${lab.wageRate}/worker. Total shift cost: ${settings.currency}${lab.totalCost} paid by ${payerName}.`;
       
       const autoAct: Activity = {
-        id: `act_auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: `act_auto_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         date: lab.date,
         fieldId: lab.fieldId,
         seasonId: lab.seasonId,
@@ -658,7 +682,7 @@ export default function App() {
       const notes = `Concluded harvest sale receipt: Sold crop "${rev.crop}" of quantity ${rev.quantity} to ${rev.buyerName || 'Local Buyer'} for gross revenue of ${settings.currency}${rev.saleAmount}. Consolidated payout received by ${receiverName}.`;
       
       const autoAct: Activity = {
-        id: `act_auto_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: `act_auto_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         date: rev.date,
         fieldId: rev.fieldId,
         seasonId: rev.seasonId,
@@ -871,24 +895,91 @@ export default function App() {
     const target = fields.find(f => f.id === id);
     if (!target) return;
 
+    // Pre-compute the dependent records so we can tell the user up-front
+    // exactly what will be lost. Previously a field could be deleted while
+    // its seasons / labour / expenses / usages / revenues continued to
+    // reference the now-missing fieldId, leaving orphan rows.
+    const affectedSeasons = seasons.filter(s => s.fieldId === id).map(s => s.id);
+    const isAffectedSeason = (sid?: string | null) => !!sid && affectedSeasons.includes(sid);
+
+    const labCount = labours.filter(l => l.fieldId === id || isAffectedSeason(l.seasonId)).length;
+    const expSingleCount = expenses.filter(
+      e => e.targetType === 'single' && (e.targetFieldId === id || isAffectedSeason(e.targetSeasonId)),
+    ).length;
+    const usgSingleCount = usages.filter(
+      u => u.targetType === 'single' && (u.targetFieldId === id || isAffectedSeason(u.targetSeasonId)),
+    ).length;
+    const revCount = revenues.filter(r => r.fieldId === id || isAffectedSeason(r.seasonId)).length;
+    const actCount = activities.filter(a => a.fieldId === id || isAffectedSeason(a.seasonId)).length;
+
+    const dependentCount = labCount + expSingleCount + usgSingleCount + revCount + actCount + affectedSeasons.length;
+
     setConfirmDialog({
       isOpen: true,
       title: 'Delete Land Boundary',
-      message: `Are you sure you want to permanently delete field records for "${target.name}"? This could affect historic information and everything associated with this field will also be deleted.`,
-      confirmText: 'Delete Field',
+      message:
+        `Are you sure you want to permanently delete field records for "${target.name}"?\n\n` +
+        (dependentCount > 0
+          ? `This will also remove:\n` +
+            `  - ${affectedSeasons.length} crop season(s)\n` +
+            `  - ${labCount} labour entries, ${expSingleCount} field-specific expenses, ` +
+            `${usgSingleCount} stock usages\n` +
+            `  - ${revCount} harvest revenues and ${actCount} activity log entries\n\n` +
+            `Common expenses/usages that include this field's seasons will have those seasons removed from their allocation list.`
+          : 'No dependent records were found for this field.'),
+      confirmText: 'Delete Field & Dependents',
       onConfirm: () => {
-        const nextList = fields.filter(f => f.id !== id);
-        const newDb = { ...db, fields: nextList };
+        const nextFields = fields.filter(f => f.id !== id);
+        const nextSeasons = seasons.filter(s => s.fieldId !== id);
+        const nextLabours = labours.filter(l => l.fieldId !== id && !isAffectedSeason(l.seasonId));
+        const nextRevenues = revenues.filter(r => r.fieldId !== id && !isAffectedSeason(r.seasonId));
+        const nextActivities = activities.filter(a => a.fieldId !== id && !isAffectedSeason(a.seasonId));
+
+        // For expenses & usages, drop "single" rows that target this field, and
+        // strip the dead season IDs from "common" rows. If a common row ends up
+        // with no remaining target seasons it is dropped entirely.
+        const nextExpenses = expenses
+          .filter(e => !(e.targetType === 'single' && (e.targetFieldId === id || isAffectedSeason(e.targetSeasonId))))
+          .map(e => {
+            if (e.targetType === 'common' && e.commonTargetSeasonIds) {
+              const remaining = e.commonTargetSeasonIds.filter(sid => !affectedSeasons.includes(sid));
+              return { ...e, commonTargetSeasonIds: remaining };
+            }
+            return e;
+          })
+          .filter(e => !(e.targetType === 'common' && (e.commonTargetSeasonIds || []).length === 0));
+
+        const nextUsages = usages
+          .filter(u => !(u.targetType === 'single' && (u.targetFieldId === id || isAffectedSeason(u.targetSeasonId))))
+          .map(u => {
+            if (u.targetType === 'common' && u.commonTargetSeasonIds) {
+              const remaining = u.commonTargetSeasonIds.filter(sid => !affectedSeasons.includes(sid));
+              return { ...u, commonTargetSeasonIds: remaining };
+            }
+            return u;
+          })
+          .filter(u => !(u.targetType === 'common' && (u.commonTargetSeasonIds || []).length === 0));
+
+        const newDb = {
+          ...db,
+          fields: nextFields,
+          seasons: nextSeasons,
+          labours: nextLabours,
+          revenues: nextRevenues,
+          activities: nextActivities,
+          expenses: nextExpenses,
+          usages: nextUsages,
+        };
         const finalDb = addAuditLog(
           newDb,
           'delete',
           'Field',
           id,
-          `Removed boundary records: "${target.name}"`
+          `Removed boundary "${target.name}" and ${dependentCount} dependent record(s)`,
         );
         setDb(finalDb);
         setConfirmDialog(null);
-      }
+      },
     });
   };
 
@@ -944,24 +1035,69 @@ export default function App() {
     const target = seasons.find(s => s.id === id);
     if (!target) return;
 
+    const labCount = labours.filter(l => l.seasonId === id).length;
+    const expSingleCount = expenses.filter(e => e.targetType === 'single' && e.targetSeasonId === id).length;
+    const usgSingleCount = usages.filter(u => u.targetType === 'single' && u.targetSeasonId === id).length;
+    const revCount = revenues.filter(r => r.seasonId === id).length;
+    const actCount = activities.filter(a => a.seasonId === id).length;
+    const dependentCount = labCount + expSingleCount + usgSingleCount + revCount + actCount;
+
     setConfirmDialog({
       isOpen: true,
       title: 'Delete Closed Season',
-      message: `Are you sure you want to permanently delete the completed cropping season: "${target.cropName}"? This action is irreversible and will fully purge this cycle from historical records.`,
-      confirmText: 'Delete Season',
+      message:
+        `Are you sure you want to permanently delete the completed cropping season: "${target.cropName}"?\n\n` +
+        (dependentCount > 0
+          ? `This will also remove ${dependentCount} dependent record(s): ${labCount} labour, ` +
+            `${expSingleCount} expenses, ${usgSingleCount} usages, ${revCount} revenues, ` +
+            `${actCount} activities. Common-allocation entries will have this season unlinked.`
+          : 'No dependent records were found for this season.'),
+      confirmText: 'Delete Season & Dependents',
       onConfirm: () => {
-        const nextList = seasons.filter(s => s.id !== id);
-        const newDb = { ...db, seasons: nextList };
+        const nextSeasons = seasons.filter(s => s.id !== id);
+        const nextLabours = labours.filter(l => l.seasonId !== id);
+        const nextRevenues = revenues.filter(r => r.seasonId !== id);
+        const nextActivities = activities.filter(a => a.seasonId !== id);
+
+        const nextExpenses = expenses
+          .filter(e => !(e.targetType === 'single' && e.targetSeasonId === id))
+          .map(e => {
+            if (e.targetType === 'common' && e.commonTargetSeasonIds) {
+              return { ...e, commonTargetSeasonIds: e.commonTargetSeasonIds.filter(sid => sid !== id) };
+            }
+            return e;
+          })
+          .filter(e => !(e.targetType === 'common' && (e.commonTargetSeasonIds || []).length === 0));
+
+        const nextUsages = usages
+          .filter(u => !(u.targetType === 'single' && u.targetSeasonId === id))
+          .map(u => {
+            if (u.targetType === 'common' && u.commonTargetSeasonIds) {
+              return { ...u, commonTargetSeasonIds: u.commonTargetSeasonIds.filter(sid => sid !== id) };
+            }
+            return u;
+          })
+          .filter(u => !(u.targetType === 'common' && (u.commonTargetSeasonIds || []).length === 0));
+
+        const newDb = {
+          ...db,
+          seasons: nextSeasons,
+          labours: nextLabours,
+          revenues: nextRevenues,
+          activities: nextActivities,
+          expenses: nextExpenses,
+          usages: nextUsages,
+        };
         const finalDb = addAuditLog(
           newDb,
           'delete',
           'Season',
           id,
-          `Deleted completed and fully settled cropping season cycle: "${target.cropName}"`
+          `Deleted season "${target.cropName}" and ${dependentCount} dependent record(s)`,
         );
         setDb(finalDb);
         setConfirmDialog(null);
-      }
+      },
     });
   };
 
@@ -996,10 +1132,42 @@ export default function App() {
     const target = members.find(m => m.id === id);
     if (!target) return;
 
+    // Pre-flight check: silently deleting a member who is referenced from
+    // expenses / labours / revenues / shares would break settlement math,
+    // because every paidBy/receivedBy id would now point at a ghost. Refuse
+    // and tell the user exactly where the references live so they can clean
+    // up (re-assign or delete) first.
+    const expRefs = expenses.filter(e => e.paidByMemberId === id).length;
+    const labRefs = labours.filter(l => l.paidByMemberId === id).length;
+    const revRefs = revenues.filter(r => r.receivedByMemberId === id).length;
+    const purRefs = purchases.filter(p => p.paidByMemberId === id).length;
+    const repRefs = creditRepayments.filter(r => r.memberId === id).length;
+    const fieldRefs = fields.filter(f => (f.shares || []).some(sh => sh.memberId === id)).length;
+    const seasonRefs = seasons.filter(
+      s => s.useSeasonSpecificShares && (s.seasonShares || []).some(sh => sh.memberId === id),
+    ).length;
+    const totalRefs = expRefs + labRefs + revRefs + purRefs + repRefs + fieldRefs + seasonRefs;
+
+    if (totalRefs > 0) {
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Cannot Delete Partner',
+        message:
+          `"${target.name}" is still referenced by ${totalRefs} record(s):\n\n` +
+          `  - ${expRefs} expense(s), ${labRefs} labour entries, ${revRefs} revenue receipts\n` +
+          `  - ${purRefs} stock purchases, ${repRefs} credit repayments\n` +
+          `  - ${fieldRefs} field share allocation(s), ${seasonRefs} season override(s)\n\n` +
+          `Re-assign or delete these dependents first, then try again. This keeps your settlement ledger consistent.`,
+        confirmText: 'OK',
+        onConfirm: () => setConfirmDialog(null),
+      });
+      return;
+    }
+
     setConfirmDialog({
       isOpen: true,
       title: 'Delete Member Profile',
-      message: `Are you sure you want to permanently delete partner profile for "${target.name}"? This could affect historic fields which reference this member's shares.`,
+      message: `Are you sure you want to permanently delete partner profile for "${target.name}"?`,
       confirmText: 'Delete Member',
       onConfirm: () => {
         const nextList = members.filter(m => m.id !== id);
@@ -1009,11 +1177,11 @@ export default function App() {
           'delete',
           'Member',
           id,
-          `Expelled partner record: "${target.name}"`
+          `Expelled partner record: "${target.name}"`,
         );
         setDb(finalDb);
         setConfirmDialog(null);
-      }
+      },
     });
   };
 

@@ -16,7 +16,7 @@ import {
   CreditAccount
 } from '../types';
 import { Plus, Filter, Trash2, ArrowUpRight, ArrowDownLeft, Users, Receipt, Calendar, Pencil, AlertTriangle } from 'lucide-react';
-import { calculateAllocations } from '../utils/calculations';
+import { calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
 
 interface MoneyTabProps {
   expenses: Expense[];
@@ -275,6 +275,28 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     e.preventDefault();
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return;
+
+    // Guard rail: if the user picked the "manual" allocation rule, make sure
+    // their per-season values actually sum to the headline amount. Without
+    // this check, the engine silently writes whatever the caller provided
+    // (see tests/run.ts → "manual amounts ignore the total amount argument")
+    // and the settlement ledger becomes inconsistent.
+    if (targetType === 'common' && allocationRule === 'manual') {
+      const parsedManual: { [key: string]: number } = {};
+      Object.keys(manualAllocations).forEach(k => {
+        parsedManual[k] = parseFloat(manualAllocations[k]) || 0;
+      });
+      const diff = allocationDiscrepancy(amt, parsedManual);
+      if (Math.abs(diff) > 0.5) {
+        // eslint-disable-next-line no-alert
+        alert(
+          `Manual allocations are off by ${diff > 0 ? '+' : ''}${diff.toFixed(2)}. ` +
+          `The per-season values must sum to exactly ${amt.toFixed(2)}. ` +
+          `Adjust the entries before saving.`,
+        );
+        return;
+      }
+    }
 
     let expensePost: Expense;
     const baseExpense = editingRecordId ? expenses.find(exp => exp.id === editingRecordId) : null;

@@ -149,6 +149,26 @@ export function calculateAllocations(
 }
 
 /**
+ * Sanity-check helper for the 'manual' allocation rule. Returns the
+ * difference between the expected total and the sum of manual values
+ * provided by the caller. UI components should call this before saving so
+ * the partner ledger doesn't get a silently-inconsistent expense.
+ *
+ * Returns a positive number if the manual entries fall SHORT of the
+ * expected amount and a negative number if they overshoot.
+ */
+export function allocationDiscrepancy(
+  expectedAmount: number,
+  manualAmounts: { [key: string]: number | string },
+): number {
+  const total = Object.values(manualAmounts).reduce<number>((sum, v) => {
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return sum + (Number.isFinite(n) ? n : 0);
+  }, 0);
+  return Number((expectedAmount - total).toFixed(2));
+}
+
+/**
  * Creates the ledger, balances, and entitlernents for selected crop seasons.
  */
 export function buildSettlementLedger(
@@ -415,8 +435,11 @@ export function buildSettlementLedger(
   }
 
   // Check invariant: Sum of net positions must equal 0
+  // Tolerance is 10 paise (₹0.10) which absorbs floating-point drift caused
+  // by the rounding-to-2-decimals applied inside per-season computation,
+  // but still flags real imbalances (e.g. unpaid credit, bad share splits).
   const sumPositions = Object.values(membersTotalStatements).reduce((sum, m) => sum + m.netPosition, 0);
-  const isBalanced = Math.abs(sumPositions) < 1.0; // Allowance for floating-point inaccuracies
+  const isBalanced = Math.abs(sumPositions) < 0.1;
 
   return {
     ledgers,
