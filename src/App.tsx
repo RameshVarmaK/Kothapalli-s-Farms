@@ -16,6 +16,14 @@ import {
   safeStorageRemove
 } from './utils/database';
 import {
+  validateExpense,
+  validateLabour,
+  validateRevenue,
+  validateFieldShares,
+  validateSeasonShares
+} from './utils/validation';
+import { logError, logWarning } from './utils/errorLogging';
+import {
   Member,
   Field,
   Season,
@@ -90,11 +98,12 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
 
-  // Single-flight guard so rapid local edits don't fire overlapping push
-  // requests (which would race against each other and could leave the Sheet
-  // in a half-cleared state). `useRef` keeps the flag stable across renders.
-  const syncInFlightRef = useRef(false);
-  const syncQueuedRef = useRef(false);
+  // Queue-based sync system that processes syncs serially, ensuring no data loss
+  // from concurrent edits. syncQueueRef holds pending DB states; isSyncingRef
+  // guards against overlapping pushes.
+  const isSyncingRef = useRef(false);
+  const syncQueueRef = useRef<LocalDatabase | null>(null);
+  const processSyncQueue = useRef<(() => Promise<void>) | null>(null);
 
   const syncDatabaseAcrossCloud = async (currentDb?: LocalDatabase) => {
     const dbToSync = currentDb || db;
@@ -111,44 +120,52 @@ export default function App() {
       return;
     }
 
-    if (syncInFlightRef.current) {
-      // Coalesce: remember that another push is needed once the current
-      // one finishes so we never lose the latest local state.
-      syncQueuedRef.current = true;
+    syncQueueRef.current = dbToSync;
+
+    // If a sync is already in flight, the queued db will be processed after it completes
+    if (isSyncingRef.current) {
       return;
     }
 
-    syncInFlightRef.current = true;
-    setSyncingState('syncing');
-    try {
-      await pushDataToSpreadsheet(accessToken, targetSheetId, dbToSync);
-      setSyncingState('success');
-      setSyncMessage('Successfully synced with cloud Sheets!');
-      setTimeout(() => setSyncingState('idle'), 3000);
-    } catch (err: any) {
-      console.error('Unified Auto-sync failed:', err);
-      setSyncingState('failed');
-      const errMsg = err.message || String(err);
-      const isAuthError = errMsg.includes("401") || 
-                          errMsg.toLowerCase().includes("unauthenticated") || 
-                          errMsg.toLowerCase().includes("invalid credentials");
-      if (isAuthError) {
-        clearGoogleAccessToken();
-        setSyncMessage('Your Google session has expired. Clearing session to re-authorize...');
-        setTimeout(() => {
-          setAccessToken(null);
-        }, 2000);
-      } else {
-        setSyncMessage(errMsg);
+    // Start processing the queue serially
+    const processQueue = async () => {
+      while (syncQueueRef.current && accessToken) {
+        const nextDb = syncQueueRef.current;
+        syncQueueRef.current = null;
+        isSyncingRef.current = true;
+        setSyncingState('syncing');
+
+        try {
+          await pushDataToSpreadsheet(accessToken, targetSheetId, nextDb);
+          setSyncingState('success');
+          setSyncMessage('Successfully synced with cloud Sheets!');
+          setTimeout(() => setSyncingState('idle'), 3000);
+        } catch (err: any) {
+          logError('sync_to_sheets_failed', err, { sheetId: targetSheetId });
+          setSyncingState('failed');
+          const errMsg = err.message || String(err);
+          const isAuthError = errMsg.includes("401") ||
+                              errMsg.toLowerCase().includes("unauthenticated") ||
+                              errMsg.toLowerCase().includes("invalid credentials");
+          if (isAuthError) {
+            clearGoogleAccessToken();
+            setSyncMessage('Your Google session has expired. Clearing session to re-authorize...');
+            setTimeout(() => {
+              setAccessToken(null);
+            }, 2000);
+          } else {
+            setSyncMessage(errMsg);
+          }
+          // Re-queue the failed sync to retry
+          syncQueueRef.current = nextDb;
+          break;
+        } finally {
+          isSyncingRef.current = false;
+        }
       }
-    } finally {
-      syncInFlightRef.current = false;
-      if (syncQueuedRef.current) {
-        syncQueuedRef.current = false;
-        // Fire-and-forget: use the latest in-state db, not the stale snapshot.
-        setTimeout(() => syncDatabaseAcrossCloud(), 0);
-      }
-    }
+    };
+
+    processQueue();
   };
 
   useEffect(() => {
@@ -192,6 +209,7 @@ export default function App() {
             try {
               sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId!);
             } catch (pullError) {
+              logWarning('pull_from_sheets_failed', `Could not pull from spreadsheet ${targetSheetId}`, { sheetId: targetSheetId });
               console.warn(`Could not pull from spreadsheet ${targetSheetId}. Searching for 'FarmLedger Database'...`, pullError);
               const foundId = await findExistingSpreadsheet(accessToken);
               if (foundId) {
@@ -522,6 +540,21 @@ export default function App() {
 
   // ACTIONS: Expenses
   const handleAddExpense = (exp: Expense) => {
+    // Validate expense before saving
+    const validation = validateExpense(exp);
+    if (!validation.valid) {
+      const errorMsg = validation.errors.join('; ');
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Invalid Expense',
+        message: errorMsg,
+        confirmText: 'OK',
+        onConfirm: () => setConfirmDialog(null)
+      });
+      logWarning('expense_validation_failed', errorMsg, { expense: exp });
+      return;
+    }
+
     const nextList = [...expenses, exp];
     
     // Auto-generate Activity logs if no linkedActivityId
@@ -605,6 +638,21 @@ export default function App() {
 
   // ACTIONS: Labour
   const handleAddLabour = (lab: Labour) => {
+    // Validate labour before saving
+    const validation = validateLabour(lab);
+    if (!validation.valid) {
+      const errorMsg = validation.errors.join('; ');
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Invalid Labour Entry',
+        message: errorMsg,
+        confirmText: 'OK',
+        onConfirm: () => setConfirmDialog(null)
+      });
+      logWarning('labour_validation_failed', errorMsg, { labour: lab });
+      return;
+    }
+
     const nextList = [...labours, lab];
     
     // Auto-generate Activity logs if no linkedActivityId
@@ -672,6 +720,21 @@ export default function App() {
 
   // ACTIONS: Harvest Sales
   const handleAddRevenue = (rev: HarvestRevenue) => {
+    // Validate revenue before saving
+    const validation = validateRevenue(rev);
+    if (!validation.valid) {
+      const errorMsg = validation.errors.join('; ');
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Invalid Revenue Entry',
+        message: errorMsg,
+        confirmText: 'OK',
+        onConfirm: () => setConfirmDialog(null)
+      });
+      logWarning('revenue_validation_failed', errorMsg, { revenue: rev });
+      return;
+    }
+
     const nextList = [...revenues, rev];
     
     // Auto-generate Activity logs if no linkedActivityId
@@ -879,6 +942,20 @@ export default function App() {
 
   // ACTIONS: Field Plots
   const handleAddField = (field: Field) => {
+    // Validate field shares sum to 100%
+    const validation = validateFieldShares(field);
+    if (!validation.valid) {
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Invalid Field Shares',
+        message: validation.error || 'Field shares must sum to 100%',
+        confirmText: 'OK',
+        onConfirm: () => setConfirmDialog(null)
+      });
+      logWarning('field_validation_failed', validation.error || 'Invalid field shares', { field });
+      return;
+    }
+
     const nextList = [...fields, field];
     const newDb = { ...db, fields: nextList };
     const finalDb = addAuditLog(
@@ -985,6 +1062,20 @@ export default function App() {
 
   // ACTIONS: Season Crop Cycles
   const handleAddSeason = (season: Season) => {
+    // Validate season shares sum to 100% if season-specific
+    const validation = validateSeasonShares(season);
+    if (!validation.valid) {
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Invalid Season Shares',
+        message: validation.error || 'Season shares must sum to 100%',
+        confirmText: 'OK',
+        onConfirm: () => setConfirmDialog(null)
+      });
+      logWarning('season_validation_failed', validation.error || 'Invalid season shares', { season });
+      return;
+    }
+
     const nextList = [...seasons, season];
     const firstAct: Activity = {
       id: `act_init_${Date.now()}`,

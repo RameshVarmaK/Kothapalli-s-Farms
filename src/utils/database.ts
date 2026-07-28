@@ -19,6 +19,7 @@ import {
   CreditAccount,
   CreditRepayment
 } from '../types';
+import { saveDatabaseHybrid, loadDatabaseHybrid } from './storage';
 
 export interface LocalDatabase {
   members: Member[];
@@ -110,6 +111,7 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export function getInitialDatabase(): LocalDatabase {
+  // Try localStorage first (synchronous fallback)
   const localData = safeStorageGet(STORAGE_KEY);
   if (localData) {
     try {
@@ -135,7 +137,7 @@ export function getInitialDatabase(): LocalDatabase {
     }
   }
 
-  // Create default fallback if nothing is stored in localStorage
+  // Create default fallback if nothing is stored
   const db: LocalDatabase = {
     members: DEFAULT_MEMBERS,
     fields: DEFAULT_FIELDS,
@@ -158,11 +160,17 @@ export function getInitialDatabase(): LocalDatabase {
 }
 
 export function saveDatabase(db: LocalDatabase): void {
-  safeStorageSet(STORAGE_KEY, JSON.stringify(db));
+  // Use hybrid storage (IndexedDB + localStorage)
+  saveDatabaseHybrid(db, STORAGE_KEY).catch(err => {
+    console.warn('Error in hybrid storage save:', err);
+    // Fallback to localStorage if hybrid fails
+    safeStorageSet(STORAGE_KEY, JSON.stringify(db));
+  });
 }
 
 /**
  * Creates an audit log entry in the database.
+ * Keeps recent 500 logs in active storage; archives older ones to localStorage.
  */
 export function addAuditLog(
   db: LocalDatabase,
@@ -182,9 +190,32 @@ export function addAuditLog(
     memberId
   };
 
+  const allLogs = [newLog, ...db.auditLogs];
+  const activeLogs = allLogs.slice(0, 500); // Keep 500 recent logs in main DB
+  const archivedLogs = allLogs.slice(500); // Archive older logs
+
+  // Store archived logs separately for historical access
+  if (archivedLogs.length > 0) {
+    try {
+      const archiveKey = `farm_ledger_audit_archive`;
+      const existing = safeStorageGet(archiveKey);
+      const archiveList = existing ? JSON.parse(existing) : [];
+      const newArchive = [
+        {
+          date: new Date().toISOString(),
+          logs: archivedLogs
+        },
+        ...archiveList
+      ].slice(0, 24); // Keep up to 24 archive batches (roughly 2 years if monthly)
+      safeStorageSet(archiveKey, JSON.stringify(newArchive));
+    } catch (err) {
+      console.warn('Failed to archive audit logs:', err);
+    }
+  }
+
   const updatedDb = {
     ...db,
-    auditLogs: [newLog, ...db.auditLogs].slice(0, 1000) // Keep last 1000 logs
+    auditLogs: activeLogs
   };
   saveDatabase(updatedDb);
   return updatedDb;

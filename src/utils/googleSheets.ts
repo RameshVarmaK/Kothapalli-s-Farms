@@ -320,6 +320,7 @@ export async function pushDataToSpreadsheet(
 
 /**
  * Helper to parse Sheet row data into javascript objects using headers.
+ * Safely deserializes JSON with error recovery.
  */
 function parseSheetRows<T>(rows: any[][]): T[] {
   if (!rows || rows.length <= 1) return [];
@@ -329,17 +330,30 @@ function parseSheetRows<T>(rows: any[][]): T[] {
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const item: any = {};
+    let isValidRow = true;
+
     headers.forEach((header, index) => {
       let val = row[index];
       if (val === undefined || val === null) {
         val = '';
       }
 
-      // Restore JSON stringified arrays or objects
+      // Safely restore JSON stringified arrays or objects
       if (typeof val === 'string' && (val.startsWith('[') || val.startsWith('{'))) {
         try {
-          item[header] = JSON.parse(val);
+          const parsed = JSON.parse(val);
+          // Basic validation: arrays should contain objects, not primitives
+          if (Array.isArray(parsed)) {
+            if (parsed.length > 0 && typeof parsed[0] !== 'object') {
+              console.warn(`Invalid array in ${header} at row ${i}: contains primitives instead of objects`);
+              isValidRow = false;
+              return;
+            }
+          }
+          item[header] = parsed;
         } catch (e) {
+          console.warn(`Failed to parse JSON in ${header} at row ${i}: ${val.slice(0, 50)}...`);
+          // Fall back to string if JSON parsing fails
           item[header] = val;
         }
       } else if (val === 'true') {
@@ -352,7 +366,9 @@ function parseSheetRows<T>(rows: any[][]): T[] {
         item[header] = val;
       }
     });
-    if (item.id && String(item.id).trim() !== '') {
+
+    // Only add rows with valid IDs
+    if (isValidRow && item.id && String(item.id).trim() !== '') {
       items.push(item as T);
     }
   }
