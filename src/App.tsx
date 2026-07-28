@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, googleSignInRedirect, logout, clearGoogleAccessToken } from './utils/auth';
 import {
@@ -39,16 +39,18 @@ import {
   CreditAccount,
   CreditRepayment
 } from './types';
-import { DashboardTab } from './components/DashboardTab';
-import { MoneyTab } from './components/MoneyTab';
-import { StockTab } from './components/StockTab';
-import { TimelineTab } from './components/TimelineTab';
-import { SettleTab } from './components/SettleTab';
-import { MembersTab } from './components/MembersTab';
-import { SettingsTab } from './components/SettingsTab';
-import { CreditsTab } from './components/CreditsTab';
+// Lazy-load tabs for better initial load performance
+const DashboardTab = lazy(() => import('./components/DashboardTab').then(m => ({ default: m.DashboardTab })));
+const MoneyTab = lazy(() => import('./components/MoneyTab').then(m => ({ default: m.MoneyTab })));
+const StockTab = lazy(() => import('./components/StockTab').then(m => ({ default: m.StockTab })));
+const TimelineTab = lazy(() => import('./components/TimelineTab').then(m => ({ default: m.TimelineTab })));
+const SettleTab = lazy(() => import('./components/SettleTab').then(m => ({ default: m.SettleTab })));
+const MembersTab = lazy(() => import('./components/MembersTab').then(m => ({ default: m.MembersTab })));
+const SettingsTab = lazy(() => import('./components/SettingsTab').then(m => ({ default: m.SettingsTab })));
+const CreditsTab = lazy(() => import('./components/CreditsTab').then(m => ({ default: m.CreditsTab })));
 import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet } from './utils/googleSheets';
 import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard } from 'lucide-react';
+import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 
 const formatErrorTextWithLinks = (text: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -71,6 +73,30 @@ const formatErrorTextWithLinks = (text: string) => {
     return <span key={index}>{part}</span>;
   });
 };
+
+const TabLoadingFallback = () => (
+  <div className="flex items-center justify-center min-h-[60vh] text-sm font-semibold text-slate-400">
+    <div className="flex items-center gap-2">
+      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
+      Loading tab...
+    </div>
+  </div>
+);
+
+function detectAndHandleConflict(cloudData: LocalDatabase, currentDb: LocalDatabase, onShowConflict: (cloud: LocalDatabase) => void): boolean {
+  const memberDiff = Math.abs((cloudData.members?.length || 0) - (currentDb.members?.length || 0));
+  const fieldDiff = Math.abs((cloudData.fields?.length || 0) - (currentDb.fields?.length || 0));
+  const seasonDiff = Math.abs((cloudData.seasons?.length || 0) - (currentDb.seasons?.length || 0));
+  const expenseDiff = Math.abs((cloudData.expenses?.length || 0) - (currentDb.expenses?.length || 0));
+
+  const hasConflict = memberDiff > 1 || fieldDiff > 1 || seasonDiff > 1 || expenseDiff > 1;
+
+  if (hasConflict) {
+    onShowConflict(cloudData);
+    return true;
+  }
+  return false;
+}
 
 export default function App() {
   const [db, setDb] = useState<LocalDatabase | null>(null);
@@ -97,6 +123,10 @@ export default function App() {
     confirmText?: string;
     onConfirm: () => void;
   } | null>(null);
+  const [conflictData, setConflictData] = useState<{
+    isOpen: boolean;
+    cloudData: LocalDatabase | null;
+  }>({ isOpen: false, cloudData: null });
 
   // Queue-based sync system that processes syncs serially, ensuring no data loss
   // from concurrent edits. syncQueueRef holds pending DB states; isSyncingRef
@@ -300,6 +330,15 @@ export default function App() {
                   linkedSpreadsheetId: targetSheetId
                 }
               };
+
+              // Detect conflicts between cloud and local data
+              if (prev && detectAndHandleConflict(finalDb, prev, (cloudData) => {
+                setConflictData({ isOpen: true, cloudData });
+              })) {
+                // Conflict detected; return current state (don't update yet)
+                return prev;
+              }
+
               saveDatabase(finalDb);
               return finalDb;
             });
@@ -1311,6 +1350,60 @@ export default function App() {
     // Synchronize spreadsheet - custom REST handler in settings itself
   };
 
+  const handleResolveConflict = (resolution: 'local' | 'cloud' | 'merge') => {
+    const cloudData = conflictData.cloudData;
+    if (!cloudData || !db) {
+      setConflictData({ isOpen: false, cloudData: null });
+      return;
+    }
+
+    let finalDb: LocalDatabase = db;
+
+    if (resolution === 'cloud') {
+      // Use cloud version entirely
+      finalDb = cloudData;
+    } else if (resolution === 'merge') {
+      // Smart merge: keep new local entries, accept cloud updates
+      finalDb = {
+        ...cloudData,
+        // Merge expenses: keep local additions, accept cloud updates
+        expenses: [
+          ...cloudData.expenses,
+          ...(db.expenses || []).filter(
+            local => !cloudData.expenses?.some(cloud => cloud.id === local.id)
+          )
+        ],
+        // Merge labour entries
+        labours: [
+          ...cloudData.labours,
+          ...(db.labours || []).filter(
+            local => !cloudData.labours?.some(cloud => cloud.id === local.id)
+          )
+        ],
+        // Keep local revenues too
+        revenues: [
+          ...cloudData.revenues,
+          ...(db.revenues || []).filter(
+            local => !cloudData.revenues?.some(cloud => cloud.id === local.id)
+          )
+        ]
+      };
+      logWarning('conflict_resolved_merge', 'Merged local and cloud data');
+    }
+    // else: keep local (do nothing)
+
+    setDb(finalDb);
+    saveDatabase(finalDb);
+    setConflictData({ isOpen: false, cloudData: null });
+
+    if (resolution !== 'local') {
+      logWarning('conflict_resolved', `Conflict resolved using: ${resolution}`, {
+        resolution,
+        cloudEntriesMerged: resolution === 'merge'
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col antialiased">
       {/* Mobile-first top navigation banner bar */}
@@ -1476,8 +1569,9 @@ export default function App() {
 
         {/* Dynamic component contents viewport with scroll boundary */}
         <div className="flex-1 overflow-y-auto px-6 py-6 md:p-8 md:h-full pb-24 md:pb-8">
-          {activeTab === 'dashboard' && (
-            <DashboardTab
+          <Suspense fallback={<TabLoadingFallback />}>
+            {activeTab === 'dashboard' && (
+              <DashboardTab
               fields={fields}
               seasons={seasons}
               members={members}
@@ -1625,6 +1719,7 @@ export default function App() {
               onLogout={handleLogout}
             />
           )}
+          </Suspense>
         </div>
       </main>
 
@@ -1658,6 +1753,16 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {conflictData.isOpen && conflictData.cloudData && db && (
+        <ConflictResolutionModal
+          isOpen={conflictData.isOpen}
+          localData={db}
+          cloudData={conflictData.cloudData}
+          onResolve={handleResolveConflict}
+          onCancel={() => setConflictData({ isOpen: false, cloudData: null })}
+        />
       )}
 
       {authError && (
