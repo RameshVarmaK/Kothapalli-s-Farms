@@ -52,6 +52,15 @@ export interface Allocation {
   amount: number; // calculated cost share
 }
 
+export interface Attachment {
+  id: string;
+  type: 'image' | 'document';
+  fileName: string;
+  size: number;
+  uploadedAt: string;
+  base64Data: string; // base64 encoded image/document data
+}
+
 export interface Expense {
   id: string;
   date: string;
@@ -64,7 +73,8 @@ export interface Expense {
   targetSeasonId?: string;     // empty if common
   commonAllocationRule?: CommonAllocationType;
   allocations?: Allocation[];  // list of field-season allocations
-  receiptPhoto?: string;       // base64
+  receiptPhoto?: string;       // base64 (deprecated, use attachments)
+  attachments?: Attachment[];  // new: multiple attachments
   isCredit?: boolean;
   creditAccountId?: string;
 }
