@@ -49,8 +49,9 @@ const MembersTab = lazy(() => import('./components/MembersTab').then(m => ({ def
 const SettingsTab = lazy(() => import('./components/SettingsTab').then(m => ({ default: m.SettingsTab })));
 const CreditsTab = lazy(() => import('./components/CreditsTab').then(m => ({ default: m.CreditsTab })));
 import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet } from './utils/googleSheets';
-import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard } from 'lucide-react';
+import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard, Menu } from 'lucide-react';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
+import { MobileNavDrawer } from './components/MobileNavDrawer';
 
 const formatErrorTextWithLinks = (text: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -127,6 +128,7 @@ export default function App() {
     isOpen: boolean;
     cloudData: LocalDatabase | null;
   }>({ isOpen: false, cloudData: null });
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Queue-based sync system that processes syncs serially, ensuring no data loss
   // from concurrent edits. syncQueueRef holds pending DB states; isSyncingRef
@@ -1407,14 +1409,21 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col antialiased">
       {/* Mobile-first top navigation banner bar */}
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-6 py-4 shrink-0 shadow-xs flex justify-between items-center print:hidden">
-        <div className="flex items-center gap-3">
-          <span className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-xs">
+      <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 shrink-0 shadow-xs flex justify-between items-center print:hidden">
+        <button
+          onClick={() => setMobileNavOpen(true)}
+          className="md:hidden p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          <Menu size={24} className="text-slate-700" />
+        </button>
+
+        <div className="flex items-center gap-2 md:gap-3 flex-1 md:flex-none">
+          <span className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-xs shrink-0">
             <Sprout size={20} />
           </span>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-800">Kothapalli's Farms</h1>
-            <p className="text-[10px] uppercase tracking-widest text-emerald-600 font-semibold">Partnership Transparency</p>
+          <div className="min-w-0">
+            <h1 className="text-base md:text-lg font-bold tracking-tight text-slate-800 truncate">Kothapalli's Farms</h1>
+            <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-emerald-600 font-semibold hidden sm:block">Partnership Transparency</p>
           </div>
         </div>
 
@@ -1464,91 +1473,109 @@ export default function App() {
       </header>
 
       {/* Main container body */}
-      <main className="flex-1 w-full max-w-7xl mx-auto flex flex-col md:flex-row pb-16 md:pb-0 md:h-[calc(100vh-69px)] overflow-hidden">
-        
+      <main className="flex-1 w-full max-w-7xl mx-auto flex flex-col md:flex-row pb-20 sm:pb-16 md:pb-0 md:h-[calc(100vh-69px)] overflow-hidden">
+
+        {/* Mobile Navigation Drawer */}
+        <MobileNavDrawer
+          isOpen={mobileNavOpen}
+          onClose={() => setMobileNavOpen(false)}
+          tabs={[
+            { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+            { id: 'money', label: 'Transactions', icon: <FileText size={20} /> },
+            { id: 'stock', label: 'Inventory', icon: <PackageOpen size={20} /> },
+            { id: 'timeline', label: 'Farm Activity', icon: <CalendarDays size={20} /> },
+            { id: 'settle', label: 'Settle Bilateral', icon: <Coins size={20} /> },
+            { id: 'members', label: 'Fields & Directory', icon: <Users size={20} /> },
+            { id: 'credits', label: 'Credit & Payables', icon: <CreditCard size={20} /> },
+            { id: 'settings', label: 'Audit & Config', icon: <Wrench size={20} /> }
+          ]}
+          activeTab={activeTab}
+          onSelectTab={(tab) => setActiveTab(tab as any)}
+        />
+
         {/* Desktop Sidebar navigation / Mobile Bottom navigation */}
         <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-250 p-2 flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] justify-start md:relative md:bottom-auto md:left-auto md:right-auto md:border-t-0 md:border-r md:border-slate-200 md:w-64 md:flex-col md:justify-start md:gap-1.5 md:p-4 print:hidden shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] md:shadow-none">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-1.5 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 ${
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
               activeTab === 'dashboard'
                 ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
             }`}
           >
-            <LayoutDashboard size={16} className="shrink-0" />
+            <LayoutDashboard size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Dashboard</span>
           </button>
 
           <button
             onClick={() => setActiveTab('money')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-1.5 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 ${
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
               activeTab === 'money'
                 ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
             }`}
           >
-            <FileText size={16} className="shrink-0" />
+            <FileText size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Transactions</span>
           </button>
 
           <button
             onClick={() => setActiveTab('stock')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-1.5 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 ${
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
               activeTab === 'stock'
                 ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
             }`}
           >
-            <PackageOpen size={16} className="shrink-0" />
+            <PackageOpen size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Inventory</span>
           </button>
 
           <button
             onClick={() => setActiveTab('timeline')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-1.5 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 ${
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
               activeTab === 'timeline'
                 ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
             }`}
           >
-            <CalendarDays size={16} className="shrink-0" />
+            <CalendarDays size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Farm Activity</span>
           </button>
 
           <button
             onClick={() => setActiveTab('settle')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-1.5 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 ${
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
               activeTab === 'settle'
                 ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
             }`}
           >
-            <Coins size={16} className="shrink-0" />
+            <Coins size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Settle Bilateral</span>
           </button>
 
           <button
             onClick={() => setActiveTab('members')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-1.5 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 ${
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
               activeTab === 'members'
                 ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
             }`}
           >
-            <Users size={16} className="shrink-0" />
+            <Users size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Fields & Directory</span>
           </button>
 
           <button
             onClick={() => setActiveTab('credits')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-1.5 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 ${
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
               activeTab === 'credits'
                 ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
             }`}
           >
-            <CreditCard size={16} className="shrink-0" />
+            <CreditCard size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Credit & Payables</span>
           </button>
 
@@ -1556,13 +1583,13 @@ export default function App() {
 
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-1.5 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 ${
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
               activeTab === 'settings'
                 ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
             }`}
           >
-            <Wrench size={16} className="shrink-0" />
+            <Wrench size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Audit & Config</span>
           </button>
         </nav>
