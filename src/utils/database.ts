@@ -17,7 +17,9 @@ import {
   AuditLog,
   Settings,
   CreditAccount,
-  CreditRepayment
+  CreditRepayment,
+  NotificationPreferences,
+  NotificationDelivery
 } from '../types';
 import { saveDatabaseHybrid, loadDatabaseHybrid } from './storage';
 
@@ -36,6 +38,8 @@ export interface LocalDatabase {
   settings: Settings;
   creditAccounts?: CreditAccount[];
   creditRepayments?: CreditRepayment[];
+  notificationPreferences?: NotificationPreferences[];
+  notificationDeliveries?: NotificationDelivery[];
 }
 
 const STORAGE_KEY = 'farm_ledger_database';

@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { Settings, AuditLog, Member } from '../types';
+import { Settings, AuditLog, Member, NotificationPreferences, NotificationDelivery } from '../types';
 import {
   exportDatabaseJSON,
   PLACEHOLDER_SPREADSHEET_ID,
@@ -15,6 +15,9 @@ import {
 } from '../utils/database';
 import { findExistingSpreadsheet, createSpreadsheet, pushDataToSpreadsheet, pullDataFromSpreadsheet } from '../utils/googleSheets';
 import { Cloud, CheckCircle, ExternalLink, RefreshCw, Key, Download, Upload, Eye, FileText, AlertTriangle, GitMerge, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { NotificationPreferencesPanel } from './NotificationPreferencesPanel';
+import { NotificationDeliveryLog } from './NotificationDeliveryLog';
+import { getNotificationDeliveries, clearNotificationDeliveries } from '../utils/notifications';
 
 const formatErrorTextWithLinks = (text: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -51,6 +54,8 @@ interface SettingsTabProps {
   accessToken: string | null;
   onLogin: (mode?: 'popup' | 'redirect') => Promise<string | null>;
   onLogout: () => Promise<void>;
+  notificationPreferences?: NotificationPreferences[];
+  onSaveNotificationPreferences?: (prefs: NotificationPreferences) => void;
 }
 
 export const SettingsTab: React.FC<SettingsTabProps> = ({
@@ -65,7 +70,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   user,
   accessToken,
   onLogin,
-  onLogout
+  onLogout,
+  notificationPreferences = [],
+  onSaveNotificationPreferences
 }) => {
   const [currency, setCurrency] = useState(settings.currency);
   const [showPullConfirm, setShowPullConfirm] = useState(false);
@@ -75,6 +82,16 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     diffDetails: { [key: string]: { localCount: number; cloudCount: number } };
   } | null>(null);
   const [showConflictModal, setShowConflictModal] = useState(false);
+  const [deliveries, setDeliveries] = useState<NotificationDelivery[]>(getNotificationDeliveries());
+
+  // Get current user's notification preference (using first member as proxy for now)
+  const currentUserPref = members.length > 0
+    ? notificationPreferences.find(p => p.memberId === members[0].id) || {
+        memberId: members[0].id,
+        channel: 'none' as const,
+        enabledEvents: []
+      }
+    : null;
 
   const checkDatabaseDiff = (local: any, cloud: any) => {
     const tables = [
@@ -208,6 +225,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     setCustomClientId(cid);
     setCustomAccessToken(token);
     setCustomFirebaseConfig(fconf);
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDeliveries(getNotificationDeliveries());
+    }, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -807,6 +831,28 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </table>
         </div>
       </div>
+
+      {/* NOTIFICATION SETTINGS */}
+      {currentUserPref && members.length > 0 && (
+        <div className="space-y-4">
+          <NotificationPreferencesPanel
+            member={members[0]}
+            preference={currentUserPref}
+            onSave={(prefs) => {
+              if (onSaveNotificationPreferences) {
+                onSaveNotificationPreferences(prefs);
+              }
+            }}
+          />
+          <NotificationDeliveryLog
+            deliveries={deliveries}
+            onClear={() => {
+              clearNotificationDeliveries(30);
+              setDeliveries(getNotificationDeliveries());
+            }}
+          />
+        </div>
+      )}
 
       {showPullConfirm && (
         <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-100">

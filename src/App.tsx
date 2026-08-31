@@ -23,6 +23,7 @@ import {
   validateSeasonShares
 } from './utils/validation';
 import { logError, logWarning } from './utils/errorLogging';
+import { sendBulkNotifications, getNotificationDeliveries } from './utils/notifications';
 import {
   Member,
   Field,
@@ -37,7 +38,8 @@ import {
   Settings,
   AuditLog,
   CreditAccount,
-  CreditRepayment
+  CreditRepayment,
+  NotificationPreferences
 } from './types';
 // Lazy-load tabs for better initial load performance
 const DashboardTab = lazy(() => import('./components/DashboardTab').then(m => ({ default: m.DashboardTab })));
@@ -48,8 +50,9 @@ const SettleTab = lazy(() => import('./components/SettleTab').then(m => ({ defau
 const MembersTab = lazy(() => import('./components/MembersTab').then(m => ({ default: m.MembersTab })));
 const SettingsTab = lazy(() => import('./components/SettingsTab').then(m => ({ default: m.SettingsTab })));
 const CreditsTab = lazy(() => import('./components/CreditsTab').then(m => ({ default: m.CreditsTab })));
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet } from './utils/googleSheets';
-import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard, Menu } from 'lucide-react';
+import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard, Menu, BarChart3 } from 'lucide-react';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
 
@@ -102,7 +105,7 @@ function detectAndHandleConflict(cloudData: LocalDatabase, currentDb: LocalDatab
 export default function App() {
   const [db, setDb] = useState<LocalDatabase | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings' | 'credits'
+    'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings' | 'credits' | 'analytics'
   >('dashboard');
 
   // Unified Google Firebase Authentication state
@@ -129,6 +132,9 @@ export default function App() {
     cloudData: LocalDatabase | null;
   }>({ isOpen: false, cloudData: null });
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences[]>(
+    db?.notificationPreferences || []
+  );
 
   // Queue-based sync system that processes syncs serially, ensuring no data loss
   // from concurrent edits. syncQueueRef holds pending DB states; isSyncingRef
@@ -199,6 +205,13 @@ export default function App() {
 
     processQueue();
   };
+
+  useEffect(() => {
+    // Sync notification preferences when db changes
+    if (db?.notificationPreferences) {
+      setNotificationPreferences(db.notificationPreferences);
+    }
+  }, [db?.notificationPreferences]);
 
   useEffect(() => {
     // Synchronous bootstrap local database
@@ -642,6 +655,21 @@ export default function App() {
       exp.paidByMemberId
     );
     setDb(finalDb);
+
+    // Send notifications to members about new expense
+    if (notificationPreferences.length > 0) {
+      const targetField = fields.find(f => f.id === exp.targetFieldId);
+      sendBulkNotifications(notificationPreferences, {
+        memberId: exp.paidByMemberId,
+        eventType: 'expense_added',
+        data: {
+          amount: exp.amount,
+          category: exp.category,
+          fieldName: targetField?.name || 'Common',
+          currency: settings.currency
+        }
+      }).catch(err => logWarning('notification_send_failed', err.message || ''));
+    }
   };
 
   const handleEditExpense = (updatedExp: Expense) => {
@@ -724,6 +752,20 @@ export default function App() {
       lab.paidByMemberId
     );
     setDb(finalDb);
+
+    // Send notifications to members about new labour entry
+    if (notificationPreferences.length > 0) {
+      const targetField = fields.find(f => f.id === lab.fieldId);
+      sendBulkNotifications(notificationPreferences, {
+        memberId: lab.paidByMemberId,
+        eventType: 'labour_logged',
+        data: {
+          quantity: lab.workersCount,
+          fieldName: targetField?.name || 'Unknown',
+          currency: settings.currency
+        }
+      }).catch(err => logWarning('notification_send_failed', err.message || ''));
+    }
   };
 
   const handleEditLabour = (updatedLab: Labour) => {
@@ -806,6 +848,21 @@ export default function App() {
       rev.receivedByMemberId
     );
     setDb(finalDb);
+
+    // Send notifications to members about harvest recorded
+    if (notificationPreferences.length > 0) {
+      const targetField = fields.find(f => f.id === rev.fieldId);
+      sendBulkNotifications(notificationPreferences, {
+        memberId: rev.receivedByMemberId,
+        eventType: 'harvest_recorded',
+        data: {
+          cropName: rev.crop,
+          quantity: rev.quantity,
+          fieldName: targetField?.name || 'Unknown',
+          currency: settings.currency
+        }
+      }).catch(err => logWarning('notification_send_failed', err.message || ''));
+    }
   };
 
   const handleEditRevenue = (updatedRev: HarvestRevenue) => {
@@ -920,6 +977,15 @@ export default function App() {
     } else {
       handleUpdateDatabase({ creditRepayments: nextList });
     }
+  };
+
+  const handleSaveNotificationPreferences = (prefs: NotificationPreferences) => {
+    const updated = notificationPreferences.filter(p => p.memberId !== prefs.memberId);
+    updated.push(prefs);
+    setNotificationPreferences(updated);
+
+    const newDb = { ...db, notificationPreferences: updated };
+    setDb(newDb);
   };
 
   // ACTIONS: Stock Items / Purchases / Usages
@@ -1487,6 +1553,7 @@ export default function App() {
             { id: 'settle', label: 'Settle Bilateral', icon: <Coins size={20} /> },
             { id: 'members', label: 'Fields & Directory', icon: <Users size={20} /> },
             { id: 'credits', label: 'Credit & Payables', icon: <CreditCard size={20} /> },
+            { id: 'analytics', label: 'Reports & Insights', icon: <BarChart3 size={20} /> },
             { id: 'settings', label: 'Audit & Config', icon: <Wrench size={20} /> }
           ]}
           activeTab={activeTab}
@@ -1577,6 +1644,18 @@ export default function App() {
           >
             <CreditCard size={18} className="shrink-0" />
             <span className="truncate md:whitespace-normal">Credit & Payables</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('analytics')}
+            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
+              activeTab === 'analytics'
+                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
+            }`}
+          >
+            <BarChart3 size={18} className="shrink-0" />
+            <span className="truncate md:whitespace-normal">Reports & Insights</span>
           </button>
 
           <div className="hidden md:block border-t border-slate-200 my-3 pt-3" />
@@ -1744,6 +1823,15 @@ export default function App() {
               accessToken={accessToken}
               onLogin={handleLogin}
               onLogout={handleLogout}
+              notificationPreferences={notificationPreferences}
+              onSaveNotificationPreferences={handleSaveNotificationPreferences}
+            />
+          )}
+
+          {activeTab === 'analytics' && db && (
+            <AnalyticsDashboard
+              db={db}
+              currency={settings.currency}
             />
           )}
           </Suspense>

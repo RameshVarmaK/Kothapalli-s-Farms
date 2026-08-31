@@ -224,3 +224,24 @@ export interface CreditRepayment {
   notes?: string;
 }
 
+export type NotificationChannel = 'sms' | 'whatsapp' | 'none';
+export type NotificationEvent = 'expense_added' | 'harvest_recorded' | 'settlement_calculated' | 'labour_logged';
+
+export interface NotificationPreferences {
+  memberId: string;
+  channel: NotificationChannel; // none, sms, or whatsapp
+  phoneNumber?: string; // only if channel is sms/whatsapp
+  enabledEvents: NotificationEvent[]; // which events to notify on
+}
+
+export interface NotificationDelivery {
+  id: string;
+  memberId: string;
+  eventType: NotificationEvent;
+  message: string;
+  channel: NotificationChannel;
+  sentAt: string;
+  status: 'pending' | 'sent' | 'failed';
+  errorMessage?: string;
+}
+
