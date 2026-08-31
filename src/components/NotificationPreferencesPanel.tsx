@@ -67,7 +67,7 @@ export function NotificationPreferencesPanel({
   };
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 p-6 space-y-6">
+    <div className="bg-white rounded-lg border border-slate-200 p-4 sm:p-6 space-y-6" role="form" aria-label={`Notification preferences for ${member.name}`}>
       <div className="flex items-center gap-3 mb-4">
         <Bell size={20} className="text-emerald-600" />
         <h3 className="text-lg font-semibold text-slate-900">
@@ -77,46 +77,49 @@ export function NotificationPreferencesPanel({
 
       {/* Channel Selection */}
       <div className="space-y-3">
-        <label className="block text-sm font-semibold text-slate-700">
+        <label className="block text-sm font-semibold text-slate-700" id="channel-label">
           Notification Channel
         </label>
-        <div className="space-y-2">
-          <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+        <div className="space-y-2" role="group" aria-labelledby="channel-label">
+          <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-500">
             <input
               type="radio"
               value="none"
               checked={channel === 'none'}
               onChange={e => setChannel(e.target.value as any)}
               className="w-4 h-4 text-emerald-600"
+              aria-label="Disable notifications"
             />
             <span className="flex-1 text-sm font-medium text-slate-700">
               Disabled - No notifications
             </span>
           </label>
 
-          <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+          <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-500">
             <input
               type="radio"
               value="sms"
               checked={channel === 'sms'}
               onChange={e => setChannel(e.target.value as any)}
               className="w-4 h-4 text-emerald-600"
+              aria-label="Send notifications via SMS"
             />
-            <Phone size={18} className="text-blue-600" />
+            <Phone size={18} className="text-blue-600" aria-hidden="true" />
             <span className="flex-1 text-sm font-medium text-slate-700">
               SMS (Text Message)
             </span>
           </label>
 
-          <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+          <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-500">
             <input
               type="radio"
               value="whatsapp"
               checked={channel === 'whatsapp'}
               onChange={e => setChannel(e.target.value as any)}
               className="w-4 h-4 text-emerald-600"
+              aria-label="Send notifications via WhatsApp"
             />
-            <MessageCircle size={18} className="text-green-600" />
+            <MessageCircle size={18} className="text-green-600" aria-hidden="true" />
             <span className="flex-1 text-sm font-medium text-slate-700">
               WhatsApp Message
             </span>
@@ -127,17 +130,21 @@ export function NotificationPreferencesPanel({
       {/* Phone Number Input */}
       {channel !== 'none' && (
         <div className="space-y-2">
-          <label className="block text-sm font-semibold text-slate-700">
+          <label htmlFor="phone-input" className="block text-sm font-semibold text-slate-700">
             Phone Number
           </label>
           <input
+            id="phone-input"
             type="tel"
             value={phoneNumber}
             onChange={e => setPhoneNumber(e.target.value)}
             placeholder="+91 9876543210"
+            inputMode="tel"
             className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            aria-label="Phone number for notifications"
+            aria-describedby="phone-hint"
           />
-          <p className="text-xs text-slate-500">
+          <p id="phone-hint" className="text-xs text-slate-500">
             Include country code (e.g., +91 for India)
           </p>
         </div>
@@ -145,14 +152,14 @@ export function NotificationPreferencesPanel({
 
       {/* Event Selection */}
       <div className="space-y-3">
-        <label className="block text-sm font-semibold text-slate-700">
+        <label htmlFor="events-group" className="block text-sm font-semibold text-slate-700">
           Notify me when:
         </label>
-        <div className="space-y-2">
+        <div className="space-y-2" id="events-group" role="group" aria-label="Notification event types">
           {(Object.keys(EVENT_LABELS) as NotificationEvent[]).map(event => (
             <label
               key={event}
-              className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+              className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-500"
             >
               <input
                 type="checkbox"
@@ -160,6 +167,7 @@ export function NotificationPreferencesPanel({
                 onChange={() => toggleEvent(event)}
                 disabled={channel === 'none'}
                 className="w-4 h-4 text-emerald-600 rounded disabled:opacity-50"
+                aria-label={`Notify when ${EVENT_LABELS[event].toLowerCase()}`}
               />
               <span className="text-sm font-medium text-slate-700">
                 {EVENT_LABELS[event]}
@@ -188,7 +196,8 @@ export function NotificationPreferencesPanel({
       <button
         onClick={handleSave}
         disabled={isSaving}
-        className="w-full px-4 py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="w-full px-4 py-2.5 text-sm sm:text-base bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95"
+        aria-label={`${isSaving ? 'Saving' : 'Save'} notification preferences for ${member.name}`}
       >
         {isSaving ? 'Saving...' : 'Save Preferences'}
       </button>

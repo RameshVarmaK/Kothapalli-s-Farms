@@ -175,6 +175,66 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const totalActiveArea = activeFieldsWithActiveSeasons.reduce((sum, f) => sum + f.area, 0);
   const averageCostPerAcre = totalActiveArea > 0 ? totalExpense / totalActiveArea : 0;
 
+  // Empty state guide
+  if (members.length === 0 || fields.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-200 p-8 text-center">
+          <div className="text-5xl mb-4">🚀</div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-3">Welcome to Kothapalli's Farms</h2>
+          <p className="text-slate-600 mb-6 max-w-xl mx-auto">Get started in 3 simple steps to track your farm's finances and operations.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className={`p-4 rounded-lg border-2 ${members.length === 0 ? 'border-amber-300 bg-amber-50' : 'border-emerald-300 bg-emerald-50'}`}>
+              <div className="text-3xl mb-2">👥</div>
+              <h3 className="font-semibold text-slate-900 mb-1">Add Members</h3>
+              <p className="text-sm text-slate-600">Create partnership members who share farm responsibilities</p>
+            </div>
+
+            <div className={`p-4 rounded-lg border-2 ${fields.length === 0 ? 'border-amber-300 bg-amber-50' : 'border-emerald-300 bg-emerald-50'}`}>
+              <div className="text-3xl mb-2">🌾</div>
+              <h3 className="font-semibold text-slate-900 mb-1">Register Fields</h3>
+              <p className="text-sm text-slate-600">Define your farm plots and their specifications</p>
+            </div>
+
+            <div className="p-4 rounded-lg border-2 border-emerald-300 bg-emerald-50">
+              <div className="text-3xl mb-2">📊</div>
+              <h3 className="font-semibold text-slate-900 mb-1">Track Operations</h3>
+              <p className="text-sm text-slate-600">Log expenses, labour, harvests, and settlements</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            {members.length === 0 && (
+              <button
+                onClick={() => onSelectTab('Members')}
+                className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                Add First Member →
+              </button>
+            )}
+            {fields.length === 0 && (
+              <button
+                onClick={() => onSelectTab('Fields & Directory')}
+                className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Register Fields →
+              </button>
+            )}
+            {members.length > 0 && fields.length > 0 && (
+              <button
+                onClick={() => onSelectTab('Transactions')}
+                className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                Start Logging Transactions →
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Overview Cards */}

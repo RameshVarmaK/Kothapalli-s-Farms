@@ -5,6 +5,7 @@ import { NotificationDelivery, NotificationEvent } from '../types';
 interface NotificationDeliveryLogProps {
   deliveries: NotificationDelivery[];
   onClear?: () => void;
+  showFilters?: boolean;
 }
 
 const EVENT_EMOJI: Record<NotificationEvent, string> = {
@@ -20,8 +21,12 @@ const CHANNEL_LABEL: Record<string, string> = {
   none: '⊘ Disabled',
 };
 
-export function NotificationDeliveryLog({ deliveries, onClear }: NotificationDeliveryLogProps) {
+export function NotificationDeliveryLog({ deliveries, onClear, showFilters = false }: NotificationDeliveryLogProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(deliveries.length / itemsPerPage);
+  const paginatedDeliveries = deliveries.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -84,7 +89,7 @@ export function NotificationDeliveryLog({ deliveries, onClear }: NotificationDel
       </div>
 
       <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-        {deliveries.map(delivery => (
+        {paginatedDeliveries.map(delivery => (
           <div
             key={delivery.id}
             className={`border rounded-lg p-4 transition-all ${getStatusColor(delivery.status)}`}
@@ -131,6 +136,46 @@ export function NotificationDeliveryLog({ deliveries, onClear }: NotificationDel
           </div>
         ))}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+          <p className="text-xs text-slate-500 font-medium">
+            Showing {currentPage * itemsPerPage + 1} to {Math.min((currentPage + 1) * itemsPerPage, deliveries.length)} of {deliveries.length}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
+              disabled={currentPage === 0}
+              className="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ← Prev
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }).map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentPage(i)}
+                  className={`w-8 h-8 text-xs font-semibold rounded-lg transition-colors ${
+                    currentPage === i
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
+              disabled={currentPage === totalPages - 1}
+              className="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

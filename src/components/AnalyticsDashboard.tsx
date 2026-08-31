@@ -18,9 +18,10 @@ import { TrendingUp, BarChart3, Users, Leaf } from 'lucide-react';
 interface AnalyticsDashboardProps {
   db: LocalDatabase;
   currency: string;
+  onExport?: (format: 'csv' | 'json') => void;
 }
 
-export function AnalyticsDashboard({ db, currency }: AnalyticsDashboardProps) {
+export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboardProps) {
   const stats = calculateDashboardStats(db);
   const crops = calculateCropProfitability(db);
   const members = calculateMemberContribution(db);
@@ -29,8 +30,64 @@ export function AnalyticsDashboard({ db, currency }: AnalyticsDashboardProps) {
 
   const colors = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#d1fae5'];
 
+  const handleExport = (format: 'csv' | 'json') => {
+    if (format === 'json') {
+      const data = JSON.stringify({
+        timestamp: new Date().toISOString(),
+        stats,
+        crops,
+        members,
+        fields,
+        trends
+      }, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `farm-analytics-${new Date().getTime()}.json`;
+      a.click();
+    } else if (format === 'csv') {
+      const csvContent = [
+        ['Metric', 'Value'],
+        ['Total Revenue', stats.totalRevenue],
+        ['Total Expenses', stats.totalExpenses],
+        ['Net Profit', stats.netProfit],
+        ['Profit Margin (%)', stats.profitMargin.toFixed(1)],
+        [],
+        ['Crop', 'Revenue', 'Expenses', 'Profit', 'Margin (%)'],
+        ...crops.map(c => [c.cropName, c.revenue, c.expenses, c.profit, c.profitMargin.toFixed(1)])
+      ].map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `farm-analytics-${new Date().getTime()}.csv`;
+      a.click();
+    }
+    onExport?.(format);
+  };
+
   return (
     <div className="space-y-6 pb-12">
+      {/* Header with Export Controls */}
+      <div className="flex items-center justify-between bg-white rounded-lg border border-slate-200 p-4">
+        <h2 className="text-lg font-semibold text-slate-900">Farm Analytics Dashboard</h2>
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleExport('csv')}
+            className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            📊 Export CSV
+          </button>
+          <button
+            onClick={() => handleExport('json')}
+            className="px-3 py-1.5 text-xs font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
+          >
+            💾 Export JSON
+          </button>
+        </div>
+      </div>
+
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
