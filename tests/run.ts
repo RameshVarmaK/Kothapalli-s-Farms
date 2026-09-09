@@ -26,6 +26,7 @@ import type {
   CreditAccount,
   CreditRepayment,
 } from '../src/types';
+import { tests as additionalTests } from './additional-scenarios.test';
 
 type TestFn = () => void | Promise<void>;
 interface TestCase {
@@ -560,11 +561,14 @@ test('buildSettlementLedger: isBalanced tolerance catches sub-rupee floating noi
 // ---------- Runner -------------------------------------------------------
 
 (async function main() {
+  // Combine core tests and additional scenario tests
+  const allTests = [...tests, ...additionalTests];
+
   let pass = 0;
   let fail = 0;
   const failures: { name: string; err: any }[] = [];
 
-  for (const t of tests) {
+  for (const t of allTests) {
     try {
       await t.fn();
       console.log(`  ✓ ${t.name}`);
