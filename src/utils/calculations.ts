@@ -216,9 +216,18 @@ export function buildSettlementLedger(
       return sum + (alloc ? alloc.amount : 0);
     }, 0);
 
-    // Labour Expenses (all wages, including credit)
-    const directLabour = safeLabours.filter(l => l.seasonId === season.id);
-    const totalLabourExpense = directLabour.reduce((sum, l) => sum + l.totalCost, 0);
+    // Labour Expenses (all wages, including credit). A row with no targetType
+    // is a legacy single-field entry from before common-allocation support.
+    const directLabour = safeLabours.filter(l => l.targetType !== 'common' && l.seasonId === season.id);
+    const totalDirectLabourExpense = directLabour.reduce((sum, l) => sum + l.totalCost, 0);
+
+    const commonLabour = safeLabours.filter(l => l.targetType === 'common');
+    const totalCommonLabourExpense = commonLabour.reduce((sum, l) => {
+      const alloc = l.allocations?.find(al => al.seasonId === season.id);
+      return sum + (alloc ? alloc.amount : 0);
+    }, 0);
+
+    const totalLabourExpense = totalDirectLabourExpense + totalCommonLabourExpense;
 
     // Stock Usage Expense
     // For each stock usage, cost charged = quantityUsed * weighted_average_cost
@@ -269,7 +278,14 @@ export function buildSettlementLedger(
         return sum + (alloc ? alloc.amount : 0);
       }, 0);
 
-      const mLabour = directLabour.filter(l => !l.isCredit && l.paidByMemberId === m.id).reduce((sum, l) => sum + l.totalCost, 0);
+      const mDirectLabour = directLabour.filter(l => !l.isCredit && l.paidByMemberId === m.id).reduce((sum, l) => sum + l.totalCost, 0);
+
+      const mCommonLabour = commonLabour.filter(l => !l.isCredit && l.paidByMemberId === m.id).reduce((sum, l) => {
+        const alloc = l.allocations?.find(al => al.seasonId === season.id);
+        return sum + (alloc ? alloc.amount : 0);
+      }, 0);
+
+      const mLabour = mDirectLabour + mCommonLabour;
 
       // Stock funding consumption:
       // For each direct usage on this field, how much did m spend on this stock item?
@@ -325,8 +341,13 @@ export function buildSettlementLedger(
             }
           });
           credLab.forEach(l => {
-            if (l.seasonId === season.id) {
+            if (l.targetType !== 'common' && l.seasonId === season.id) {
               credIncurredInThisSeason += l.totalCost;
+            } else if (l.targetType === 'common') {
+              const alloc = l.allocations?.find(al => al.seasonId === season.id);
+              if (alloc) {
+                credIncurredInThisSeason += alloc.amount;
+              }
             }
           });
 

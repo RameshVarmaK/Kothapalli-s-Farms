@@ -1,14 +1,23 @@
 import { X } from 'lucide-react';
 import React from 'react';
 
+interface NavTab {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+}
+
+interface NavGroup {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  tabs: NavTab[];
+}
+
 interface MobileNavDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  tabs: Array<{
-    id: string;
-    label: string;
-    icon: React.ReactNode;
-  }>;
+  groups: NavGroup[];
   activeTab: string;
   onSelectTab: (tab: string) => void;
 }
@@ -16,7 +25,7 @@ interface MobileNavDrawerProps {
 export function MobileNavDrawer({
   isOpen,
   onClose,
-  tabs,
+  groups,
   activeTab,
   onSelectTab
 }: MobileNavDrawerProps) {
@@ -52,21 +61,30 @@ export function MobileNavDrawer({
           </button>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="space-y-1 p-4">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabClick(tab.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all ${
-                activeTab === tab.id
-                  ? 'bg-emerald-50 text-emerald-700 border-l-4 border-l-emerald-600'
-                  : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <span className="text-xl">{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
+        {/* Navigation Items, grouped under the same 4 hubs as the desktop nav */}
+        <nav className="p-4 overflow-y-auto">
+          {groups.map((group, idx) => (
+            <div key={group.id} className={idx > 0 ? 'mt-4' : ''}>
+              <div className="px-4 pb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                {group.label}
+              </div>
+              <div className="space-y-1">
+                {group.tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => handleTabClick(tab.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-semibold transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-emerald-50 text-emerald-700 border-l-4 border-l-emerald-600'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="text-xl">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
       </div>

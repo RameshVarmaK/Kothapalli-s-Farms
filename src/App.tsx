@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import { useState, useEffect, useRef, Suspense, lazy, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, googleSignInRedirect, logout, clearGoogleAccessToken } from './utils/auth';
 import {
@@ -55,6 +55,68 @@ import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet
 import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard, Menu, BarChart3 } from 'lucide-react';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
+import { ViewModeProvider, useViewMode } from './hooks/useViewMode';
+
+type TabId = 'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings' | 'credits' | 'analytics';
+
+interface TabDef {
+  id: TabId;
+  label: string;
+  icon: ReactNode;
+}
+
+interface TabGroup {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  tabs: TabDef[];
+}
+
+// Nine flat tabs collapse into four hubs (Home / Money / Farm / More). Basic
+// mode shows only the hubs; Power mode shows every leaf tab grouped under
+// the same hubs. Mobile always uses the hub-level bottom bar, with the full
+// grouped list one tap away in the drawer.
+const TAB_GROUPS: TabGroup[] = [
+  {
+    id: 'grp-home',
+    label: 'Home',
+    icon: <LayoutDashboard size={18} className="shrink-0" />,
+    tabs: [{ id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} className="shrink-0" /> }]
+  },
+  {
+    id: 'grp-money',
+    label: 'Money',
+    icon: <Coins size={18} className="shrink-0" />,
+    tabs: [
+      { id: 'money', label: 'Transactions', icon: <FileText size={17} className="shrink-0" /> },
+      { id: 'settle', label: 'Settle Bilateral', icon: <Coins size={17} className="shrink-0" /> },
+      { id: 'credits', label: 'Credit & Payables', icon: <CreditCard size={17} className="shrink-0" /> }
+    ]
+  },
+  {
+    id: 'grp-farm',
+    label: 'Farm',
+    icon: <Sprout size={18} className="shrink-0" />,
+    tabs: [
+      { id: 'timeline', label: 'Farm Activity', icon: <CalendarDays size={17} className="shrink-0" /> },
+      { id: 'stock', label: 'Inventory', icon: <PackageOpen size={17} className="shrink-0" /> },
+      { id: 'members', label: 'Fields & Directory', icon: <Users size={17} className="shrink-0" /> }
+    ]
+  },
+  {
+    id: 'grp-more',
+    label: 'More',
+    icon: <Wrench size={18} className="shrink-0" />,
+    tabs: [
+      { id: 'analytics', label: 'Reports & Insights', icon: <BarChart3 size={17} className="shrink-0" /> },
+      { id: 'settings', label: 'Audit & Config', icon: <Wrench size={17} className="shrink-0" /> }
+    ]
+  }
+];
+
+function groupForTab(tabId: TabId): TabGroup {
+  return TAB_GROUPS.find(g => g.tabs.some(t => t.id === tabId)) || TAB_GROUPS[0];
+}
 
 const formatErrorTextWithLinks = (text: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -102,11 +164,40 @@ function detectAndHandleConflict(cloudData: LocalDatabase, currentDb: LocalDatab
   return false;
 }
 
-export default function App() {
+// Merges a raw Sheets pull with a fallback base, filling in the shape
+// LocalDatabase expects. Shared by the login pull, the background
+// reconciler, and the pre-push conflict check so all three compare data
+// the same way.
+function normalizeCloudDb(sheetData: any, base: LocalDatabase, targetSheetId: string): LocalDatabase {
+  return {
+    members: sheetData.members ?? base.members ?? [],
+    fields: sheetData.fields ?? base.fields ?? [],
+    seasons: sheetData.seasons ?? base.seasons ?? [],
+    activities: sheetData.activities ?? base.activities ?? [],
+    expenses: sheetData.expenses ?? base.expenses ?? [],
+    labours: sheetData.labours ?? base.labours ?? [],
+    stockItems: sheetData.stockItems ?? base.stockItems ?? [],
+    purchases: sheetData.purchases ?? base.purchases ?? [],
+    usages: sheetData.usages ?? base.usages ?? [],
+    revenues: sheetData.revenues ?? base.revenues ?? [],
+    auditLogs: sheetData.auditLogs ?? base.auditLogs ?? [],
+    creditAccounts: sheetData.creditAccounts ?? base.creditAccounts ?? [],
+    creditRepayments: sheetData.creditRepayments ?? base.creditRepayments ?? [],
+    notificationPreferences: sheetData.notificationPreferences ?? base.notificationPreferences,
+    settings: {
+      ...base.settings,
+      ...(sheetData.settings || {}),
+      googleDriveLinked: true,
+      linkedSpreadsheetId: targetSheetId
+    }
+  };
+}
+
+function AppShell() {
+  const { mode, setMode } = useViewMode();
   const [db, setDb] = useState<LocalDatabase | null>(null);
-  const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings' | 'credits' | 'analytics'
-  >('dashboard');
+  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  const activeGroup = groupForTab(activeTab);
 
   // Unified Google Firebase Authentication state
   const [user, setUser] = useState<User | null>(null);
@@ -142,6 +233,7 @@ export default function App() {
   const isSyncingRef = useRef(false);
   const syncQueueRef = useRef<LocalDatabase | null>(null);
   const processSyncQueue = useRef<(() => Promise<void>) | null>(null);
+  const isReconcilingRef = useRef(false);
 
   const syncDatabaseAcrossCloud = async (currentDb?: LocalDatabase) => {
     const dbToSync = currentDb || db;
@@ -174,6 +266,28 @@ export default function App() {
         setSyncingState('syncing');
 
         try {
+          // Check the cloud state immediately before writing, not just once at
+          // login — otherwise a teammate's concurrent edit gets silently
+          // overwritten by our full-state push. A failed check here doesn't
+          // block the push (fails open) so a transient network hiccup on the
+          // check itself can't stall normal saving.
+          try {
+            const cloudSnapshot = await pullDataFromSpreadsheet(accessToken, targetSheetId);
+            if (cloudSnapshot) {
+              const normalizedCloud = normalizeCloudDb(cloudSnapshot, nextDb, targetSheetId);
+              const hasConflict = detectAndHandleConflict(normalizedCloud, nextDb, (cloudData) => {
+                setConflictData({ isOpen: true, cloudData });
+              });
+              if (hasConflict) {
+                logWarning('sync_push_paused_for_conflict', 'Paused push to Sheets: cloud data changed since last sync', { sheetId: targetSheetId });
+                setSyncingState('idle');
+                break;
+              }
+            }
+          } catch (checkErr) {
+            logWarning('pre_push_conflict_check_failed', checkErr instanceof Error ? checkErr.message : String(checkErr), { sheetId: targetSheetId });
+          }
+
           await pushDataToSpreadsheet(accessToken, targetSheetId, nextDb);
           setSyncingState('success');
           setSyncMessage('Successfully synced with cloud Sheets!');
@@ -205,6 +319,49 @@ export default function App() {
 
     processQueue();
   };
+
+  // Background reconciliation: re-pulls the linked Sheet periodically so a
+  // teammate's edits show up without a refresh, and so we're never more than
+  // one poll interval stale before the pre-push conflict check runs. Skips
+  // quietly while a push is in flight/queued (avoid racing our own write) or
+  // the tab is backgrounded (avoid burning API calls for nothing).
+  const reconcileWithCloud = async (targetSheetId: string) => {
+    if (!accessToken || isReconcilingRef.current || isSyncingRef.current || syncQueueRef.current) return;
+    isReconcilingRef.current = true;
+    try {
+      const sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
+      if (!sheetData) return;
+      setDb(prev => {
+        const base = prev || getInitialDatabase();
+        const finalDb = normalizeCloudDb(sheetData, base, targetSheetId);
+        if (detectAndHandleConflict(finalDb, base, (cloudData) => {
+          setConflictData({ isOpen: true, cloudData });
+        })) {
+          return prev;
+        }
+        saveDatabase(finalDb);
+        return finalDb;
+      });
+    } catch (err) {
+      logWarning('background_reconcile_failed', err instanceof Error ? err.message : String(err), { sheetId: targetSheetId });
+    } finally {
+      isReconcilingRef.current = false;
+    }
+  };
+
+  useEffect(() => {
+    const targetSheetId = db?.settings?.linkedSpreadsheetId;
+    if (!accessToken || !targetSheetId || isPlaceholderSpreadsheetId(targetSheetId)) return;
+
+    const POLL_INTERVAL_MS = 45000;
+    const intervalId = setInterval(() => {
+      if (document.hidden) return;
+      reconcileWithCloud(targetSheetId);
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, db?.settings?.linkedSpreadsheetId]);
 
   useEffect(() => {
     // Sync notification preferences when db changes
@@ -308,43 +465,8 @@ export default function App() {
             }
 
             setDb(prev => {
-              const base = prev || {
-                members: [],
-                fields: [],
-                seasons: [],
-                activities: [],
-                expenses: [],
-                labours: [],
-                stockItems: [],
-                purchases: [],
-                usages: [],
-                revenues: [],
-                auditLogs: [],
-                settings: { currency: "₹", areaUnit: "acres", googleDriveLinked: true, linkedSpreadsheetId: targetSheetId },
-                creditAccounts: [],
-                creditRepayments: []
-              };
-              const finalDb: LocalDatabase = {
-                members: sheetData.members ?? base.members ?? [],
-                fields: sheetData.fields ?? base.fields ?? [],
-                seasons: sheetData.seasons ?? base.seasons ?? [],
-                activities: sheetData.activities ?? base.activities ?? [],
-                expenses: sheetData.expenses ?? base.expenses ?? [],
-                labours: sheetData.labours ?? base.labours ?? [],
-                stockItems: sheetData.stockItems ?? base.stockItems ?? [],
-                purchases: sheetData.purchases ?? base.purchases ?? [],
-                usages: sheetData.usages ?? base.usages ?? [],
-                revenues: sheetData.revenues ?? base.revenues ?? [],
-                auditLogs: sheetData.auditLogs ?? base.auditLogs ?? [],
-                creditAccounts: sheetData.creditAccounts ?? base.creditAccounts ?? [],
-                creditRepayments: sheetData.creditRepayments ?? base.creditRepayments ?? [],
-                settings: {
-                  ...base.settings,
-                  ...(sheetData.settings || {}),
-                  googleDriveLinked: true,
-                  linkedSpreadsheetId: targetSheetId
-                }
-              };
+              const base = prev || getInitialDatabase();
+              const finalDb = normalizeCloudDb(sheetData, base, targetSheetId!);
 
               // Detect conflicts between cloud and local data
               if (prev && detectAndHandleConflict(finalDb, prev, (cloudData) => {
@@ -723,23 +845,36 @@ export default function App() {
     }
 
     const nextList = [...labours, lab];
-    
+
     // Auto-generate Activity logs if no linkedActivityId
     let nextActivities = [...activities];
     if (!lab.linkedActivityId) {
       const payer = members.find(m => m.id === lab.paidByMemberId);
       const payerName = payer ? payer.name : 'Unknown';
-      const notes = `Registered daily wage labor shift: ${lab.workersCount} worker(s) at ${settings.currency}${lab.wageRate}/worker. Total shift cost: ${settings.currency}${lab.totalCost} paid by ${payerName}.`;
-      
-      const autoAct: Activity = {
-        id: `act_auto_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        date: lab.date,
-        fieldId: lab.fieldId,
-        seasonId: lab.seasonId,
-        type: 'Other',
-        notes
-      };
-      nextActivities.push(autoAct);
+      const suffix = lab.targetType === 'common' ? ' (Shared across multiple fields)' : '';
+      const notes = `Registered daily wage labor shift: ${lab.workersCount} worker(s) at ${settings.currency}${lab.wageRate}/worker. Total shift cost: ${settings.currency}${lab.totalCost} paid by ${payerName}.${suffix}`;
+
+      if (lab.targetType === 'common' && lab.allocations && lab.allocations.length > 0) {
+        lab.allocations.forEach((alloc, idx) => {
+          nextActivities.push({
+            id: `act_auto_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
+            date: lab.date,
+            fieldId: alloc.fieldId,
+            seasonId: alloc.seasonId,
+            type: 'Other',
+            notes
+          });
+        });
+      } else if (lab.fieldId && lab.seasonId) {
+        nextActivities.push({
+          id: `act_auto_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          date: lab.date,
+          fieldId: lab.fieldId,
+          seasonId: lab.seasonId,
+          type: 'Other',
+          notes
+        });
+      }
     }
 
     const newDb = { ...db, labours: nextList, activities: nextActivities };
@@ -755,13 +890,13 @@ export default function App() {
 
     // Send notifications to members about new labour entry
     if (notificationPreferences.length > 0) {
-      const targetField = fields.find(f => f.id === lab.fieldId);
+      const targetField = lab.targetType === 'common' ? null : fields.find(f => f.id === lab.fieldId);
       sendBulkNotifications(notificationPreferences, {
         memberId: lab.paidByMemberId,
         eventType: 'labour_logged',
         data: {
           quantity: lab.workersCount,
-          fieldName: targetField?.name || 'Unknown',
+          fieldName: lab.targetType === 'common' ? 'Multiple fields (shared)' : (targetField?.name || 'Unknown'),
           currency: settings.currency
         }
       }).catch(err => logWarning('notification_send_failed', err.message || ''));
@@ -1086,7 +1221,9 @@ export default function App() {
     const affectedSeasons = seasons.filter(s => s.fieldId === id).map(s => s.id);
     const isAffectedSeason = (sid?: string | null) => !!sid && affectedSeasons.includes(sid);
 
-    const labCount = labours.filter(l => l.fieldId === id || isAffectedSeason(l.seasonId)).length;
+    const labCount = labours.filter(
+      l => l.targetType !== 'common' && (l.fieldId === id || isAffectedSeason(l.seasonId)),
+    ).length;
     const expSingleCount = expenses.filter(
       e => e.targetType === 'single' && (e.targetFieldId === id || isAffectedSeason(e.targetSeasonId)),
     ).length;
@@ -1115,34 +1252,51 @@ export default function App() {
       onConfirm: () => {
         const nextFields = fields.filter(f => f.id !== id);
         const nextSeasons = seasons.filter(s => s.fieldId !== id);
-        const nextLabours = labours.filter(l => l.fieldId !== id && !isAffectedSeason(l.seasonId));
         const nextRevenues = revenues.filter(r => r.fieldId !== id && !isAffectedSeason(r.seasonId));
         const nextActivities = activities.filter(a => a.fieldId !== id && !isAffectedSeason(a.seasonId));
 
+        // Labour follows the same single-vs-common split as expenses/usages below.
+        const nextLabours = labours
+          .filter(l => !(l.targetType !== 'common' && (l.fieldId === id || isAffectedSeason(l.seasonId))))
+          .map(l => {
+            if (l.targetType === 'common' && l.allocations) {
+              const remaining = l.allocations.filter(al => al.fieldId !== id && !isAffectedSeason(al.seasonId));
+              return { ...l, allocations: remaining };
+            }
+            return l;
+          })
+          .filter(l => !(l.targetType === 'common' && (l.allocations || []).length === 0));
+
         // For expenses & usages, drop "single" rows that target this field, and
-        // strip the dead season IDs from "common" rows. If a common row ends up
-        // with no remaining target seasons it is dropped entirely.
+        // strip the dead field's/seasons' entries out of "common" rows'
+        // allocation lists. If a common row ends up with no remaining
+        // allocations it is dropped entirely. This used to read/write a
+        // `commonTargetSeasonIds` field that was never actually populated
+        // anywhere (allocations are stored under `allocations`), which meant
+        // this filter always evaluated "no remaining seasons" and silently
+        // deleted EVERY common expense/usage in the database on any field or
+        // season deletion — fixed to operate on the real `allocations` array.
         const nextExpenses = expenses
           .filter(e => !(e.targetType === 'single' && (e.targetFieldId === id || isAffectedSeason(e.targetSeasonId))))
           .map(e => {
-            if (e.targetType === 'common' && e.commonTargetSeasonIds) {
-              const remaining = e.commonTargetSeasonIds.filter(sid => !affectedSeasons.includes(sid));
-              return { ...e, commonTargetSeasonIds: remaining };
+            if (e.targetType === 'common' && e.allocations) {
+              const remaining = e.allocations.filter(al => al.fieldId !== id && !isAffectedSeason(al.seasonId));
+              return { ...e, allocations: remaining };
             }
             return e;
           })
-          .filter(e => !(e.targetType === 'common' && (e.commonTargetSeasonIds || []).length === 0));
+          .filter(e => !(e.targetType === 'common' && (e.allocations || []).length === 0));
 
         const nextUsages = usages
           .filter(u => !(u.targetType === 'single' && (u.targetFieldId === id || isAffectedSeason(u.targetSeasonId))))
           .map(u => {
-            if (u.targetType === 'common' && u.commonTargetSeasonIds) {
-              const remaining = u.commonTargetSeasonIds.filter(sid => !affectedSeasons.includes(sid));
-              return { ...u, commonTargetSeasonIds: remaining };
+            if (u.targetType === 'common' && u.allocations) {
+              const remaining = u.allocations.filter(al => al.fieldId !== id && !isAffectedSeason(al.seasonId));
+              return { ...u, allocations: remaining };
             }
             return u;
           })
-          .filter(u => !(u.targetType === 'common' && (u.commonTargetSeasonIds || []).length === 0));
+          .filter(u => !(u.targetType === 'common' && (u.allocations || []).length === 0));
 
         const newDb = {
           ...db,
@@ -1233,7 +1387,7 @@ export default function App() {
     const target = seasons.find(s => s.id === id);
     if (!target) return;
 
-    const labCount = labours.filter(l => l.seasonId === id).length;
+    const labCount = labours.filter(l => l.targetType !== 'common' && l.seasonId === id).length;
     const expSingleCount = expenses.filter(e => e.targetType === 'single' && e.targetSeasonId === id).length;
     const usgSingleCount = usages.filter(u => u.targetType === 'single' && u.targetSeasonId === id).length;
     const revCount = revenues.filter(r => r.seasonId === id).length;
@@ -1253,29 +1407,40 @@ export default function App() {
       confirmText: 'Delete Season & Dependents',
       onConfirm: () => {
         const nextSeasons = seasons.filter(s => s.id !== id);
-        const nextLabours = labours.filter(l => l.seasonId !== id);
         const nextRevenues = revenues.filter(r => r.seasonId !== id);
         const nextActivities = activities.filter(a => a.seasonId !== id);
 
+        const nextLabours = labours
+          .filter(l => !(l.targetType !== 'common' && l.seasonId === id))
+          .map(l => {
+            if (l.targetType === 'common' && l.allocations) {
+              return { ...l, allocations: l.allocations.filter(al => al.seasonId !== id) };
+            }
+            return l;
+          })
+          .filter(l => !(l.targetType === 'common' && (l.allocations || []).length === 0));
+
+        // See handleDeleteField for why this operates on `allocations`
+        // rather than the never-populated `commonTargetSeasonIds`.
         const nextExpenses = expenses
           .filter(e => !(e.targetType === 'single' && e.targetSeasonId === id))
           .map(e => {
-            if (e.targetType === 'common' && e.commonTargetSeasonIds) {
-              return { ...e, commonTargetSeasonIds: e.commonTargetSeasonIds.filter(sid => sid !== id) };
+            if (e.targetType === 'common' && e.allocations) {
+              return { ...e, allocations: e.allocations.filter(al => al.seasonId !== id) };
             }
             return e;
           })
-          .filter(e => !(e.targetType === 'common' && (e.commonTargetSeasonIds || []).length === 0));
+          .filter(e => !(e.targetType === 'common' && (e.allocations || []).length === 0));
 
         const nextUsages = usages
           .filter(u => !(u.targetType === 'single' && u.targetSeasonId === id))
           .map(u => {
-            if (u.targetType === 'common' && u.commonTargetSeasonIds) {
-              return { ...u, commonTargetSeasonIds: u.commonTargetSeasonIds.filter(sid => sid !== id) };
+            if (u.targetType === 'common' && u.allocations) {
+              return { ...u, allocations: u.allocations.filter(al => al.seasonId !== id) };
             }
             return u;
           })
-          .filter(u => !(u.targetType === 'common' && (u.commonTargetSeasonIds || []).length === 0));
+          .filter(u => !(u.targetType === 'common' && (u.allocations || []).length === 0));
 
         const newDb = {
           ...db,
@@ -1530,6 +1695,23 @@ export default function App() {
             </div>
           )}
 
+          <div
+            className="hidden md:flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
+            title="Basic mode groups tools into 4 hubs. Power mode shows every tool at once."
+          >
+            {(['basic', 'power'] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`px-3 py-1 rounded-md text-[10px] font-bold capitalize cursor-pointer transition-all ${
+                  mode === m ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+
           {seasons.filter(s => !s.isClosed).length > 0 && (
             <span className="hidden sm:inline-block text-[10px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-lg border border-emerald-100 uppercase tracking-widest">
               ● {seasons.filter(s => !s.isClosed).length} Active Seasons
@@ -1541,140 +1723,101 @@ export default function App() {
       {/* Main container body */}
       <main className="flex-1 w-full max-w-7xl mx-auto flex flex-col md:flex-row pb-20 sm:pb-16 md:pb-0 md:h-[calc(100vh-69px)] overflow-hidden">
 
-        {/* Mobile Navigation Drawer */}
+        {/* Mobile Navigation Drawer — full grouped list, one tap away from the 4-hub bottom bar */}
         <MobileNavDrawer
           isOpen={mobileNavOpen}
           onClose={() => setMobileNavOpen(false)}
-          tabs={[
-            { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
-            { id: 'money', label: 'Transactions', icon: <FileText size={20} /> },
-            { id: 'stock', label: 'Inventory', icon: <PackageOpen size={20} /> },
-            { id: 'timeline', label: 'Farm Activity', icon: <CalendarDays size={20} /> },
-            { id: 'settle', label: 'Settle Bilateral', icon: <Coins size={20} /> },
-            { id: 'members', label: 'Fields & Directory', icon: <Users size={20} /> },
-            { id: 'credits', label: 'Credit & Payables', icon: <CreditCard size={20} /> },
-            { id: 'analytics', label: 'Reports & Insights', icon: <BarChart3 size={20} /> },
-            { id: 'settings', label: 'Audit & Config', icon: <Wrench size={20} /> }
-          ]}
+          groups={TAB_GROUPS}
           activeTab={activeTab}
-          onSelectTab={(tab) => setActiveTab(tab as any)}
+          onSelectTab={(tab) => setActiveTab(tab as TabId)}
         />
 
-        {/* Desktop Sidebar navigation / Mobile Bottom navigation */}
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-250 p-2 flex gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] justify-start md:relative md:bottom-auto md:left-auto md:right-auto md:border-t-0 md:border-r md:border-slate-200 md:w-64 md:flex-col md:justify-start md:gap-1.5 md:p-4 print:hidden shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] md:shadow-none">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'dashboard'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <LayoutDashboard size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Dashboard</span>
-          </button>
+        {/* Mobile bottom bar: always the 4 hubs, regardless of Basic/Power mode.
+            Tapping a hub with several tools jumps to its first tool; the drawer
+            (hamburger button in the header) gives full access to every tab. */}
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-250 p-2 flex gap-1.5 justify-around md:hidden print:hidden shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+          {TAB_GROUPS.map(group => (
+            <button
+              key={group.id}
+              onClick={() => setActiveTab(group.tabs[0].id)}
+              className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl text-[10px] font-semibold tracking-wide transition-all flex-1 min-h-12 justify-center border ${
+                activeGroup.id === group.id
+                  ? 'bg-slate-100 text-slate-900 font-bold border-slate-200'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
+              }`}
+            >
+              {group.icon}
+              <span>{group.label}</span>
+            </button>
+          ))}
+        </nav>
 
-          <button
-            onClick={() => setActiveTab('money')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'money'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <FileText size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Transactions</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('stock')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'stock'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <PackageOpen size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Inventory</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('timeline')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'timeline'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <CalendarDays size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Farm Activity</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('settle')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'settle'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <Coins size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Settle Bilateral</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('members')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'members'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <Users size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Fields & Directory</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('credits')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'credits'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <CreditCard size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Credit & Payables</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('analytics')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'analytics'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <BarChart3 size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Reports & Insights</span>
-          </button>
-
-          <div className="hidden md:block border-t border-slate-200 my-3 pt-3" />
-
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-2 md:px-3 py-2 md:py-2.5 rounded-xl text-[9px] sm:text-[10px] md:text-xs font-semibold tracking-wide transition-all shrink-0 w-[95px] md:w-full md:text-left cursor-pointer border md:border-l-4 min-h-12 md:min-h-auto justify-center md:justify-start ${
-              activeTab === 'settings'
-                ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 md:border-l-emerald-600'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
-            }`}
-          >
-            <Wrench size={18} className="shrink-0" />
-            <span className="truncate md:whitespace-normal">Audit & Config</span>
-          </button>
+        {/* Desktop Sidebar navigation */}
+        <nav className="hidden md:flex md:flex-col md:w-64 md:border-r md:border-slate-200 md:gap-1.5 md:p-4 print:hidden shrink-0">
+          {mode === 'basic' ? (
+            TAB_GROUPS.map(group => (
+              <button
+                key={group.id}
+                onClick={() => setActiveTab(group.tabs[0].id)}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all w-full text-left cursor-pointer border border-l-4 ${
+                  activeGroup.id === group.id
+                    ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 border-l-emerald-600'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
+                }`}
+              >
+                {group.icon}
+                <span>{group.label}</span>
+              </button>
+            ))
+          ) : (
+            TAB_GROUPS.map((group, idx) => (
+              <div key={group.id}>
+                {idx > 0 && <div className="border-t border-slate-200 my-3 pt-3" />}
+                <div className="px-3 pb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  {group.label}
+                </div>
+                {group.tabs.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all w-full text-left cursor-pointer border border-l-4 ${
+                      activeTab === tab.id
+                        ? 'bg-slate-100 text-slate-900 font-bold border-slate-200 border-l-emerald-600'
+                        : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 border-transparent'
+                    }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
         </nav>
 
         {/* Dynamic component contents viewport with scroll boundary */}
         <div className="flex-1 overflow-y-auto px-6 py-6 md:p-8 md:h-full pb-24 md:pb-8">
+
+          {/* Basic mode + multi-tool hub: progressive-disclosure pills to reach
+              siblings without leaving the simplified nav or opening the drawer */}
+          {mode === 'basic' && activeGroup.tabs.length > 1 && (
+            <div className="hidden md:flex gap-2 mb-5">
+              {activeGroup.tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === tab.id
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-350'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <Suspense fallback={<TabLoadingFallback />}>
             {activeTab === 'dashboard' && (
               <DashboardTab
@@ -1962,5 +2105,13 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ViewModeProvider>
+      <AppShell />
+    </ViewModeProvider>
   );
 }

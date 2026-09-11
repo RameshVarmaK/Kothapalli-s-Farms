@@ -216,6 +216,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [customFirebaseConfig, setCustomFirebaseConfig] = useState('');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'authorizing' | 'syncing' | 'success' | 'failed'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
+  const [preferencesMessage, setPreferencesMessage] = useState<{ text: string; isError: boolean } | null>(null);
+  const [backupMessage, setBackupMessage] = useState<{ text: string; isError: boolean } | null>(null);
 
   useEffect(() => {
     // Attempt to read custom credentials stored in localstorage
@@ -247,7 +249,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       currency,
       areaUnit
     });
-    alert('General preferences updated successfully!');
+    setPreferencesMessage({ text: 'General preferences updated successfully!', isError: false });
   };
 
   const handleJSONExport = () => {
@@ -264,12 +266,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         const parsed = JSON.parse(event.target?.result as string);
         if (parsed.members && parsed.fields && parsed.seasons) {
           onImportDatabase(parsed);
-          alert('Database restored successfully from backup JSON! All calculations updated.');
+          setBackupMessage({ text: 'Database restored successfully from backup JSON! All calculations updated.', isError: false });
         } else {
-          alert('Invalid file format. Ensure it is a valid FarmLedger backup JSON.');
+          setBackupMessage({ text: 'Invalid file format. Ensure it is a valid FarmLedger backup JSON.', isError: true });
         }
       } catch (err) {
-        alert('Could not parse JSON. Check the file content.');
+        setBackupMessage({ text: 'Could not parse JSON. Check the file content.', isError: true });
       }
     };
     reader.readAsText(file);
@@ -328,7 +330,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const handleGooglePull = async () => {
     const activeToken = accessToken || customAccessToken;
     if (!activeToken || !linkedSheetId) {
-      alert('Requires an active Access Token (or active Google Sign-In) and linked Spreadsheet ID to pull data.');
+      setSyncStatus('failed');
+      setStatusMessage('Requires an active Access Token (or active Google Sign-In) and linked Spreadsheet ID to pull data.');
       return;
     }
 
@@ -469,6 +472,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         {/* Unit and Currency Preference */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
           <h3 className="font-bold text-sm text-slate-800 mb-4">Localization Preferences</h3>
+          {preferencesMessage && (
+            <div className={`mb-4 p-3 rounded-xl text-[11px] font-bold border ${
+              preferencesMessage.isError ? 'bg-red-50 text-red-800 border-red-100' : 'bg-emerald-50 text-emerald-800 border-emerald-100'
+            }`}>
+              {preferencesMessage.text}
+            </div>
+          )}
           <form onSubmit={handleSavePreferences} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -514,6 +524,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           <p className="text-[11px] text-slate-400 leading-relaxed mb-5 font-medium">
             None of your financial records leave your device by default. Export local databases to save snapshots or import files to switch devices.
           </p>
+
+          {backupMessage && (
+            <div className={`mb-4 p-3 rounded-xl text-[11px] font-bold border ${
+              backupMessage.isError ? 'bg-red-50 text-red-800 border-red-100' : 'bg-emerald-50 text-emerald-800 border-emerald-100'
+            }`}>
+              {backupMessage.text}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <button

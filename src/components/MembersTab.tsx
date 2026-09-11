@@ -46,6 +46,29 @@ interface MembersTabProps {
   onDeleteSeason: (id: string) => void;
 }
 
+const EmptyState: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  ctaLabel: string;
+  onCta: () => void;
+}> = ({ icon, title, description, ctaLabel, onCta }) => (
+  <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+    <span className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+      {icon}
+    </span>
+    <h4 className="font-bold text-slate-800 text-sm mb-1.5">{title}</h4>
+    <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-5">{description}</p>
+    <button
+      onClick={onCta}
+      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
+    >
+      <Plus size={14} />
+      {ctaLabel}
+    </button>
+  </div>
+);
+
 export const MembersTab: React.FC<MembersTabProps> = ({
   fields = [],
   seasons = [],
@@ -354,6 +377,15 @@ export const MembersTab: React.FC<MembersTabProps> = ({
             </div>
 
             <div className="divide-y divide-slate-100">
+              {members.length === 0 && (
+                <EmptyState
+                  icon={<Users size={22} />}
+                  title="No partners yet"
+                  description="Add the people who share this farm's costs and profits — you'll assign their ownership percentage when you register a field."
+                  ctaLabel="Add First Partner"
+                  onCta={() => setIsOpenAddModal(true)}
+                />
+              )}
               {members.map(member => {
                 const totalStatement = summary.membersTotalStatements[member.id];
                 const profitPos = totalStatement ? totalStatement.netPosition : 0;
@@ -424,7 +456,23 @@ export const MembersTab: React.FC<MembersTabProps> = ({
       )}
 
       {/* SEGMENT FIELDS */}
-      {activeTab === 'fields' && (
+      {activeTab === 'fields' && fields.length === 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <EmptyState
+            icon={<Sprout size={22} />}
+            title="No fields registered"
+            description={
+              members.length === 0
+                ? 'Add your partners first, then register a field to split its ownership between them.'
+                : "Register your farm's plots and each partner's ownership share to start tracking activity and costs per field."
+            }
+            ctaLabel={members.length === 0 ? 'Add Partners First' : 'Register First Field'}
+            onCta={() => members.length === 0 ? setActiveTab('directory') : setIsOpenAddModal(true)}
+          />
+        </div>
+      )}
+
+      {activeTab === 'fields' && fields.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {fields.map(field => (
             <div key={field.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col hover:border-slate-350 hover:shadow-md transition-all">
@@ -474,6 +522,26 @@ export const MembersTab: React.FC<MembersTabProps> = ({
             <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400">Sown Cropping Cycles</h3>
           </div>
 
+          {seasons.length === 0 ? (
+            <EmptyState
+              icon={<Grid size={22} />}
+              title="No crop seasons yet"
+              description={
+                fields.length === 0
+                  ? 'Register a field first, then sow a crop season on it to start logging expenses, labour and harvest against it.'
+                  : 'A season tracks one crop cycle on one field, from sowing to harvest. Sow your first one to start logging activity against it.'
+              }
+              ctaLabel={fields.length === 0 ? 'Register a Field First' : 'Sow First Crop'}
+              onCta={() => {
+                if (fields.length === 0) {
+                  setActiveTab('fields');
+                } else {
+                  setSeasonFieldId(fields[0]?.id || '');
+                  setIsOpenAddModal(true);
+                }
+              }}
+            />
+          ) : (
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 text-slate-400 bg-slate-50/50 font-bold text-[10px] uppercase tracking-widest">
@@ -535,6 +603,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
               })}
             </tbody>
           </table>
+          )}
         </div>
       )}
 
@@ -815,18 +884,24 @@ export const MembersTab: React.FC<MembersTabProps> = ({
 
         const sExpenses = expenses.filter(e => e.targetType === 'single' && e.targetSeasonId === season.id);
         const sAllocations = expenses.filter(e => e.targetType === 'common' && e.allocations?.some(al => al.seasonId === season.id));
-        const sLabours = labours.filter(l => l.seasonId === season.id);
+        const sLabours = labours.filter(l => l.targetType !== 'common' && l.seasonId === season.id);
+        const sLabourAllocations = labours.filter(l => l.targetType === 'common' && l.allocations?.some(al => al.seasonId === season.id));
         const computedSt = computeStockLevels(stockItems, purchases, usages);
-        
+
         const sUsagesDirect = usages.filter(u => u.targetType === 'single' && u.targetSeasonId === season.id);
         const sUsagesCommon = usages.filter(u => u.targetType === 'common' && u.allocations?.some(al => al.seasonId === season.id));
-        
+
         const sumDir = sExpenses.reduce((sum, e) => sum + e.amount, 0);
         const sumAlloc = sAllocations.reduce((sum, e) => {
           const al = e.allocations?.find(a => a.seasonId === season.id);
           return sum + (al ? al.amount : 0);
         }, 0);
-        const sumLab = sLabours.reduce((sum, l) => sum + l.totalCost, 0);
+        const sumLabDirect = sLabours.reduce((sum, l) => sum + l.totalCost, 0);
+        const sumLabAlloc = sLabourAllocations.reduce((sum, l) => {
+          const al = l.allocations?.find(a => a.seasonId === season.id);
+          return sum + (al ? al.amount : 0);
+        }, 0);
+        const sumLab = sumLabDirect + sumLabAlloc;
         
         const sumStDirect = sUsagesDirect.reduce((sum, u) => {
           const item = computedSt.find(si => si.id === u.stockItemId);
@@ -906,12 +981,15 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           }
 
           text    += `\nSECTION 4: HIRED LABOR MANPOWER UTILIZED\n`;
-          if (sLabours.length === 0) {
+          const combinedLabours = [...sLabours, ...sLabourAllocations];
+          if (combinedLabours.length === 0) {
             text  += `No hired labor shifts registered.\n`;
           } else {
-            sLabours.forEach((l, i) => {
+            combinedLabours.forEach((l, i) => {
               const payer = members.find(m => m.id === l.paidByMemberId)?.name || 'Unknown';
-              text += `${i + 1}. [${l.date}] ${l.workersCount} workers at ${currency}${l.wageRate}/worker. Total Cost: ${currency}${Math.round(l.totalCost).toLocaleString('en-IN')} (Paid by ${payer})\n`;
+              const isCommon = l.targetType === 'common';
+              const actualCost = isCommon ? (l.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : l.totalCost;
+              text += `${i + 1}. [${l.date}] ${l.workersCount} workers at ${currency}${l.wageRate}/worker. Total Cost: ${currency}${Math.round(actualCost).toLocaleString('en-IN')} (Paid by ${payer})${isCommon ? ' [Allocated split]' : ''}\n`;
             });
           }
 
@@ -944,6 +1022,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
 
         const combinedExps = [...sExpenses, ...sAllocations];
         const combinedUsages = [...sUsagesDirect, ...sUsagesCommon];
+        const combinedLabours = [...sLabours, ...sLabourAllocations];
 
         return (
           <div className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
@@ -1124,20 +1203,23 @@ export const MembersTab: React.FC<MembersTabProps> = ({
                     <Users size={13} className="text-slate-500" />
                     <span>Section 4: Hired Labor Manpower Utilized</span>
                   </h4>
-                  {sLabours.length === 0 ? (
+                  {combinedLabours.length === 0 ? (
                     <p className="text-slate-400 text-xs italic">No hired daily wage worker logs associated.</p>
                   ) : (
                     <div className="space-y-2.5">
-                      {sLabours.map(l => {
+                      {combinedLabours.map(l => {
                         const payer = members.find(m => m.id === l.paidByMemberId)?.name || 'Unknown';
+                        const isCommon = l.targetType === 'common';
+                        const actualCost = isCommon ? (l.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : l.totalCost;
                         return (
                           <div key={l.id} className="flex justify-between items-center text-xs">
                             <div className="flex gap-2">
                               <span className="font-mono text-slate-400">[{l.date}]</span>
                               <span className="font-bold text-slate-705">{l.workersCount} worker(s) at {currency}{l.wageRate}/worker</span>
+                              {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">Common Allocated split</span>}
                             </div>
                             <span className="font-mono font-bold text-slate-800">
-                              {currency}{Math.round(l.totalCost).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">paid by {payer}</span>
+                              {currency}{Math.round(actualCost).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">paid by {payer}</span>
                             </span>
                           </div>
                         );

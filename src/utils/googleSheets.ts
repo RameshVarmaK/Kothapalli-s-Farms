@@ -236,7 +236,7 @@ export async function pushDataToSpreadsheet(
     },
     {
       range: 'Labor!A1:L1000',
-      values: toSheetRows(data.labours, ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId']),
+      values: toSheetRows(data.labours, ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations']),
     },
     {
       range: 'StockItems!A1:J200',

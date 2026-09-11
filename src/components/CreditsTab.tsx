@@ -228,14 +228,14 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
           </button>
 
           <button
-            onClick={() => {
-              if (creditAccounts.length === 0) {
-                alert('Please add a Creditor profile first before recording payments.');
-                return;
-              }
-              setIsOpenAddRepayment(true);
-            }}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold tracking-wide hover:bg-emerald-700 transition-all cursor-pointer"
+            onClick={() => setIsOpenAddRepayment(true)}
+            disabled={creditAccounts.length === 0}
+            title={creditAccounts.length === 0 ? 'Add a creditor profile first before recording payments.' : undefined}
+            className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all ${
+              creditAccounts.length === 0
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                : 'bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer'
+            }`}
           >
             <Coins size={14} className="stroke-[2.5]" />
             <span>Record Part Payment</span>

@@ -13,10 +13,12 @@ import {
   Member,
   Activity,
   CommonAllocationType,
-  CreditAccount
+  CreditAccount,
+  Attachment
 } from '../types';
-import { Plus, Filter, Trash2, ArrowUpRight, ArrowDownLeft, Users, Receipt, Calendar, Pencil, AlertTriangle } from 'lucide-react';
+import { Plus, Filter, Trash2, ArrowUpRight, ArrowDownLeft, Users, Receipt, Calendar, Pencil, AlertTriangle, Check } from 'lucide-react';
 import { calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
+import { AttachmentUploader } from './AttachmentUploader';
 
 interface MoneyTabProps {
   expenses: Expense[];
@@ -70,6 +72,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
   const [addTab, setAddTab] = useState<'expense' | 'labour' | 'revenue'>('expense');
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Form states
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -89,6 +92,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   const [workersCount, setWorkersCount] = useState('');
   const [wageRate, setWageRate] = useState('');
   const [labourTotalCost, setLabourTotalCost] = useState('');
+  const [labourTargetType, setLabourTargetType] = useState<'single' | 'common'>('single');
+  const [labourAllocationRule, setLabourAllocationRule] = useState<CommonAllocationType>('equal');
+  const [labourParticipatingSeasons, setLabourParticipatingSeasons] = useState<string[]>([]);
+  const [manualLabourAllocations, setManualLabourAllocations] = useState<{ [key: string]: string }>({});
 
   // Revenue states
   const [revenueCrop, setRevenueCrop] = useState('');
@@ -97,6 +104,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
   const [isCredit, setIsCredit] = useState(false);
   const [creditAccountId, setCreditAccountId] = useState('');
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   // Compiling transactional ledger timeline
   const ledgerItems: {
@@ -154,9 +162,15 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     } else {
       payer = members.find(m => m.id === l.paidByMemberId)?.name || 'Unknown';
     }
-    const s = seasons.find(sea => sea.id === l.seasonId);
-    const f = fields.find(fd => fd.id === l.fieldId);
-    const fieldSeasonName = s ? `${s.cropName} (${f ? f.name : ''})` : 'Unknown';
+    let fieldSeasonName = 'Common / All';
+    if (l.targetType !== 'common' && l.seasonId) {
+      const s = seasons.find(sea => sea.id === l.seasonId);
+      const f = fields.find(fd => fd.id === l.fieldId);
+      fieldSeasonName = s ? `${s.cropName} (${f ? f.name : ''})` : 'Unknown';
+    } else if (l.targetType === 'common' && l.allocations) {
+      const activeAllocFields = l.allocations.map(al => fields.find(f => f.id === al.fieldId)?.name || '').filter(Boolean);
+      fieldSeasonName = `Common Split (${activeAllocFields.join(', ')})`;
+    }
 
     ledgerItems.push({
       id: l.id,
@@ -205,6 +219,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
           } else {
             fieldMatches = rec.allocations?.some((al: any) => al.fieldId === filterFieldId) || false;
           }
+        } else if (item.type === 'labour' && rec.targetType === 'common') {
+          fieldMatches = rec.allocations?.some((al: any) => al.fieldId === filterFieldId) || false;
         } else {
           fieldMatches = rec.fieldId === filterFieldId;
         }
@@ -240,6 +256,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       setCategory(rawRecord.category);
       setLinkedActivityId(rawRecord.linkedActivityId || '');
       setTargetType(rawRecord.targetType);
+      setAttachments(rawRecord.attachments || []);
       
       if (rawRecord.targetType === 'single') {
         setSelectedSeasonId(rawRecord.targetSeasonId || '');
@@ -254,11 +271,24 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         setManualAllocations(initialManual);
       }
     } else if (type === 'labour') {
-      setSelectedSeasonId(rawRecord.seasonId);
       setWorkersCount(String(rawRecord.workersCount));
       setWageRate(String(rawRecord.wageRate));
       setLabourTotalCost(String(rawRecord.totalCost));
       setLinkedActivityId(rawRecord.linkedActivityId || '');
+      setLabourTargetType(rawRecord.targetType === 'common' ? 'common' : 'single');
+
+      if (rawRecord.targetType === 'common') {
+        setLabourAllocationRule(rawRecord.commonAllocationRule || 'equal');
+        setLabourParticipatingSeasons(rawRecord.allocations?.map((al: any) => al.seasonId) || []);
+
+        const initialManual: { [key: string]: string } = {};
+        rawRecord.allocations?.forEach((al: any) => {
+          initialManual[`${al.fieldId}_${al.seasonId}`] = String(al.amount);
+        });
+        setManualLabourAllocations(initialManual);
+      } else {
+        setSelectedSeasonId(rawRecord.seasonId);
+      }
     } else if (type === 'revenue') {
       setSelectedSeasonId(rawRecord.seasonId);
       setRevenueCrop(rawRecord.crop);
@@ -288,8 +318,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       });
       const diff = allocationDiscrepancy(amt, parsedManual);
       if (Math.abs(diff) > 0.5) {
-        // eslint-disable-next-line no-alert
-        alert(
+        setFormError(
           `Manual allocations are off by ${diff > 0 ? '+' : ''}${diff.toFixed(2)}. ` +
           `The per-season values must sum to exactly ${amt.toFixed(2)}. ` +
           `Adjust the entries before saving.`,
@@ -297,6 +326,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         return;
       }
     }
+    setFormError(null);
 
     let expensePost: Expense;
     const baseExpense = editingRecordId ? expenses.find(exp => exp.id === editingRecordId) : null;
@@ -316,7 +346,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         targetFieldId: season.fieldId,
         targetSeasonId: season.id,
         isCredit,
-        creditAccountId: isCredit ? creditAccountId : undefined
+        creditAccountId: isCredit ? creditAccountId : undefined,
+        attachments: attachments.length > 0 ? attachments : undefined
       } as Expense;
     } else {
       // Allocate common
@@ -350,7 +381,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         commonAllocationRule: allocationRule,
         allocations: calculatedAlloc,
         isCredit,
-        creditAccountId: isCredit ? creditAccountId : undefined
+        creditAccountId: isCredit ? creditAccountId : undefined,
+        attachments: attachments.length > 0 ? attachments : undefined
       } as Expense;
     }
 
@@ -367,26 +399,86 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     const count = parseInt(workersCount);
     const rate = parseFloat(wageRate);
     const computedTotal = labourTotalCost ? parseFloat(labourTotalCost) : count * rate;
-    const season = seasons.find(s => s.id === selectedSeasonId)!;
 
-    if (!computedTotal || computedTotal <= 0 || !season) return;
+    if (!computedTotal || computedTotal <= 0) return;
+    if (labourTargetType === 'single' && !selectedSeasonId) return;
+
+    // Same guard rail as the expense/usage manual-allocation checks: the
+    // per-season values must sum to the headline total before saving.
+    if (labourTargetType === 'common' && labourAllocationRule === 'manual') {
+      const parsedManual: { [key: string]: number } = {};
+      Object.keys(manualLabourAllocations).forEach(k => {
+        parsedManual[k] = parseFloat(manualLabourAllocations[k]) || 0;
+      });
+      const diff = allocationDiscrepancy(computedTotal, parsedManual);
+      if (Math.abs(diff) > 0.5) {
+        setFormError(
+          `Manual allocations are off by ${diff > 0 ? '+' : ''}${diff.toFixed(2)}. ` +
+          `The per-field values must sum to exactly ${computedTotal.toFixed(2)}. ` +
+          `Adjust the entries before saving.`,
+        );
+        return;
+      }
+    }
+    setFormError(null);
 
     const baseLabour = editingRecordId ? labours.find(l => l.id === editingRecordId) : null;
 
-    const labourPost: Labour = {
-      ...(baseLabour || {}),
-      id: editingRecordId || `labout_${Date.now()}`,
-      date,
-      fieldId: season.fieldId,
-      seasonId: season.id,
-      linkedActivityId: linkedActivityId || undefined,
-      workersCount: count || 0,
-      wageRate: rate || 0,
-      totalCost: computedTotal,
-      paidByMemberId: isCredit ? '' : paidBy,
-      isCredit,
-      creditAccountId: isCredit ? creditAccountId : undefined
-    } as Labour;
+    let labourPost: Labour;
+
+    if (labourTargetType === 'single') {
+      const season = seasons.find(s => s.id === selectedSeasonId);
+      if (!season) return;
+      labourPost = {
+        ...(baseLabour || {}),
+        id: editingRecordId || `labour_${Date.now()}`,
+        date,
+        targetType: 'single',
+        fieldId: season.fieldId,
+        seasonId: season.id,
+        allocations: undefined,
+        commonAllocationRule: undefined,
+        linkedActivityId: linkedActivityId || undefined,
+        workersCount: count || 0,
+        wageRate: rate || 0,
+        totalCost: computedTotal,
+        paidByMemberId: isCredit ? '' : paidBy,
+        isCredit,
+        creditAccountId: isCredit ? creditAccountId : undefined
+      } as Labour;
+    } else {
+      const participatingDetailed = labourParticipatingSeasons.map(sid => {
+        const s = seasons.find(sea => sea.id === sid);
+        if (!s) return null;
+        const f = fields.find(field => field.id === s.fieldId);
+        return { fieldId: s.fieldId, seasonId: s.id, fieldArea: f?.area || 1 };
+      }).filter((v): v is { fieldId: string; seasonId: string; fieldArea: number } => v !== null);
+
+      const parsedManual: { [key: string]: number } = {};
+      Object.keys(manualLabourAllocations).forEach(k => {
+        parsedManual[k] = parseFloat(manualLabourAllocations[k]) || 0;
+      });
+
+      const calculatedAlloc = calculateAllocations(computedTotal, labourAllocationRule, participatingDetailed, parsedManual);
+
+      labourPost = {
+        ...(baseLabour || {}),
+        id: editingRecordId || `labour_${Date.now()}`,
+        date,
+        targetType: 'common',
+        fieldId: undefined,
+        seasonId: undefined,
+        commonAllocationRule: labourAllocationRule,
+        allocations: calculatedAlloc,
+        linkedActivityId: linkedActivityId || undefined,
+        workersCount: count || 0,
+        wageRate: rate || 0,
+        totalCost: computedTotal,
+        paidByMemberId: isCredit ? '' : paidBy,
+        isCredit,
+        creditAccountId: isCredit ? creditAccountId : undefined
+      } as Labour;
+    }
 
     if (editingRecordId) {
       onEditLabour(labourPost);
@@ -442,13 +534,73 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     setBuyerName('');
     setSelectedParticipatingSeasons([]);
     setManualAllocations({});
+    setLabourTargetType('single');
+    setLabourAllocationRule('equal');
+    setLabourParticipatingSeasons([]);
+    setManualLabourAllocations({});
     setIsCredit(false);
     setCreditAccountId('');
+    setAttachments([]);
+    setFormError(null);
   };
 
   const handleDelete = (id: string, type: 'expense' | 'labour' | 'revenue') => {
     setDeleteConfirmInfo({ id, type });
   };
+
+  // Live allocation preview for the common-expense split — computed here so
+  // both the per-season row preview and the running-total summary below stay
+  // in sync with what handleSaveExpense will actually write.
+  const participatingDetailedPreview = selectedParticipatingSeasons.map(sid => {
+    const s = seasons.find(sea => sea.id === sid);
+    if (!s) return null;
+    return {
+      fieldId: s.fieldId,
+      seasonId: s.id,
+      fieldArea: fields.find(fd => fd.id === s.fieldId)?.area || 1
+    };
+  }).filter((v): v is { fieldId: string; seasonId: string; fieldArea: number } => v !== null);
+
+  const parsedManualPreview: { [key: string]: number } = {};
+  Object.keys(manualAllocations).forEach(k => {
+    parsedManualPreview[k] = parseFloat(manualAllocations[k]) || 0;
+  });
+
+  const previewAmount = parseFloat(amount) || 0;
+  const allocationPreview = targetType === 'common' && participatingDetailedPreview.length > 0
+    ? calculateAllocations(previewAmount, allocationRule, participatingDetailedPreview, parsedManualPreview)
+    : [];
+  const allocationTotal = allocationPreview.reduce((sum, a) => sum + a.amount, 0);
+  const allocationDiff = Number((previewAmount - allocationTotal).toFixed(2));
+
+  const allocationRuleHelp: Record<CommonAllocationType, string> = {
+    equal: 'Splits the amount into identical shares across every checked field, regardless of size.',
+    area: 'Splits the amount in proportion to each field’s registered acreage — bigger fields carry a bigger share.',
+    manual: 'You set the exact rupee amount per field yourself. The entries must add up to the total below.'
+  };
+
+  // Same live allocation preview, mirrored for the Labour form's common split.
+  const labourParticipatingDetailedPreview = labourParticipatingSeasons.map(sid => {
+    const s = seasons.find(sea => sea.id === sid);
+    if (!s) return null;
+    return {
+      fieldId: s.fieldId,
+      seasonId: s.id,
+      fieldArea: fields.find(fd => fd.id === s.fieldId)?.area || 1
+    };
+  }).filter((v): v is { fieldId: string; seasonId: string; fieldArea: number } => v !== null);
+
+  const parsedManualLabourPreview: { [key: string]: number } = {};
+  Object.keys(manualLabourAllocations).forEach(k => {
+    parsedManualLabourPreview[k] = parseFloat(manualLabourAllocations[k]) || 0;
+  });
+
+  const previewLabourTotal = parseFloat(labourTotalCost) || 0;
+  const labourAllocationPreview = labourTargetType === 'common' && labourParticipatingDetailedPreview.length > 0
+    ? calculateAllocations(previewLabourTotal, labourAllocationRule, labourParticipatingDetailedPreview, parsedManualLabourPreview)
+    : [];
+  const labourAllocationTotal = labourAllocationPreview.reduce((sum, a) => sum + a.amount, 0);
+  const labourAllocationDiff = Number((previewLabourTotal - labourAllocationTotal).toFixed(2));
 
   return (
     <div className="space-y-6">
@@ -521,9 +673,38 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
         <div className="divide-y divide-slate-100">
           {filteredLedger.length === 0 ? (
-            <div className="p-12 text-center text-slate-400 text-xs font-semibold">
-              No bookkeeping transactions recorded under modern filters.
-            </div>
+            ledgerItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                <span className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+                  <Receipt size={22} />
+                </span>
+                <h4 className="font-bold text-slate-800 text-sm mb-1.5">No transactions logged yet</h4>
+                <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-5">
+                  Every expense, labour shift, and harvest sale you record shows up here — one running ledger for the whole partnership.
+                </p>
+                <button
+                  onClick={() => setIsOpenAddModal(true)}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
+                >
+                  <Plus size={14} />
+                  Log First Transaction
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-12 px-6">
+                <p className="text-slate-500 text-xs font-semibold mb-3">No transactions match the current filters.</p>
+                <button
+                  onClick={() => {
+                    setFilterType('all');
+                    setFilterFieldId('all');
+                    setFilterMemberId('all');
+                  }}
+                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-150 px-3 py-1.5 rounded-lg cursor-pointer transition-all"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )
           ) : (
             filteredLedger.map(item => {
               const isRevenue = item.type === 'revenue';
@@ -609,6 +790,13 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 {editingRecordId ? 'Edit Harvest Revenue' : 'Log Harvest Revenue'}
               </button>
             </div>
+
+            {formError && (
+              <div className="mx-6 mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-[10px] flex items-start gap-2">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>{formError}</span>
+              </div>
+            )}
 
             {/* EXPENSE FORM */}
             {addTab === 'expense' && (
@@ -766,6 +954,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                         <option value="manual">Manual Specification</option>
                       </select>
                     </div>
+                    <p className="text-[10px] text-gray-400 leading-relaxed -mt-1">{allocationRuleHelp[allocationRule]}</p>
 
                     <div className="space-y-2">
                       <span className="text-[10px] font-bold text-gray-400 uppercase block">Fields Participating</span>
@@ -807,25 +996,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                                   />
                                 ) : (
                                   <span className="text-[10px] text-gray-500 font-semibold mono-num">
-                                    {/* Calculated preview */}
                                     {isChecked && amount ? (
                                       <>
                                         {currency}
-                                        {Math.round(
-                                          calculateAllocations(
-                                            parseFloat(amount) || 0,
-                                            allocationRule,
-                                            selectedParticipatingSeasons.map(sid => {
-                                              const targetS = seasons.find(sea => sea.id === sid);
-                                              if (!targetS) return null;
-                                              return {
-                                                fieldId: targetS.fieldId,
-                                                seasonId: targetS.id,
-                                                fieldArea: fields.find(fd => fd.id === targetS.fieldId)?.area || 1
-                                              };
-                                            }).filter((v): v is { fieldId: string; seasonId: string; fieldArea: number } => v !== null)
-                                          ).find(al => al.seasonId === s.id)?.amount || 0
-                                        )}
+                                        {Math.round(allocationPreview.find(al => al.seasonId === s.id)?.amount || 0)}
                                       </>
                                     ) : '-'}
                                   </span>
@@ -836,6 +1010,34 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                         );
                       })}
                     </div>
+
+                    {/* Running total — makes the split fully transparent before saving,
+                        instead of only failing the manual-rule check on submit. */}
+                    {selectedParticipatingSeasons.length > 0 && (
+                      <div
+                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold ${
+                          !amount
+                            ? 'bg-white border-gray-150 text-gray-400'
+                            : Math.abs(allocationDiff) <= 0.5
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                            : 'bg-amber-50 border-amber-150 text-amber-700'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {amount && (
+                            Math.abs(allocationDiff) <= 0.5
+                              ? <Check size={12} />
+                              : <AlertTriangle size={12} />
+                          )}
+                          Allocated {currency}{Math.round(allocationTotal)} of {currency}{Math.round(previewAmount)}
+                        </span>
+                        {amount && Math.abs(allocationDiff) > 0.5 && (
+                          <span className="mono-num">
+                            {currency}{Math.abs(allocationDiff).toFixed(2)} {allocationDiff > 0 ? 'unallocated' : 'over'}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -853,6 +1055,11 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Receipt / Photo (Optional)</label>
+                  <AttachmentUploader attachments={attachments} onAttachmentsChange={setAttachments} />
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-gray-50">
@@ -945,24 +1152,150 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Crop Cycle</label>
-                  <select
-                    value={selectedSeasonId}
-                    required
-                    onChange={e => setSelectedSeasonId(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
-                  >
-                    <option value="">Select crop season...</option>
-                    {seasons.map(s => {
-                      const f = fields.find(field => field.id === s.fieldId);
-                      return (
-                        <option key={s.id} value={s.id}>
-                          {s.cropName} ({f ? f.name : 'Unknown'})
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target field scope</label>
+                  <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100">
+                    <button
+                      type="button"
+                      onClick={() => setLabourTargetType('single')}
+                      className={`flex-1 text-center py-1.5 rounded-lg text-xs font-semibold ${
+                        labourTargetType === 'single' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-400'
+                      }`}
+                    >
+                      Single Crop Cycle
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLabourTargetType('common');
+                        setLabourParticipatingSeasons(activeSeasons.map(s => s.id));
+                      }}
+                      className={`flex-1 text-center py-1.5 rounded-lg text-xs font-semibold ${
+                        labourTargetType === 'common' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-400'
+                      }`}
+                    >
+                      Shared Across Fields
+                    </button>
+                  </div>
                 </div>
+
+                {labourTargetType === 'single' ? (
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Crop Cycle</label>
+                    <select
+                      value={selectedSeasonId}
+                      required
+                      onChange={e => setSelectedSeasonId(e.target.value)}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
+                    >
+                      <option value="">Select crop season...</option>
+                      {seasons.map(s => {
+                        const f = fields.find(field => field.id === s.fieldId);
+                        return (
+                          <option key={s.id} value={s.id}>
+                            {s.cropName} ({f ? f.name : 'Unknown'})
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase">Division Rule</span>
+                      <select
+                        value={labourAllocationRule}
+                        onChange={e => setLabourAllocationRule(e.target.value as CommonAllocationType)}
+                        className="bg-white border border-gray-100 rounded-lg text-[10px] px-2 py-1"
+                      >
+                        <option value="equal">Equal Split</option>
+                        <option value="area">Area Proportional (Acres)</option>
+                        <option value="manual">Manual Specification</option>
+                      </select>
+                    </div>
+                    <p className="text-[10px] text-gray-400 leading-relaxed -mt-1">{allocationRuleHelp[labourAllocationRule]}</p>
+
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase block">Fields Participating</span>
+                      {activeSeasons.map(s => {
+                        const f = fields.find(field => field.id === s.fieldId)!;
+                        const isChecked = labourParticipatingSeasons.includes(s.id);
+                        return (
+                          <div key={s.id} className="flex justify-between items-center text-xs">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setLabourParticipatingSeasons(prev => prev.filter(id => id !== s.id));
+                                  } else {
+                                    setLabourParticipatingSeasons(prev => [...prev, s.id]);
+                                  }
+                                }}
+                                className="rounded text-emerald-600 focus:ring-emerald-500"
+                              />
+                              <span className="font-semibold text-gray-700">{s.cropName} ({f?.name})</span>
+                            </label>
+                            {isChecked && (
+                              <div className="flex items-center gap-1">
+                                {labourAllocationRule === 'manual' ? (
+                                  <input
+                                    type="number"
+                                    placeholder="Rupees"
+                                    value={manualLabourAllocations[`${s.fieldId}_${s.id}`] || ''}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      setManualLabourAllocations(prev => ({
+                                        ...prev,
+                                        [`${s.fieldId}_${s.id}`]: val
+                                      }));
+                                    }}
+                                    className="w-20 bg-white border border-gray-100 rounded-md px-1.5 py-0.5 text-right text-[10px]"
+                                  />
+                                ) : (
+                                  <span className="text-[10px] text-gray-500 font-semibold mono-num">
+                                    {isChecked && labourTotalCost ? (
+                                      <>
+                                        {currency}
+                                        {Math.round(labourAllocationPreview.find(al => al.seasonId === s.id)?.amount || 0)}
+                                      </>
+                                    ) : '-'}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {labourParticipatingSeasons.length > 0 && (
+                      <div
+                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold ${
+                          !labourTotalCost
+                            ? 'bg-white border-gray-150 text-gray-400'
+                            : Math.abs(labourAllocationDiff) <= 0.5
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                            : 'bg-amber-50 border-amber-150 text-amber-700'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {labourTotalCost && (
+                            Math.abs(labourAllocationDiff) <= 0.5
+                              ? <Check size={12} />
+                              : <AlertTriangle size={12} />
+                          )}
+                          Allocated {currency}{Math.round(labourAllocationTotal)} of {currency}{Math.round(previewLabourTotal)}
+                        </span>
+                        {labourTotalCost && Math.abs(labourAllocationDiff) > 0.5 && (
+                          <span className="mono-num">
+                            {currency}{Math.abs(labourAllocationDiff).toFixed(2)} {labourAllocationDiff > 0 ? 'unallocated' : 'over'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1018,7 +1351,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
                   >
                     <option value="">Do not link to activity</option>
-                    {activities.filter(a => a.seasonId === selectedSeasonId).map(a => (
+                    {activities.filter(a => labourTargetType === 'single' ? a.seasonId === selectedSeasonId : true).map(a => (
                       <option key={a.id} value={a.id}>
                         {a.date} - {a.type} ({a.notes.substring(0,30)}...)
                       </option>

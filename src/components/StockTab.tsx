@@ -14,8 +14,9 @@ import {
   Activity,
   CommonAllocationType
 } from '../types';
-import { Plus, Archive, History, Coins, Hammer, AlertTriangle } from 'lucide-react';
+import { Plus, Archive, History, Coins, Hammer, AlertTriangle, Check } from 'lucide-react';
 import { computeStockLevels, calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
+import { validatePurchase, validateUsage } from '../utils/validation';
 
 interface StockTabProps {
   stockItems: StockItem[];
@@ -78,7 +79,11 @@ export const StockTab: React.FC<StockTabProps> = ({
 
   const handleSaveStockItem = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!itemName || !itemUnit) return;
+    setErrorMessage('');
+    if (!itemName || !itemUnit) {
+      setErrorMessage('Both a name and a unit (e.g. kg, litre, bag) are required.');
+      return;
+    }
 
     const newItem: StockItem = {
       id: `item_${Date.now()}`,
@@ -97,9 +102,13 @@ export const StockTab: React.FC<StockTabProps> = ({
 
   const handleSavePurchase = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    if (!selectedItemId) {
+      setErrorMessage('Select which material this purchase is for.');
+      return;
+    }
     const qty = parseFloat(purchaseQty);
     const cost = parseFloat(purchaseCost);
-    if (!selectedItemId || !qty || qty <= 0 || !cost || cost <= 0) return;
 
     const newPurchase: StockPurchase = {
       id: `purc_${Date.now()}`,
@@ -110,14 +119,29 @@ export const StockTab: React.FC<StockTabProps> = ({
       paidByMemberId: purchasePayer
     };
 
+    const validation = validatePurchase(newPurchase);
+    if (!validation.valid) {
+      setErrorMessage(validation.errors.join('; '));
+      return;
+    }
+
     onAddPurchase(newPurchase);
     closeAndReset();
   };
 
   const handleSaveUsage = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
+    if (!selectedItemId) {
+      setErrorMessage('Select which material this usage is for.');
+      return;
+    }
     const qty = parseFloat(usageQty);
-    if (!selectedItemId || !qty || qty <= 0) return;
+    const usageDateCheck = validateUsage({ id: '', stockItemId: selectedItemId, quantityUsed: qty, date: usageDate, targetType: usageTargetType });
+    if (!usageDateCheck.valid) {
+      setErrorMessage(usageDateCheck.errors.join('; '));
+      return;
+    }
 
     const selectedStock = computedStockList.find(i => i.id === selectedItemId);
     if (!selectedStock || selectedStock.quantityOnHand < qty) {
@@ -219,6 +243,38 @@ export const StockTab: React.FC<StockTabProps> = ({
 
   const totalInventoryValue = computedStockList.reduce((sum, item) => sum + (item.quantityOnHand * item.weightedAverageCost), 0);
 
+  // Live allocation preview for the common-usage split — mirrors MoneyTab's
+  // expense allocation preview so the per-season row values and the
+  // running-total summary below stay in sync with what handleSaveUsage
+  // will actually write.
+  const usageParticipatingDetailedPreview = usageParticipatingSeasons.map(sid => {
+    const s = seasons.find(sea => sea.id === sid);
+    if (!s) return null;
+    return {
+      fieldId: s.fieldId,
+      seasonId: s.id,
+      fieldArea: fields.find(fd => fd.id === s.fieldId)?.area || 1
+    };
+  }).filter((v): v is { fieldId: string; seasonId: string; fieldArea: number } => v !== null);
+
+  const parsedManualUsagePreview: { [key: string]: number } = {};
+  Object.keys(manualUsageAllocations).forEach(k => {
+    parsedManualUsagePreview[k] = parseFloat(manualUsageAllocations[k]) || 0;
+  });
+
+  const previewUsageQty = parseFloat(usageQty) || 0;
+  const usageAllocationPreview = usageTargetType === 'common' && usageParticipatingDetailedPreview.length > 0
+    ? calculateAllocations(previewUsageQty, usageAllocationRule, usageParticipatingDetailedPreview, parsedManualUsagePreview)
+    : [];
+  const usageAllocationTotal = usageAllocationPreview.reduce((sum, a) => sum + a.amount, 0);
+  const usageAllocationDiff = Number((previewUsageQty - usageAllocationTotal).toFixed(3));
+
+  const usageAllocationRuleHelp: Record<CommonAllocationType, string> = {
+    equal: 'Splits the quantity into identical shares across every checked field, regardless of size.',
+    area: 'Splits the quantity in proportion to each field’s registered acreage — bigger fields carry a bigger share.',
+    manual: 'You set the exact quantity per field yourself. The entries must add up to the total below.'
+  };
+
   return (
     <div className="space-y-6">
       {/* Upper Metrics Grid */}
@@ -297,8 +353,23 @@ export const StockTab: React.FC<StockTabProps> = ({
             <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
               {computedStockList.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400 font-semibold">
-                    No farm inputs created yet. Record inventory stock elements to calculate averages.
+                  <td colSpan={5} className="px-6 py-0">
+                    <div className="flex flex-col items-center justify-center text-center py-12">
+                      <span className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+                        <Archive size={22} />
+                      </span>
+                      <h4 className="font-bold text-slate-800 text-sm mb-1.5">No farm inputs registered</h4>
+                      <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-5">
+                        Register seed, fertilizer, pesticide, or fuel types here first — then log purchases and field usage against them.
+                      </p>
+                      <button
+                        onClick={() => { setModalType('item'); setIsOpenAddModal(true); }}
+                        className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
+                      >
+                        <Plus size={14} />
+                        Create First Input Type
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -340,7 +411,29 @@ export const StockTab: React.FC<StockTabProps> = ({
 
           <div className="divide-y divide-slate-100">
             {purchases.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 font-semibold text-xs">No stock purchases logged yet.</div>
+              <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                <span className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+                  <Coins size={22} />
+                </span>
+                <h4 className="font-bold text-slate-800 text-sm mb-1.5">
+                  {stockItems.length === 0 ? 'Register an input type first' : 'No purchases logged yet'}
+                </h4>
+                <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-5">
+                  {stockItems.length === 0
+                    ? 'You need at least one input type (seed, fertilizer, etc.) before you can log a purchase against it.'
+                    : 'Log every bag of fertilizer, seed, or fuel bought — it builds the weighted-average cost used across field usage.'}
+                </p>
+                <button
+                  onClick={() => {
+                    if (stockItems.length === 0) { setModalType('item'); } else { setModalType('purchase'); }
+                    setIsOpenAddModal(true);
+                  }}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
+                >
+                  <Plus size={14} />
+                  {stockItems.length === 0 ? 'Create First Input Type' : 'Log First Purchase'}
+                </button>
+              </div>
             ) : (
               [...purchases].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(p => {
                 const item = stockItems.find(i => i.id === p.stockItemId);
@@ -384,7 +477,31 @@ export const StockTab: React.FC<StockTabProps> = ({
 
           <div className="divide-y divide-slate-100">
             {usages.length === 0 ? (
-              <div className="p-12 text-center text-slate-400 font-bold text-xs">No inputs consumed on fields yet.</div>
+              <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                <span className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+                  <Hammer size={22} />
+                </span>
+                <h4 className="font-bold text-slate-800 text-sm mb-1.5">
+                  {stockItems.length === 0 ? 'Register an input type first' : purchases.length === 0 ? 'Log a purchase first' : 'No field usage logged yet'}
+                </h4>
+                <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-5">
+                  {stockItems.length === 0
+                    ? 'You need at least one input type before you can record it being used on a field.'
+                    : purchases.length === 0
+                    ? 'There’s nothing on hand to consume yet — log a purchase to bring stock in first.'
+                    : 'Record when seed, fertilizer, or pesticide is applied to a field — it charges the cost to that crop cycle automatically.'}
+                </p>
+                <button
+                  onClick={() => {
+                    if (stockItems.length === 0) { setModalType('item'); } else if (purchases.length === 0) { setModalType('purchase'); } else { setModalType('usage'); }
+                    setIsOpenAddModal(true);
+                  }}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
+                >
+                  <Plus size={14} />
+                  {stockItems.length === 0 ? 'Create First Input Type' : purchases.length === 0 ? 'Log First Purchase' : 'Log First Usage'}
+                </button>
+              </div>
             ) : (
               [...usages].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(u => {
                 const item = stockItems.find(i => i.id === u.stockItemId);
@@ -452,6 +569,13 @@ export const StockTab: React.FC<StockTabProps> = ({
                 Log Field Usage (Expense)
               </button>
             </div>
+
+            {errorMessage && (
+              <div className="mx-6 mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-[10px] flex items-start gap-2">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
             {/* ITEM CREATION FORM */}
             {modalType === 'item' && (
@@ -607,13 +731,6 @@ export const StockTab: React.FC<StockTabProps> = ({
               <form onSubmit={handleSaveUsage} className="p-6 space-y-4">
                 <h3 className="font-bold text-sm text-gray-800">Log Crop Field Stock Usage (Expense)</h3>
 
-                {errorMessage && (
-                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-[10px] flex items-start gap-2">
-                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                    <span>{errorMessage}</span>
-                  </div>
-                )}
-
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Select Material</label>
@@ -709,6 +826,7 @@ export const StockTab: React.FC<StockTabProps> = ({
                         <option value="manual">Manual Quantities</option>
                       </select>
                     </div>
+                    <p className="text-[10px] text-gray-400 leading-relaxed -mt-1">{usageAllocationRuleHelp[usageAllocationRule]}</p>
 
                     <div className="space-y-2">
                       <span className="text-[10px] font-bold text-gray-400 uppercase block">Fields Participating</span>
@@ -752,21 +870,7 @@ export const StockTab: React.FC<StockTabProps> = ({
                                   <span className="text-[10px] text-gray-500 font-semibold mono-num">
                                     {isChecked && usageQty ? (
                                       <>
-                                        {Math.round(
-                                          calculateAllocations(
-                                            parseFloat(usageQty) || 0,
-                                            usageAllocationRule,
-                                            usageParticipatingSeasons.map(sid => {
-                                              const targetS = seasons.find(sea => sea.id === sid);
-                                              if (!targetS) return { fieldId: '', seasonId: sid, fieldArea: 1 };
-                                              return {
-                                                fieldId: targetS.fieldId,
-                                                seasonId: targetS.id,
-                                                fieldArea: fields.find(fd => fd.id === targetS.fieldId)?.area || 1
-                                              };
-                                            })
-                                          ).find(al => al.seasonId === s.id)?.amount || 0
-                                        )}{' '}
+                                        {Math.round(usageAllocationPreview.find(al => al.seasonId === s.id)?.amount || 0)}{' '}
                                         {stockItems.find(i => i.id === selectedItemId)?.unit}
                                       </>
                                     ) : '-'}
@@ -778,6 +882,34 @@ export const StockTab: React.FC<StockTabProps> = ({
                         );
                       })}
                     </div>
+
+                    {/* Running total — makes the split fully transparent before saving,
+                        instead of only failing the manual-rule check on submit. */}
+                    {usageParticipatingSeasons.length > 0 && (
+                      <div
+                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold ${
+                          !usageQty
+                            ? 'bg-white border-gray-150 text-gray-400'
+                            : Math.abs(usageAllocationDiff) <= 0.001
+                            ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                            : 'bg-amber-50 border-amber-150 text-amber-700'
+                        }`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {usageQty && (
+                            Math.abs(usageAllocationDiff) <= 0.001
+                              ? <Check size={12} />
+                              : <AlertTriangle size={12} />
+                          )}
+                          Allocated {Math.round(usageAllocationTotal * 1000) / 1000} of {previewUsageQty} {stockItems.find(i => i.id === selectedItemId)?.unit}
+                        </span>
+                        {usageQty && Math.abs(usageAllocationDiff) > 0.001 && (
+                          <span className="mono-num">
+                            {Math.abs(usageAllocationDiff)} {usageAllocationDiff > 0 ? 'unallocated' : 'over'}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 

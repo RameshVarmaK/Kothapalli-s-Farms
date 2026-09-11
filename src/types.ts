@@ -124,8 +124,6 @@ export interface StockUsage {
 export interface Labour {
   id: string;
   date: string;
-  fieldId: string;
-  seasonId: string;
   linkedActivityId?: string;
   workersCount: number;
   wageRate: number; // per worker rate
@@ -133,6 +131,13 @@ export interface Labour {
   paidByMemberId: string;
   isCredit?: boolean;
   creditAccountId?: string;
+  // Absent targetType (legacy rows written before common-split support)
+  // behaves as 'single'.
+  targetType?: 'single' | 'common';
+  fieldId?: string;            // set when single (or legacy row)
+  seasonId?: string;           // set when single (or legacy row)
+  commonAllocationRule?: CommonAllocationType;
+  allocations?: Allocation[];  // set when common: cost share per field/season
 }
 
 export interface HarvestRevenue {
