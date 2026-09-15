@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { History, CheckCircle, AlertCircle, Clock, Trash2 } from 'lucide-react';
 import { NotificationDelivery, NotificationEvent } from '../types';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface NotificationDeliveryLogProps {
   deliveries: NotificationDelivery[];
@@ -22,6 +23,7 @@ const CHANNEL_LABEL: Record<string, string> = {
 };
 
 export function NotificationDeliveryLog({ deliveries, onClear, showFilters = false }: NotificationDeliveryLogProps) {
+  const { t } = useLanguage();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 10;
@@ -59,10 +61,10 @@ export function NotificationDeliveryLog({ deliveries, onClear, showFilters = fal
       <div className="bg-white rounded-lg border border-slate-200 p-6">
         <div className="flex items-center gap-3 mb-4">
           <History size={20} className="text-slate-400" />
-          <h3 className="text-lg font-semibold text-slate-900">Notification History</h3>
+          <h3 className="text-lg font-semibold text-slate-900">{t('Notification History')}</h3>
         </div>
         <p className="text-sm text-slate-500 text-center py-8">
-          No notifications sent yet
+          {t('No notifications sent yet')}
         </p>
       </div>
     );
@@ -74,7 +76,7 @@ export function NotificationDeliveryLog({ deliveries, onClear, showFilters = fal
         <div className="flex items-center gap-3">
           <History size={20} className="text-slate-600" />
           <h3 className="text-lg font-semibold text-slate-900">
-            Notification History ({deliveries.length})
+            {t('Notification History')} ({deliveries.length})
           </h3>
         </div>
         {onClear && (
@@ -83,7 +85,7 @@ export function NotificationDeliveryLog({ deliveries, onClear, showFilters = fal
             className="text-xs font-semibold text-slate-500 hover:text-slate-700 flex items-center gap-1"
           >
             <Trash2 size={14} />
-            Clear Old
+            {t('Clear Old')}
           </button>
         )}
       </div>
@@ -149,7 +151,7 @@ export function NotificationDeliveryLog({ deliveries, onClear, showFilters = fal
               disabled={currentPage === 0}
               className="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              ← Prev
+              {t('← Prev')}
             </button>
             <div className="flex items-center gap-1">
               {Array.from({ length: totalPages }).map((_, i) => (
@@ -171,7 +173,7 @@ export function NotificationDeliveryLog({ deliveries, onClear, showFilters = fal
               disabled={currentPage === totalPages - 1}
               className="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next →
+              {t('Next →')}
             </button>
           </div>
         </div>

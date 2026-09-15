@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface LocalizationPreferencesCardProps {
   currency: string;
@@ -22,9 +23,10 @@ export const LocalizationPreferencesCard: React.FC<LocalizationPreferencesCardPr
   preferencesMessage,
   onSubmit
 }) => {
+  const { t } = useLanguage();
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-      <h3 className="font-bold text-sm text-slate-800 mb-4">Localization Preferences</h3>
+      <h3 className="font-bold text-sm text-slate-800 mb-4">{t('Localization Preferences')}</h3>
       {preferencesMessage && (
         <div className={`mb-4 p-3 rounded-xl text-[11px] font-bold border ${
           preferencesMessage.isError ? 'bg-red-50 text-red-800 border-red-100' : 'bg-emerald-50 text-emerald-800 border-emerald-100'
@@ -35,29 +37,29 @@ export const LocalizationPreferencesCard: React.FC<LocalizationPreferencesCardPr
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Currency Indicator</label>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t('Currency Indicator')}</label>
             <select
               value={currency}
               onChange={e => onCurrencyChange(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-750 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
             >
-              <option value="₹">₹ INR (Rupees)</option>
-              <option value="$">$ USD (Dollars)</option>
-              <option value="€">€ EUR (Euro)</option>
-              <option value="£">£ GBP (Pence)</option>
+              <option value="₹">{t('₹ INR (Rupees)')}</option>
+              <option value="$">{t('$ USD (Dollars)')}</option>
+              <option value="€">{t('€ EUR (Euro)')}</option>
+              <option value="£">{t('£ GBP (Pence)')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Plot Area unit</label>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t('Plot Area unit')}</label>
             <select
               value={areaUnit}
               onChange={e => onAreaUnitChange(e.target.value)}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-750 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
             >
-              <option value="acres">Acres</option>
-              <option value="hectares">Hectares</option>
-              <option value="bighas">Bighas</option>
-              <option value="cents">Cents</option>
+              <option value="acres">{t('Acres')}</option>
+              <option value="hectares">{t('Hectares')}</option>
+              <option value="bighas">{t('Bighas')}</option>
+              <option value="cents">{t('Cents')}</option>
             </select>
           </div>
         </div>
@@ -66,7 +68,7 @@ export const LocalizationPreferencesCard: React.FC<LocalizationPreferencesCardPr
           type="submit"
           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer active:scale-95 transition-all"
         >
-          Update Preferences
+          {t('Update Preferences')}
         </button>
       </form>
     </div>

@@ -19,6 +19,7 @@ import {
 import { Plus, Filter, Trash2, ArrowUpRight, ArrowDownLeft, Users, Receipt, Calendar, Pencil, AlertTriangle, Check } from 'lucide-react';
 import { calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
 import { AttachmentUploader } from './AttachmentUploader';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface MoneyTabProps {
   expenses: Expense[];
@@ -61,6 +62,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   onEditRevenue,
   onDeleteRevenue
 }) => {
+  const { t } = useLanguage();
   const [filterType, setFilterType] = useState<'all' | 'expense' | 'labour' | 'revenue'>('all');
   const [deleteConfirmInfo, setDeleteConfirmInfo] = useState<{
     id: string;
@@ -639,7 +641,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                   filterType === type ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-450 hover:text-slate-800'
                 }`}
               >
-                {type}
+                {t(type)}
               </button>
             ))}
           </div>
@@ -650,7 +652,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
             onChange={e => setFilterFieldId(e.target.value)}
             className="bg-slate-50 border border-slate-200 text-xs text-slate-700 rounded-xl px-3.5 py-2.5 font-semibold focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
           >
-            <option value="all">📍 All Sown Fields</option>
+            <option value="all">{t('📍 All Sown Fields')}</option>
             {fields.map(f => (
               <option key={f.id} value={f.id}>
                 {f.name}
@@ -664,7 +666,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
             onChange={e => setFilterMemberId(e.target.value)}
             className="bg-slate-50 border border-slate-200 text-xs text-slate-700 rounded-xl px-3.5 py-2.5 font-semibold focus:ring-1"
           >
-            <option value="all">👤 Funder: All Partners</option>
+            <option value="all">{t('👤 Funder: All Partners')}</option>
             {members.map(m => (
               <option key={m.id} value={m.id}>
                 {m.name}
@@ -682,15 +684,15 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
         >
           <Plus size={15} />
-          <span>+ New Entry</span>
+          <span>+ {t('New Entry')}</span>
         </button>
       </div>
 
       {/* Transaction Feed */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4.5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Transactional Ledger</h2>
-          <span className="text-xs text-slate-450 font-bold bg-slate-100 px-2.5 py-1 rounded-full">{filteredLedger.length} entries matching</span>
+          <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest">{t('Transactional Ledger')}</h2>
+          <span className="text-xs text-slate-450 font-bold bg-slate-100 px-2.5 py-1 rounded-full">{filteredLedger.length} {t('entries matching')}</span>
         </div>
 
         <div className="divide-y divide-slate-100">
@@ -700,9 +702,9 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 <span className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
                   <Receipt size={22} />
                 </span>
-                <h4 className="font-bold text-slate-800 text-sm mb-1.5">No transactions logged yet</h4>
+                <h4 className="font-bold text-slate-800 text-sm mb-1.5">{t('No transactions logged yet')}</h4>
                 <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-5">
-                  Every expense, labour shift, and harvest sale you record shows up here — one running ledger for the whole partnership.
+                  {t('Every expense, labour shift, and harvest sale you record shows up here — one running ledger for the whole partnership.')}
                 </p>
                 <button
                   onClick={() => {
@@ -712,12 +714,12 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                   className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
                 >
                   <Plus size={14} />
-                  Log First Transaction
+                  {t('Log First Transaction')}
                 </button>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center text-center py-12 px-6">
-                <p className="text-slate-500 text-xs font-semibold mb-3">No transactions match the current filters.</p>
+                <p className="text-slate-500 text-xs font-semibold mb-3">{t('No transactions match the current filters.')}</p>
                 <button
                   onClick={() => {
                     setFilterType('all');
@@ -726,7 +728,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                   }}
                   className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-150 px-3 py-1.5 rounded-lg cursor-pointer transition-all"
                 >
-                  Clear filters
+                  {t('Clear filters')}
                 </button>
               </div>
             )
@@ -759,14 +761,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     <button
                       onClick={() => handleStartEdit(item.rawRecord, item.type)}
                       className="p-2 rounded-lg text-slate-450 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
-                      title="Edit Record"
+                      title={t('Edit Record')}
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={() => handleDelete(item.id, item.type)}
                       className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
-                      title="Delete Record"
+                      title={t('Delete Record')}
                     >
                       <Trash2 size={14} />
                     </button>
@@ -792,7 +794,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                   addTab === 'expense' ? 'bg-white text-emerald-700 shadow-xs' : 'text-gray-400 hover:text-gray-600'
                 } ${editingRecordId ? 'cursor-not-allowed opacity-50 font-bold' : ''}`}
               >
-                {editingRecordId ? 'Edit Cost Expense' : 'Log Cost Expense'}
+                {editingRecordId ? t('Edit Cost Expense') : t('Log Cost Expense')}
               </button>
               <button
                 type="button"
@@ -802,7 +804,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                   addTab === 'labour' ? 'bg-white text-emerald-700 shadow-xs' : 'text-gray-400 hover:text-gray-600'
                 } ${editingRecordId ? 'cursor-not-allowed opacity-50 font-bold' : ''}`}
               >
-                {editingRecordId ? 'Edit Farm Labour' : 'Log Farm Labour'}
+                {editingRecordId ? t('Edit Farm Labour') : t('Log Farm Labour')}
               </button>
               <button
                 type="button"
@@ -812,7 +814,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                   addTab === 'revenue' ? 'bg-white text-emerald-700 shadow-xs' : 'text-gray-400 hover:text-gray-600'
                 } ${editingRecordId ? 'cursor-not-allowed opacity-50 font-bold' : ''}`}
               >
-                {editingRecordId ? 'Edit Harvest Revenue' : 'Log Harvest Revenue'}
+                {editingRecordId ? t('Edit Harvest Revenue') : t('Log Harvest Revenue')}
               </button>
             </div>
 
@@ -828,7 +830,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
               <form onSubmit={handleSaveExpense} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Date</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Date')}</label>
                     <input
                       type="date"
                       required
@@ -838,7 +840,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Billing Type</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Billing Type')}</label>
                     <select
                       value={isCredit ? 'credit' : 'direct'}
                       onChange={e => {
@@ -850,8 +852,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       }}
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
-                      <option value="direct">Direct Paid by Partner</option>
-                      <option value="credit">Hire or Buy on Credit</option>
+                      <option value="direct">{t('Direct Paid by Partner')}</option>
+                      <option value="credit">{t('Hire or Buy on Credit')}</option>
                     </select>
                   </div>
                 </div>
@@ -859,8 +861,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 {isCredit ? (
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center justify-between">
-                      <span>Select Creditor Profile *</span>
-                      <span className="text-[9px] text-amber-600 font-extrabold uppercase">Outstanding Debt</span>
+                      <span>{t('Select Creditor Profile *')}</span>
+                      <span className="text-[9px] text-amber-600 font-extrabold uppercase">{t('Outstanding Debt')}</span>
                     </label>
                     <select
                       value={creditAccountId}
@@ -868,20 +870,20 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       onChange={e => setCreditAccountId(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
-                      <option value="">-- Choose Creditor --</option>
+                      <option value="">{t('-- Choose Creditor --')}</option>
                       {creditAccounts.map(c => (
                         <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
                       ))}
                     </select>
                     {creditAccounts.length === 0 && (
                       <p className="text-[10px] text-rose-500 font-extrabold mt-1">
-                        ⚠️ Please add a Creditor profile first in the "Credits & Payables" tab.
+                        {t('⚠️ Please add a Creditor profile first in the "Credits & Payables" tab.')}
                       </p>
                     )}
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payer (Who Paid?)</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Payer (Who Paid?)')}</label>
                     <select
                       value={paidBy}
                       onChange={e => setPaidBy(e.target.value)}
@@ -896,7 +898,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Amount ({currency})</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Amount')} ({currency})</label>
                     <input
                       type="number"
                       required
@@ -907,7 +909,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Expense category</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Expense category')}</label>
                     <input
                       type="text"
                       required
@@ -920,7 +922,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target field scope</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Target field scope')}</label>
                   <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100">
                     <button
                       type="button"
@@ -929,7 +931,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                         targetType === 'single' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-400'
                       }`}
                     >
-                      Single Crop Cycle
+                      {t('Single Crop Cycle')}
                     </button>
                     <button
                       type="button"
@@ -941,14 +943,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                         targetType === 'common' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-400'
                       }`}
                     >
-                      Common Shared Expense
+                      {t('Common Shared Expense')}
                     </button>
                   </div>
                 </div>
 
                 {targetType === 'single' ? (
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Crop Cycle Target</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Crop Cycle Target')}</label>
                     <select
                       value={selectedSeasonId}
                       required
@@ -968,21 +970,21 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 ) : (
                   <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase">Division Rule</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase">{t('Division Rule')}</span>
                       <select
                         value={allocationRule}
                         onChange={e => setAllocationRule(e.target.value as CommonAllocationType)}
                         className="bg-white border border-gray-100 rounded-lg text-[10px] px-2 py-1"
                       >
-                        <option value="equal">Equal Split</option>
-                        <option value="area">Area Proportional (Acres)</option>
-                        <option value="manual">Manual Specification</option>
+                        <option value="equal">{t('Equal Split')}</option>
+                        <option value="area">{t('Area Proportional (Acres)')}</option>
+                        <option value="manual">{t('Manual Specification')}</option>
                       </select>
                     </div>
                     <p className="text-[10px] text-gray-400 leading-relaxed -mt-1">{allocationRuleHelp[allocationRule]}</p>
 
                     <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase block">Fields Participating</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase block">{t('Fields Participating')}</span>
                       {activeSeasons.map(s => {
                         const f = fields.find(field => field.id === s.fieldId)!;
                         const isChecked = selectedParticipatingSeasons.includes(s.id);
@@ -1008,7 +1010,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                                 {allocationRule === 'manual' ? (
                                   <input
                                     type="number"
-                                    placeholder="Rupees"
+                                    placeholder={t('Rupees')}
                                     value={manualAllocations[`${s.fieldId}_${s.id}`] || ''}
                                     onChange={e => {
                                       const val = e.target.value;
@@ -1054,11 +1056,11 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                               ? <Check size={12} />
                               : <AlertTriangle size={12} />
                           )}
-                          Allocated {currency}{Math.round(allocationTotal)} of {currency}{Math.round(previewAmount)}
+                          {t('Allocated')} {currency}{Math.round(allocationTotal)} {t('of')} {currency}{Math.round(previewAmount)}
                         </span>
                         {amount && Math.abs(allocationDiff) > 0.5 && (
                           <span className="mono-num">
-                            {currency}{Math.abs(allocationDiff).toFixed(2)} {allocationDiff > 0 ? 'unallocated' : 'over'}
+                            {currency}{Math.abs(allocationDiff).toFixed(2)} {t(allocationDiff > 0 ? 'unallocated' : 'over')}
                           </span>
                         )}
                       </div>
@@ -1067,13 +1069,13 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Link to Diary Event (Optional)</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Link to Diary Event (Optional)')}</label>
                   <select
                     value={linkedActivityId}
                     onChange={e => setLinkedActivityId(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
                   >
-                    <option value="">Do not link to activity</option>
+                    <option value="">{t('Do not link to activity')}</option>
                     {activities.filter(a => targetType === 'single' ? a.seasonId === selectedSeasonId : true).map(a => (
                       <option key={a.id} value={a.id}>
                         {a.date} - {a.type} ({a.notes.substring(0, 30)}...)
@@ -1083,7 +1085,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Receipt / Photo (Optional)</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Receipt / Photo (Optional)')}</label>
                   <AttachmentUploader attachments={attachments} onAttachmentsChange={setAttachments} />
                 </div>
 
@@ -1093,13 +1095,13 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     onClick={closeAndReset}
                     className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50 bg-white border border-gray-100"
                   >
-                    Cancel
+                    {t('Cancel')}
                   </button>
                   <button
                     type="submit"
                     className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm"
                   >
-                    {editingRecordId ? 'Save Changes' : 'Add Expense'}
+                    {editingRecordId ? t('Save Changes') : t('Add Expense')}
                   </button>
                 </div>
               </form>
@@ -1110,7 +1112,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
               <form onSubmit={handleSaveLabour} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Date</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Date')}</label>
                     <input
                       type="date"
                       required
@@ -1120,7 +1122,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Billing Type</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Billing Type')}</label>
                     <select
                       value={isCredit ? 'credit' : 'direct'}
                       onChange={e => {
@@ -1132,8 +1134,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       }}
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
-                      <option value="direct">Direct Paid by Partner</option>
-                      <option value="credit">Hire or Buy on Credit</option>
+                      <option value="direct">{t('Direct Paid by Partner')}</option>
+                      <option value="credit">{t('Hire or Buy on Credit')}</option>
                     </select>
                   </div>
                 </div>
@@ -1141,8 +1143,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 {isCredit ? (
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1 flex items-center justify-between">
-                      <span>Select Creditor Profile *</span>
-                      <span className="text-[9px] text-amber-600 font-extrabold uppercase">Outstanding Debt</span>
+                      <span>{t('Select Creditor Profile *')}</span>
+                      <span className="text-[9px] text-amber-600 font-extrabold uppercase">{t('Outstanding Debt')}</span>
                     </label>
                     <select
                       value={creditAccountId}
@@ -1150,20 +1152,20 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       onChange={e => setCreditAccountId(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
-                      <option value="">-- Choose Creditor --</option>
+                      <option value="">{t('-- Choose Creditor --')}</option>
                       {creditAccounts.map(c => (
                         <option key={c.id} value={c.id}>{c.name} ({c.type})</option>
                       ))}
                     </select>
                     {creditAccounts.length === 0 && (
                       <p className="text-[10px] text-rose-500 font-extrabold mt-1">
-                        ⚠️ Please add a Creditor profile first in the "Credits & Payables" tab.
+                        {t('⚠️ Please add a Creditor profile first in the "Credits & Payables" tab.')}
                       </p>
                     )}
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Payer (Who Paid?)</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Payer (Who Paid?)')}</label>
                     <select
                       value={paidBy}
                       onChange={e => setPaidBy(e.target.value)}
@@ -1186,7 +1188,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                         labourTargetType === 'single' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-400'
                       }`}
                     >
-                      Single Crop Cycle
+                      {t('Single Crop Cycle')}
                     </button>
                     <button
                       type="button"
@@ -1198,21 +1200,21 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                         labourTargetType === 'common' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-400'
                       }`}
                     >
-                      Shared Across Fields
+                      {t('Shared Across Fields')}
                     </button>
                   </div>
                 </div>
 
                 {labourTargetType === 'single' ? (
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Crop Cycle</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Target Crop Cycle')}</label>
                     <select
                       value={selectedSeasonId}
                       required
                       onChange={e => setSelectedSeasonId(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
                     >
-                      <option value="">Select crop season...</option>
+                      <option value="">{t('Select crop season...')}</option>
                       {seasons.map(s => {
                         const f = fields.find(field => field.id === s.fieldId);
                         return (
@@ -1226,21 +1228,21 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 ) : (
                   <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase">Division Rule</span>
+                      <span className="text-[10px] font-bold text-gray-500 uppercase">{t('Division Rule')}</span>
                       <select
                         value={labourAllocationRule}
                         onChange={e => setLabourAllocationRule(e.target.value as CommonAllocationType)}
                         className="bg-white border border-gray-100 rounded-lg text-[10px] px-2 py-1"
                       >
-                        <option value="equal">Equal Split</option>
-                        <option value="area">Area Proportional (Acres)</option>
-                        <option value="manual">Manual Specification</option>
+                        <option value="equal">{t('Equal Split')}</option>
+                        <option value="area">{t('Area Proportional (Acres)')}</option>
+                        <option value="manual">{t('Manual Specification')}</option>
                       </select>
                     </div>
                     <p className="text-[10px] text-gray-400 leading-relaxed -mt-1">{allocationRuleHelp[labourAllocationRule]}</p>
 
                     <div className="space-y-2">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase block">Fields Participating</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase block">{t('Fields Participating')}</span>
                       {activeSeasons.map(s => {
                         const f = fields.find(field => field.id === s.fieldId)!;
                         const isChecked = labourParticipatingSeasons.includes(s.id);
@@ -1266,7 +1268,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                                 {labourAllocationRule === 'manual' ? (
                                   <input
                                     type="number"
-                                    placeholder="Rupees"
+                                    placeholder={t('Rupees')}
                                     value={manualLabourAllocations[`${s.fieldId}_${s.id}`] || ''}
                                     onChange={e => {
                                       const val = e.target.value;
@@ -1310,11 +1312,11 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                               ? <Check size={12} />
                               : <AlertTriangle size={12} />
                           )}
-                          Allocated {currency}{Math.round(labourAllocationTotal)} of {currency}{Math.round(previewLabourTotal)}
+                          {t('Allocated')} {currency}{Math.round(labourAllocationTotal)} {t('of')} {currency}{Math.round(previewLabourTotal)}
                         </span>
                         {labourTotalCost && Math.abs(labourAllocationDiff) > 0.5 && (
                           <span className="mono-num">
-                            {currency}{Math.abs(labourAllocationDiff).toFixed(2)} {labourAllocationDiff > 0 ? 'unallocated' : 'over'}
+                            {currency}{Math.abs(labourAllocationDiff).toFixed(2)} {t(labourAllocationDiff > 0 ? 'unallocated' : 'over')}
                           </span>
                         )}
                       </div>
@@ -1324,7 +1326,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Worker Count</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Worker Count')}</label>
                     <input
                       type="number"
                       placeholder="e.g. 10"
@@ -1339,7 +1341,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Wage rate / worker ({currency})</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Wage rate / worker')} ({currency})</label>
                     <input
                       type="number"
                       placeholder="e.g. 400"
@@ -1356,7 +1358,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Lump Total Cost ({currency})</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Lump Total Cost')} ({currency})</label>
                   <input
                     type="number"
                     required
@@ -1365,17 +1367,17 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     onChange={e => setLabourTotalCost(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
                   />
-                  <p className="text-[9px] text-gray-400 mt-0.5">Overrides standard calculations if different from workers × rate.</p>
+                  <p className="text-[9px] text-gray-400 mt-0.5">{t('Overrides standard calculations if different from workers × rate.')}</p>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Link to Diary Event (Optional)</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Link to Diary Event (Optional)')}</label>
                   <select
                     value={linkedActivityId}
                     onChange={e => setLinkedActivityId(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
                   >
-                    <option value="">Do not link to activity</option>
+                    <option value="">{t('Do not link to activity')}</option>
                     {activities.filter(a => labourTargetType === 'single' ? a.seasonId === selectedSeasonId : true).map(a => (
                       <option key={a.id} value={a.id}>
                         {a.date} - {a.type} ({a.notes.substring(0,30)}...)
@@ -1390,13 +1392,13 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     onClick={closeAndReset}
                     className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50 bg-white border border-gray-100"
                   >
-                    Cancel
+                    {t('Cancel')}
                   </button>
                   <button
                     type="submit"
                     className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm"
                   >
-                    {editingRecordId ? 'Save Changes' : 'Add Labour Cost'}
+                    {editingRecordId ? t('Save Changes') : t('Add Labour Cost')}
                   </button>
                 </div>
               </form>
@@ -1407,7 +1409,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
               <form onSubmit={handleSaveRevenue} className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Date</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Date')}</label>
                     <input
                       type="date"
                       required
@@ -1417,7 +1419,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Recipient (Who Got Cash?)</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Recipient (Who Got Cash?)')}</label>
                     <select
                       value={paidBy}
                       onChange={e => setPaidBy(e.target.value)}
@@ -1431,14 +1433,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Crop Cycle</label>
+                  <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Target Crop Cycle')}</label>
                   <select
                     value={selectedSeasonId}
                     required
                     onChange={e => setSelectedSeasonId(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
                   >
-                    <option value="">Select crop season...</option>
+                    <option value="">{t('Select crop season...')}</option>
                     {seasons.map(s => {
                       const f = fields.find(field => field.id === s.fieldId);
                       return (
@@ -1452,7 +1454,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sold Commodity/Crop Name</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Sold Commodity/Crop Name')}</label>
                     <input
                       type="text"
                       placeholder="e.g. Paddy Sona Masuri"
@@ -1462,7 +1464,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sold Quantity</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Sold Quantity')}</label>
                     <input
                       type="number"
                       placeholder="e.g. 150 bags / 3 tons"
@@ -1475,7 +1477,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Total Sale Amount ({currency})</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Total Sale Amount')} ({currency})</label>
                     <input
                       type="number"
                       required
@@ -1486,7 +1488,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Buyer / Trader Agency Name</label>
+                    <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Buyer / Trader Agency Name')}</label>
                     <input
                       type="text"
                       placeholder="e.g. Balaji Trading Corp"
@@ -1503,13 +1505,13 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     onClick={closeAndReset}
                     className="flex-1 py-2.5 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50 bg-white border border-gray-100"
                   >
-                    Cancel
+                    {t('Cancel')}
                   </button>
                   <button
                     type="submit"
                     className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm"
                   >
-                    {editingRecordId ? 'Save Changes' : 'Add Crop Revenue'}
+                    {editingRecordId ? t('Save Changes') : t('Add Crop Revenue')}
                   </button>
                 </div>
               </form>
@@ -1524,10 +1526,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
             <div className="p-6">
               <div className="flex items-center gap-3 text-red-600 mb-3">
                 <AlertTriangle size={24} className="stroke-[2.5]" />
-                <h3 className="font-extrabold text-slate-900 text-sm">Delete Transaction</h3>
+                <h3 className="font-extrabold text-slate-900 text-sm">{t('Delete Transaction')}</h3>
               </div>
               <p className="text-slate-600 text-xs leading-relaxed font-semibold mt-2">
-                Permanently delete this ledger transaction? This will instantly recalculate all settlement positions.
+                {t('Permanently delete this ledger transaction? This will instantly recalculate all settlement positions.')}
               </p>
             </div>
             <div className="flex gap-2.5 px-6 py-4 bg-slate-50 border-t border-slate-100 justify-end">
@@ -1536,7 +1538,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 onClick={() => setDeleteConfirmInfo(null)}
                 className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-pointer"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="button"
@@ -1553,7 +1555,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 }}
                 className="px-5 py-2 text-xs font-extrabold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all shadow-sm cursor-pointer"
               >
-                Delete
+                {t('Delete')}
               </button>
             </div>
           </div>

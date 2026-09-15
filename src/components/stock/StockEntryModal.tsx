@@ -13,6 +13,7 @@ import {
   CommonAllocationType
 } from '../../types';
 import { AlertTriangle, Check } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface StockEntryModalProps {
   modalType: 'item' | 'purchase' | 'usage';
@@ -137,6 +138,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
   previewUsageQty,
   onSubmitUsage
 }) => {
+  const { t } = useLanguage();
   return (
     <div className="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -149,7 +151,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
               modalType === 'purchase' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-450 hover:text-gray-600'
             }`}
           >
-            Log Input Purchase (Asset)
+            {t('Log Input Purchase (Asset)')}
           </button>
           <button
             type="button"
@@ -161,7 +163,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
               modalType === 'usage' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-450 hover:text-gray-600'
             }`}
           >
-            Log Field Usage (Expense)
+            {t('Log Field Usage (Expense)')}
           </button>
         </div>
 
@@ -175,9 +177,9 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
         {/* ITEM CREATION FORM */}
         {modalType === 'item' && (
           <form onSubmit={onSubmitItem} className="p-6 space-y-4">
-            <h3 className="font-bold text-sm text-gray-800">{isEditingItem ? 'Edit Material / Input Type' : 'Add Sown Material / Input Type'}</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingItem ? t('Edit Material / Input Type') : t('Add Sown Material / Input Type')}</h3>
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Item Name</label>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Item Name')}</label>
               <input
                 type="text"
                 required
@@ -190,21 +192,21 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Category Type</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Category Type')}</label>
                 <select
                   value={itemType}
                   onChange={e => setItemType(e.target.value as StockItem['type'])}
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-750"
                 >
-                  <option value="Seed">Seed</option>
-                  <option value="Fertilizer">Fertilizer</option>
-                  <option value="Pesticide">Pesticide</option>
-                  <option value="Fuel">Fuel</option>
-                  <option value="Other">Other</option>
+                  <option value="Seed">{t('Seed')}</option>
+                  <option value="Fertilizer">{t('Fertilizer')}</option>
+                  <option value="Pesticide">{t('Pesticide')}</option>
+                  <option value="Fuel">{t('Fuel')}</option>
+                  <option value="Other">{t('Other')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Unit of Measure</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Unit of Measure')}</label>
                 <input
                   type="text"
                   required
@@ -222,13 +224,13 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 onClick={onClose}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50 bg-white border border-gray-100"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700"
               >
-                {isEditingItem ? 'Save Changes' : 'Create Material'}
+                {isEditingItem ? t('Save Changes') : t('Create Material')}
               </button>
             </div>
           </form>
@@ -237,10 +239,10 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
         {/* LOG PURCHASE FORM */}
         {modalType === 'purchase' && (
           <form onSubmit={onSubmitPurchase} className="p-6 space-y-4">
-            <h3 className="font-bold text-sm text-gray-800">{isEditingPurchase ? 'Edit Input Intake Purchase (Asset)' : 'Record Input Intake Purchase (Asset)'}</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingPurchase ? t('Edit Input Intake Purchase (Asset)') : t('Record Input Intake Purchase (Asset)')}</h3>
 
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sown Stock Item type</label>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Sown Stock Item type')}</label>
               <select
                 value={selectedItemId}
                 required
@@ -255,7 +257,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Quantity Purchased</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Quantity Purchased')}</label>
                 <input
                   type="number"
                   required
@@ -266,7 +268,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Total Bill Cost ({currency})</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Total Bill Cost')} ({currency})</label>
                 <input
                   type="number"
                   required
@@ -280,7 +282,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Purchase Date</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Purchase Date')}</label>
                 <input
                   type="date"
                   required
@@ -290,7 +292,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Funder (Who Funded?)</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Funder (Who Funded?)')}</label>
                 <select
                   value={purchasePayer}
                   onChange={e => setPurchasePayer(e.target.value)}
@@ -309,13 +311,13 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 onClick={onClose}
                 className="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50 bg-white border border-gray-100"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700"
               >
-                {isEditingPurchase ? 'Save Changes' : 'Save Purchase'}
+                {isEditingPurchase ? t('Save Changes') : t('Save Purchase')}
               </button>
             </div>
           </form>
@@ -324,11 +326,11 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
         {/* LOG USAGE FORM */}
         {modalType === 'usage' && (
           <form onSubmit={onSubmitUsage} className="p-6 space-y-4">
-            <h3 className="font-bold text-sm text-gray-800">{isEditingUsage ? 'Edit Crop Field Stock Usage (Expense)' : 'Log Crop Field Stock Usage (Expense)'}</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingUsage ? t('Edit Crop Field Stock Usage (Expense)') : t('Log Crop Field Stock Usage (Expense)')}</h3>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Select Material</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Select Material')}</label>
                 <select
                   value={selectedItemId}
                   required
@@ -349,7 +351,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Quantity Sown/Used</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Quantity Sown/Used')}</label>
                 <input
                   type="number"
                   required
@@ -366,7 +368,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Date Sown/Used</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Date Sown/Used')}</label>
                 <input
                   type="date"
                   required
@@ -376,21 +378,21 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target Type</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Target Type')}</label>
                 <select
                   value={usageTargetType}
                   onChange={e => setUsageTargetType(e.target.value as 'single' | 'common')}
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
                 >
-                  <option value="single">Single Field Crop</option>
-                  <option value="common">Commonly Consumed</option>
+                  <option value="single">{t('Single Field Crop')}</option>
+                  <option value="common">{t('Commonly Consumed')}</option>
                 </select>
               </div>
             </div>
 
             {usageTargetType === 'single' ? (
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Crop Cycle Destination</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Crop Cycle Destination')}</label>
                 <select
                   value={usageSeasonId}
                   required
@@ -401,7 +403,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                     const f = fields.find(field => field.id === s.fieldId);
                     return (
                       <option key={s.id} value={s.id}>
-                        {s.cropName} ({f ? f.name : 'Unknown'})
+                        {s.cropName} ({f ? f.name : t('Unknown')})
                       </option>
                     );
                   })}
@@ -410,21 +412,21 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
             ) : (
               <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-150">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase">Division Rule</span>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase">{t('Division Rule')}</span>
                   <select
                     value={usageAllocationRule}
                     onChange={e => setUsageAllocationRule(e.target.value as CommonAllocationType)}
                     className="bg-white border border-gray-100 rounded-lg text-[10px] px-2 py-1"
                   >
-                    <option value="equal">Equal Split</option>
-                    <option value="area">Area Proportional (Acres)</option>
-                    <option value="manual">Manual Quantities</option>
+                    <option value="equal">{t('Equal Split')}</option>
+                    <option value="area">{t('Area Proportional (Acres)')}</option>
+                    <option value="manual">{t('Manual Quantities')}</option>
                   </select>
                 </div>
                 <p className="text-[10px] text-gray-400 leading-relaxed -mt-1">{usageAllocationRuleHelp[usageAllocationRule]}</p>
 
                 <div className="space-y-2">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase block">Fields Participating</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase block">{t('Fields Participating')}</span>
                   {activeSeasons.map(s => {
                     const f = fields.find(field => field.id === s.fieldId)!;
                     const isChecked = usageParticipatingSeasons.includes(s.id);
@@ -450,7 +452,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                             {usageAllocationRule === 'manual' ? (
                               <input
                                 type="number"
-                                placeholder="Qty used"
+                                placeholder={t('Qty used')}
                                 value={manualUsageAllocations[`${s.fieldId}_${s.id}`] || ''}
                                 onChange={e => {
                                   const val = e.target.value;
@@ -509,13 +511,13 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
             )}
 
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Link to Diary Event (Optional)</label>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Link to Diary Event (Optional)')}</label>
               <select
                 value={usageLinkedActivityId}
                 onChange={e => setUsageLinkedActivityId(e.target.value)}
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
               >
-                <option value="">Do not link to activity</option>
+                <option value="">{t('Do not link to activity')}</option>
                 {activities.filter(a => usageTargetType === 'single' ? a.seasonId === usageSeasonId : true).map(a => (
                   <option key={a.id} value={a.id}>
                     {a.date} - {a.type} ({a.notes.substring(0,30)}...)
@@ -530,13 +532,13 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 onClick={onClose}
                 className="flex-1 py-2 bg-white border border-gray-100 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white shadow-sm"
               >
-                {isEditingUsage ? 'Save Changes' : 'Log Usage'}
+                {isEditingUsage ? t('Save Changes') : t('Log Usage')}
               </button>
             </div>
           </form>

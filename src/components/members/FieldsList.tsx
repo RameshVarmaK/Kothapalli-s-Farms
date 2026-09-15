@@ -7,6 +7,7 @@ import React from 'react';
 import { Field, Member } from '../../types';
 import { Sprout, Pencil, Trash2 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface FieldsListProps {
   fields: Field[];
@@ -25,18 +26,19 @@ export const FieldsList: React.FC<FieldsListProps> = ({
   onEditField,
   onDeleteField,
 }) => {
+  const { t } = useLanguage();
   if (fields.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <EmptyState
           icon={<Sprout size={22} />}
-          title="No fields registered"
+          title={t('No fields registered')}
           description={
             members.length === 0
-              ? 'Add your partners first, then register a field to split its ownership between them.'
-              : "Register your farm's plots and each partner's ownership share to start tracking activity and costs per field."
+              ? t('Add your partners first, then register a field to split its ownership between them.')
+              : t("Register your farm's plots and each partner's ownership share to start tracking activity and costs per field.")
           }
-          ctaLabel={members.length === 0 ? 'Add Partners First' : 'Register First Field'}
+          ctaLabel={members.length === 0 ? t('Add Partners First') : t('Register First Field')}
           onCta={() => members.length === 0 ? onGoToPartners() : onAddFirst()}
         />
       </div>
@@ -50,13 +52,13 @@ export const FieldsList: React.FC<FieldsListProps> = ({
           <div className="p-5 border-b border-slate-100 bg-slate-50/60 flex justify-between items-start">
             <div>
               <h3 className="font-bold text-slate-850 text-sm leading-snug">{field.name}</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Area size: <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md">{field.area} acres</span></p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('Area size:')} <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md">{field.area} {t('acres')}</span></p>
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onEditField(field)}
                 className="p-2 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
-                title="Edit Field & Ownership Shares"
+                title={t('Edit Field & Ownership Shares')}
               >
                 <Pencil size={14} />
               </button>
@@ -76,13 +78,13 @@ export const FieldsList: React.FC<FieldsListProps> = ({
 
             {/* Sown shares details */}
             <div>
-              <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">Ownership shares</h4>
+              <h4 className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">{t('Ownership shares')}</h4>
               <div className="space-y-2">
                 {field.shares.map(sh => {
                   const m = members.find(member => member.id === sh.memberId);
                   return (
                     <div key={sh.memberId} className="flex justify-between items-center text-xs">
-                      <span className="text-slate-600 font-medium">{m ? m.name : 'Unknown'}</span>
+                      <span className="text-slate-600 font-medium">{m ? m.name : t('Unknown')}</span>
                       <span className="font-bold font-mono text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md">{sh.percentage}%</span>
                     </div>
                   );

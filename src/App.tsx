@@ -56,6 +56,7 @@ import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wre
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewModeProvider, useViewMode } from './hooks/useViewMode';
+import { LanguageProvider, useLanguage } from './hooks/useLanguage';
 
 type TabId = 'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings' | 'credits' | 'analytics';
 
@@ -195,6 +196,7 @@ function normalizeCloudDb(sheetData: any, base: LocalDatabase, targetSheetId: st
 
 function AppShell() {
   const { mode, setMode } = useViewMode();
+  const { language, setLanguage, t } = useLanguage();
   const [db, setDb] = useState<LocalDatabase | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const activeGroup = groupForTab(activeTab);
@@ -1776,8 +1778,8 @@ function AppShell() {
             <Sprout size={20} />
           </span>
           <div className="min-w-0">
-            <h1 className="text-base md:text-lg font-bold tracking-tight text-slate-800 truncate">Kothapalli's Farms</h1>
-            <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-emerald-600 font-semibold hidden sm:block">Partnership Transparency</p>
+            <h1 className="text-base md:text-lg font-bold tracking-tight text-slate-800 truncate">{t("Kothapalli's Farms")}</h1>
+            <p className="text-[9px] md:text-[10px] uppercase tracking-widest text-emerald-600 font-semibold hidden sm:block">{t('Partnership Transparency')}</p>
           </div>
         </div>
 
@@ -1787,19 +1789,19 @@ function AppShell() {
               {syncingState === 'syncing' && (
                 <span className="text-amber-600 flex items-center gap-1.5 text-xs font-semibold">
                   <RefreshCw size={13} className="animate-spin text-amber-500" />
-                  <span className="hidden sm:inline">Saving to Sheet...</span>
+                  <span className="hidden sm:inline">{t('Saving to Sheet...')}</span>
                 </span>
               )}
               {syncingState === 'success' && (
                 <span className="text-emerald-700 flex items-center gap-1.5 text-xs font-semibold" title={syncMessage}>
                   <Check size={14} className="text-emerald-500 font-bold bg-emerald-50 rounded-full border border-emerald-100 p-0.5" />
-                  <span className="hidden sm:inline">Synced</span>
+                  <span className="hidden sm:inline">{t('Synced')}</span>
                 </span>
               )}
               {syncingState === 'failed' && (
                 <span className="text-red-600 flex items-center gap-1.5 text-xs font-semibold" title={syncMessage}>
                   <X size={13} className="text-red-500 font-bold bg-red-50 rounded-full border border-red-100 p-0.5" />
-                  <span className="hidden sm:inline text-[10px]">Sync failed</span>
+                  <span className="hidden sm:inline text-[10px]">{t('Sync failed')}</span>
                 </span>
               )}
               <button
@@ -1813,7 +1815,7 @@ function AppShell() {
                 title="Force Synchronize with Google Sheet"
               >
                 <RefreshCw size={12} className={syncingState === 'syncing' ? 'animate-spin' : ''} />
-                <span>Sync Now</span>
+                <span>{t('Sync Now')}</span>
               </button>
             </div>
           )}
@@ -1830,7 +1832,24 @@ function AppShell() {
                   mode === m ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
-                {m}
+                {t(m)}
+              </button>
+            ))}
+          </div>
+
+          <div
+            className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
+            title="Switch the app's language between English and Telugu"
+          >
+            {(['en', 'te'] as const).map(lng => (
+              <button
+                key={lng}
+                onClick={() => setLanguage(lng)}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase cursor-pointer transition-all ${
+                  language === lng ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {lng}
               </button>
             ))}
           </div>
@@ -1870,7 +1889,7 @@ function AppShell() {
               }`}
             >
               {group.icon}
-              <span>{group.label}</span>
+              <span>{t(group.label)}</span>
             </button>
           ))}
         </nav>
@@ -1889,7 +1908,7 @@ function AppShell() {
                 }`}
               >
                 {group.icon}
-                <span>{group.label}</span>
+                <span>{t(group.label)}</span>
               </button>
             ))
           ) : (
@@ -1897,7 +1916,7 @@ function AppShell() {
               <div key={group.id}>
                 {idx > 0 && <div className="border-t border-slate-200 my-3 pt-3" />}
                 <div className="px-3 pb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  {group.label}
+                  {t(group.label)}
                 </div>
                 {group.tabs.map(tab => (
                   <button
@@ -1910,7 +1929,7 @@ function AppShell() {
                     }`}
                   >
                     {tab.icon}
-                    <span>{tab.label}</span>
+                    <span>{t(tab.label)}</span>
                   </button>
                 ))}
               </div>
@@ -1935,7 +1954,7 @@ function AppShell() {
                       : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-350'
                   }`}
                 >
-                  {tab.label}
+                  {t(tab.label)}
                 </button>
               ))}
             </div>
@@ -2127,7 +2146,7 @@ function AppShell() {
                 onClick={() => setConfirmDialog(null)}
                 className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-pointer"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="button"
@@ -2136,7 +2155,7 @@ function AppShell() {
                 }}
                 className="px-5 py-2 text-xs font-extrabold text-white bg-red-600 hover:bg-red-700 active:scale-95 rounded-xl transition-all shadow-sm cursor-pointer"
               >
-                {confirmDialog.confirmText || 'Confirm'}
+                {confirmDialog.confirmText ? t(confirmDialog.confirmText) : t('Confirm')}
               </button>
             </div>
           </div>
@@ -2241,7 +2260,9 @@ function AppShell() {
 export default function App() {
   return (
     <ViewModeProvider>
-      <AppShell />
+      <LanguageProvider>
+        <AppShell />
+      </LanguageProvider>
     </ViewModeProvider>
   );
 }

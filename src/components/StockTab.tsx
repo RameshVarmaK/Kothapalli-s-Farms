@@ -17,6 +17,7 @@ import {
 import { Plus, Archive } from 'lucide-react';
 import { computeStockLevels, calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
 import { validatePurchase, validateUsage } from '../utils/validation';
+import { useLanguage } from '../hooks/useLanguage';
 import { StockLevelsSegment } from './stock/StockLevelsSegment';
 import { PurchasesSegment } from './stock/PurchasesSegment';
 import { UsagesSegment } from './stock/UsagesSegment';
@@ -55,6 +56,7 @@ export const StockTab: React.FC<StockTabProps> = ({
   onAddUsage,
   onUpdateUsage
 }) => {
+  const { t } = useLanguage();
   const [activeSegment, setActiveSegment] = useState<'levels' | 'purchases' | 'usages'>('levels');
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
   const [modalType, setModalType] = useState<'item' | 'purchase' | 'usage'>('purchase');
@@ -94,7 +96,7 @@ export const StockTab: React.FC<StockTabProps> = ({
     e.preventDefault();
     setErrorMessage('');
     if (!itemName || !itemUnit) {
-      setErrorMessage('Both a name and a unit (e.g. kg, litre, bag) are required.');
+      setErrorMessage(t('Both a name and a unit (e.g. kg, litre, bag) are required.'));
       return;
     }
 
@@ -136,7 +138,7 @@ export const StockTab: React.FC<StockTabProps> = ({
     e.preventDefault();
     setErrorMessage('');
     if (!selectedItemId) {
-      setErrorMessage('Select which material this purchase is for.');
+      setErrorMessage(t('Select which material this purchase is for.'));
       return;
     }
     const qty = parseFloat(purchaseQty);
@@ -181,7 +183,7 @@ export const StockTab: React.FC<StockTabProps> = ({
     e.preventDefault();
     setErrorMessage('');
     if (!selectedItemId) {
-      setErrorMessage('Select which material this usage is for.');
+      setErrorMessage(t('Select which material this usage is for.'));
       return;
     }
     const qty = parseFloat(usageQty);
@@ -358,9 +360,9 @@ export const StockTab: React.FC<StockTabProps> = ({
   const usageAllocationDiff = Number((previewUsageQty - usageAllocationTotal).toFixed(3));
 
   const usageAllocationRuleHelp: Record<CommonAllocationType, string> = {
-    equal: 'Splits the quantity into identical shares across every checked field, regardless of size.',
-    area: 'Splits the quantity in proportion to each field’s registered acreage — bigger fields carry a bigger share.',
-    manual: 'You set the exact quantity per field yourself. The entries must add up to the total below.'
+    equal: t('Splits the quantity into identical shares across every checked field, regardless of size.'),
+    area: t('Splits the quantity in proportion to each field’s registered acreage — bigger fields carry a bigger share.'),
+    manual: t('You set the exact quantity per field yourself. The entries must add up to the total below.')
   };
 
   return (
@@ -373,13 +375,13 @@ export const StockTab: React.FC<StockTabProps> = ({
               <Archive size={20} />
             </span>
             <div>
-              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Inventory Sown Value</span>
+              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">{t('Inventory Sown Value')}</span>
               <p className="text-xl font-bold font-mono text-slate-800 mt-0.5">
                 {currency}{totalInventoryValue.toLocaleString('en-IN')}
               </p>
             </div>
           </div>
-          <span className="text-[10px] bg-emerald-50 border border-emerald-150 font-bold px-2.5 py-1 rounded-lg text-emerald-800 uppercase tracking-wider">Asset Reserve</span>
+          <span className="text-[10px] bg-emerald-50 border border-emerald-150 font-bold px-2.5 py-1 rounded-lg text-emerald-800 uppercase tracking-wider">{t('Asset Reserve')}</span>
         </div>
 
         <div className="bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
@@ -392,7 +394,7 @@ export const StockTab: React.FC<StockTabProps> = ({
                   activeSegment === tab ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-400 hover:text-slate-750'
                 }`}
               >
-                {tab === 'levels' ? 'Reserves' : tab === 'purchases' ? 'Intakes' : 'Usage'}
+                {tab === 'levels' ? t('Reserves') : tab === 'purchases' ? t('Intakes') : t('Usage')}
               </button>
             ))}
           </div>
@@ -407,7 +409,7 @@ export const StockTab: React.FC<StockTabProps> = ({
             className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs transition-all"
           >
             <Plus size={14} />
-            <span>Record Ledger</span>
+            <span>{t('Record Ledger')}</span>
           </button>
         </div>
       </div>

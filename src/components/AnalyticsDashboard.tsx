@@ -14,6 +14,7 @@ import {
   percentChange
 } from '../utils/analytics';
 import { TrendingUp, BarChart3, Users, Leaf } from 'lucide-react';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface AnalyticsDashboardProps {
   db: LocalDatabase;
@@ -22,6 +23,7 @@ interface AnalyticsDashboardProps {
 }
 
 export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboardProps) {
+  const { t } = useLanguage();
   const stats = calculateDashboardStats(db);
   const crops = calculateCropProfitability(db);
   const members = calculateMemberContribution(db);
@@ -71,19 +73,19 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
     <div className="space-y-6 pb-12">
       {/* Header with Export Controls */}
       <div className="flex items-center justify-between bg-white rounded-lg border border-slate-200 p-4">
-        <h2 className="text-lg font-semibold text-slate-900">Farm Analytics Dashboard</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t('Farm Analytics Dashboard')}</h2>
         <div className="flex gap-2">
           <button
             onClick={() => handleExport('csv')}
             className="px-3 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
           >
-            📊 Export CSV
+            📊 {t('Export CSV')}
           </button>
           <button
             onClick={() => handleExport('json')}
             className="px-3 py-1.5 text-xs font-semibold bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors"
           >
-            💾 Export JSON
+            💾 {t('Export JSON')}
           </button>
         </div>
       </div>
@@ -91,26 +93,26 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
       {/* Key Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          label="Total Revenue"
+          label={t('Total Revenue')}
           value={formatCurrency(stats.totalRevenue, currency)}
           icon={<TrendingUp className="text-emerald-600" />}
           color="emerald"
         />
         <MetricCard
-          label="Total Expenses"
+          label={t('Total Expenses')}
           value={formatCurrency(stats.totalExpenses, currency)}
           icon={<BarChart3 className="text-amber-600" />}
           color="amber"
         />
         <MetricCard
-          label="Net Profit"
+          label={t('Net Profit')}
           value={formatCurrency(stats.netProfit, currency)}
           icon={<TrendingUp className="text-green-600" />}
           color="green"
           highlight={stats.netProfit > 0}
         />
         <MetricCard
-          label="Profit Margin"
+          label={t('Profit Margin')}
           value={`${stats.profitMargin.toFixed(1)}%`}
           icon={<BarChart3 className="text-blue-600" />}
           color="blue"
@@ -122,7 +124,7 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         {/* Crop Profitability */}
         {crops.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900 mb-4">Crop Profitability</h3>
+            <h3 className="font-semibold text-slate-900 mb-4">{t('Crop Profitability')}</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={crops.slice(0, 8)}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -138,7 +140,7 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         {/* Seasonal Trends */}
         {trends.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900 mb-4">Seasonal Trends</h3>
+            <h3 className="font-semibold text-slate-900 mb-4">{t('Seasonal Trends')}</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={trends}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -159,7 +161,7 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         {/* Field Performance */}
         {fields.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900 mb-4">Field ROI Performance</h3>
+            <h3 className="font-semibold text-slate-900 mb-4">{t('Field ROI Performance')}</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={fields}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -175,7 +177,7 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         {/* Member Contributions */}
         {members.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900 mb-4">Member Contributions</h3>
+            <h3 className="font-semibold text-slate-900 mb-4">{t('Member Contributions')}</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -215,15 +217,15 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
           <div className="bg-white rounded-lg border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <Leaf size={18} className="text-emerald-600" />
-              Top Crops by Profit
+              {t('Top Crops by Profit')}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-200">
                   <tr className="text-left text-slate-600 font-semibold text-xs uppercase">
-                    <th className="pb-2">Crop</th>
-                    <th className="pb-2 text-right">Profit</th>
-                    <th className="pb-2 text-right">Margin</th>
+                    <th className="pb-2">{t('Crop')}</th>
+                    <th className="pb-2 text-right">{t('Profit')}</th>
+                    <th className="pb-2 text-right">{t('Margin')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -249,15 +251,15 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
           <div className="bg-white rounded-lg border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <Users size={18} className="text-blue-600" />
-              Top Contributors
+              {t('Top Contributors')}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-200">
                   <tr className="text-left text-slate-600 font-semibold text-xs uppercase">
-                    <th className="pb-2">Member</th>
-                    <th className="pb-2 text-right">Expenses</th>
-                    <th className="pb-2 text-right">Hours</th>
+                    <th className="pb-2">{t('Member')}</th>
+                    <th className="pb-2 text-right">{t('Expenses')}</th>
+                    <th className="pb-2 text-right">{t('Hours')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">

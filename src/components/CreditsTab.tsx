@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { CreditAccount, CreditRepayment, Expense, Labour, Member, Season, Field } from '../types';
 import { Plus, Pencil, Trash2, CreditCard, ChevronRight, Calculator, Calendar, User, Search, RefreshCw, AlertCircle, Coins, ArrowUpRight } from 'lucide-react';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface CreditsTabProps {
   creditAccounts: CreditAccount[];
@@ -40,6 +41,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
   onDeleteCreditAccount,
   onDeleteCreditRepayment
 }) => {
+  const { t } = useLanguage();
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'repayments'>('overview');
   const [selectedCreditorId, setSelectedCreditorId] = useState<string | null>(
     creditAccounts.length > 0 ? creditAccounts[0].id : null
@@ -214,7 +216,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total Outstanding Due</span>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">{t('Total Outstanding Due')}</span>
             <h4 className="text-2xl font-black text-rose-600 tracking-tight mt-1">{currency}{totalOutstandingDueAll.toLocaleString('en-IN')}</h4>
           </div>
           <div className="p-3.5 bg-rose-50 text-rose-600 rounded-xl">
@@ -224,7 +226,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total Credit Incurred</span>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">{t('Total Credit Incurred')}</span>
             <h4 className="text-2xl font-black text-amber-600 tracking-tight mt-1">{currency}{totalCreditSpentAll.toLocaleString('en-IN')}</h4>
           </div>
           <div className="p-3.5 bg-amber-50 text-amber-600 rounded-xl">
@@ -234,7 +236,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 font-medium">Total Part Payments Paid</span>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 font-medium">{t('Total Part Payments Paid')}</span>
             <h4 className="text-2xl font-black text-emerald-600 tracking-tight mt-1">{currency}{totalPaidAll.toLocaleString('en-IN')}</h4>
           </div>
           <div className="p-3.5 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -254,7 +256,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                 : 'text-slate-500 hover:text-slate-850'
             }`}
           >
-            Creditors Directory & Ledger
+            {t('Creditors Directory & Ledger')}
           </button>
           <button
             onClick={() => setActiveSubTab('repayments')}
@@ -264,7 +266,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                 : 'text-slate-500 hover:text-slate-850'
             }`}
           >
-            Repayments History ({creditRepayments.length})
+            {t('Repayments History')} ({creditRepayments.length})
           </button>
         </div>
 
@@ -281,7 +283,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold tracking-wide hover:bg-slate-850 transition-all cursor-pointer"
           >
             <Plus size={14} className="stroke-[2.5]" />
-            <span>Add Creditor</span>
+            <span>{t('Add Creditor')}</span>
           </button>
 
           <button
@@ -295,7 +297,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
               setIsOpenAddRepayment(true);
             }}
             disabled={creditAccounts.length === 0}
-            title={creditAccounts.length === 0 ? 'Add a creditor profile first before recording payments.' : undefined}
+            title={creditAccounts.length === 0 ? t('Add a creditor profile first before recording payments.') : undefined}
             className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all ${
               creditAccounts.length === 0
                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
@@ -303,7 +305,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             }`}
           >
             <Coins size={14} className="stroke-[2.5]" />
-            <span>Record Part Payment</span>
+            <span>{t('Record Part Payment')}</span>
           </button>
         </div>
       </div>
@@ -316,7 +318,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Search workers or tractors..."
+                  placeholder={t('Search workers or tractors...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full text-xs font-medium pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all"
@@ -328,8 +330,8 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             {filteredReports.length === 0 ? (
               <div className="p-8 text-center">
                 <AlertCircle size={24} className="mx-auto text-slate-300 mb-2" />
-                <p className="text-slate-500 text-xs font-semibold">No creditors found</p>
-                <p className="text-slate-400 text-[10px] mt-1">Create profiles to track tractor owners, weeding labor groups, or suppliers on credit.</p>
+                <p className="text-slate-500 text-xs font-semibold">{t('No creditors found')}</p>
+                <p className="text-slate-400 text-[10px] mt-1">{t('Create profiles to track tractor owners, weeding labor groups, or suppliers on credit.')}</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
@@ -355,11 +357,11 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                             ? 'bg-purple-50 text-purple-700 border border-purple-100'
                             : 'bg-slate-50 text-slate-650'
                         }`}>
-                          {report.account.type}
+                          {t(report.account.type)}
                         </span>
                       </div>
                       <div className="text-[10px] text-slate-400 font-medium mt-1">
-                        {report.account.phone ? report.account.phone : 'No phone'}
+                        {report.account.phone ? report.account.phone : t('No phone')}
                       </div>
                     </div>
 
@@ -368,7 +370,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                         {currency}{report.outstandingBalance.toLocaleString('en-IN')}
                       </div>
                       <div className="text-[9px] text-slate-400 font-bold mt-0.5 uppercase tracking-wider">
-                        Outstanding
+                        {t('Outstanding')}
                       </div>
                     </div>
                   </button>
@@ -386,12 +388,12 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                       {selectedReport.account.name}
                       <span className="text-xs font-bold bg-slate-200 px-2 py-0.5 rounded-md text-slate-700">
-                        {selectedReport.account.type}
+                        {t(selectedReport.account.type)}
                       </span>
                     </h3>
                     <p className="text-slate-500 text-xs font-medium mt-1">
                       {selectedReport.account.phone && `📞 ${selectedReport.account.phone} • `}
-                      {selectedReport.account.notes ? selectedReport.account.notes : 'No extra notes'}
+                      {selectedReport.account.notes ? selectedReport.account.notes : t('No extra notes')}
                     </p>
                   </div>
 
@@ -399,7 +401,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     <button
                       onClick={() => handleOpenEditAccount(selectedReport.account)}
                       className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl hover:text-slate-700 transition-all cursor-pointer"
-                      title="Edit creditor profile"
+                      title={t('Edit creditor profile')}
                     >
                       <Pencil size={16} />
                     </button>
@@ -411,7 +413,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                         }
                       }}
                       className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl hover:text-rose-700 transition-all cursor-pointer"
-                      title="Delete creditor profile"
+                      title={t('Delete creditor profile')}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -422,15 +424,15 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   {/* Ledger Quick Summary card */}
                   <div className="grid grid-cols-3 gap-2 bg-slate-50 p-4 rounded-xl text-center">
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total Work Bills</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('Total Work Bills')}</span>
                       <p className="text-xs font-black text-slate-800 mt-1">{currency}{selectedReport.totalCreditAmount.toLocaleString('en-IN')}</p>
                     </div>
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Paid Already</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('Paid Already')}</span>
                       <p className="text-xs font-black text-emerald-600 mt-1">{currency}{selectedReport.totalRepaidAmount.toLocaleString('en-IN')}</p>
                     </div>
                     <div>
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Outstanding Due</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{t('Outstanding Due')}</span>
                       <p className={`text-sm font-black mt-0.5 ${selectedReport.outstandingBalance > 0 ? 'text-rose-600' : 'text-emerald-700'}`}>
                         {currency}{selectedReport.outstandingBalance.toLocaleString('en-IN')}
                       </p>
@@ -439,9 +441,9 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
                   {/* Accrued Credit entries */}
                   <div>
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3">Work Bills (Credit Incurred)</h4>
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-3">{t('Work Bills (Credit Incurred)')}</h4>
                     {selectedReport.expensesList.length === 0 && selectedReport.laboursList.length === 0 ? (
-                      <p className="text-slate-400 text-xs italic py-4">No credit bills registered. Use Transactions or Labor forms and check "Hire or Buy on Credit" option!</p>
+                      <p className="text-slate-400 text-xs italic py-4">{t('No credit bills registered. Use Transactions or Labor forms and check "Hire or Buy on Credit" option!')}</p>
                     ) : (
                       <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                         {/* Expenses (Tractor repair, machine hires, supplies on credit) */}
@@ -483,9 +485,9 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
                   {/* Periodic Part Payments */}
                   <div>
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-2">Periodic Repayments (Payments History)</h4>
+                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider mb-2">{t('Periodic Repayments (Payments History)')}</h4>
                     {selectedReport.repaymentsList.length === 0 ? (
-                      <p className="text-slate-400 text-xs italic py-4">No repayments made yet. Click "Record Part Payment" to post a partial or lump-sum payment!</p>
+                      <p className="text-slate-400 text-xs italic py-4">{t('No repayments made yet. Click "Record Part Payment" to post a partial or lump-sum payment!')}</p>
                     ) : (
                       <div className="space-y-2 max-h-[180px] overflow-y-auto pr-1">
                         {selectedReport.repaymentsList.map(r => {
@@ -493,7 +495,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           return (
                             <div key={r.id} className="flex items-center justify-between p-3 bg-emerald-50/40 border border-emerald-100 rounded-xl text-xs hover:border-emerald-200 transition-all">
                               <div>
-                                <div className="font-extrabold text-slate-805">Repaid by {member ? member.name : 'Unknown Partner'}</div>
+                                <div className="font-extrabold text-slate-805">Repaid by {member ? member.name : t('Unknown Partner')}</div>
                                 <div className="text-[10px] text-slate-400 mt-0.5">
                                   {r.date} {r.notes && `• Note: "${r.notes}"`}
                                 </div>
@@ -503,7 +505,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 <button
                                   onClick={() => handleOpenEditRepayment(r)}
                                   className="text-slate-300 hover:text-emerald-600 p-0.5 transition-all cursor-pointer"
-                                  title="Edit payment record"
+                                  title={t('Edit payment record')}
                                 >
                                   <Pencil size={13} />
                                 </button>
@@ -514,7 +516,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                     }
                                   }}
                                   className="text-slate-300 hover:text-rose-500 p-0.5 transition-all cursor-pointer"
-                                  title="Remove payment record"
+                                  title={t('Remove payment record')}
                                 >
                                   <Trash2 size={13} />
                                 </button>
@@ -530,8 +532,8 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             ) : (
               <div className="bg-slate-50 rounded-2xl border border-slate-200 p-12 text-center">
                 <Calculator size={36} className="text-slate-300 mx-auto mb-3" />
-                <h3 className="font-black text-slate-700 text-sm">Select a creditor</h3>
-                <p className="text-slate-400 text-[10px] max-w-xs mx-auto mt-1">Please select a creditor from the directory list to see their detailed accrued bills and payments history, or create a new profile!</p>
+                <h3 className="font-black text-slate-700 text-sm">{t('Select a creditor')}</h3>
+                <p className="text-slate-400 text-[10px] max-w-xs mx-auto mt-1">{t('Please select a creditor from the directory list to see their detailed accrued bills and payments history, or create a new profile!')}</p>
               </div>
             )}
           </div>
@@ -540,29 +542,29 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         /* Overall payments history log subtab */
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/35">
-            <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">All Creditor Repayments</h3>
+            <h3 className="font-extrabold text-slate-800 text-xs uppercase tracking-wider">{t('All Creditor Repayments')}</h3>
             <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-1 rounded-md border border-emerald-100">
-              {creditRepayments.length} logged payments
+              {creditRepayments.length} {t('logged payments')}
             </span>
           </div>
 
           {creditRepayments.length === 0 ? (
             <div className="p-12 text-center">
               <Coins size={36} className="text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500 text-xs font-semibold">No repayments recorded yet</p>
-              <p className="text-slate-400 text-[10px] max-w-xs mx-auto mt-1">When any partner contributes cash to pay off outstanding tractor or laborer bills, record it to log their investment contribution!</p>
+              <p className="text-slate-500 text-xs font-semibold">{t('No repayments recorded yet')}</p>
+              <p className="text-slate-400 text-[10px] max-w-xs mx-auto mt-1">{t('When any partner contributes cash to pay off outstanding tractor or laborer bills, record it to log their investment contribution!')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 font-bold">
-                    <th className="p-4">Date</th>
-                    <th className="p-4">Creditor / Vendor</th>
-                    <th className="p-4">Paid By Partner</th>
-                    <th className="p-4">Description / Notes</th>
-                    <th className="p-4 text-right">Amount</th>
-                    <th className="p-4 text-center">Actions</th>
+                    <th className="p-4">{t('Date')}</th>
+                    <th className="p-4">{t('Creditor / Vendor')}</th>
+                    <th className="p-4">{t('Paid By Partner')}</th>
+                    <th className="p-4">{t('Description / Notes')}</th>
+                    <th className="p-4 text-right">{t('Amount')}</th>
+                    <th className="p-4 text-center">{t('Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -573,16 +575,16 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                       <tr key={rep.id} className="hover:bg-slate-50/50 transition-all">
                         <td className="p-4 font-medium text-slate-500">{rep.date}</td>
                         <td className="p-4">
-                          <span className="font-extrabold text-slate-850">{creditor ? creditor.name : 'Deleted Creditor'}</span>
+                          <span className="font-extrabold text-slate-850">{creditor ? creditor.name : t('Deleted Creditor')}</span>
                           {creditor && (
                             <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-sm font-bold ml-1.5 uppercase tracking-wide">
-                              {creditor.type}
+                              {t(creditor.type)}
                             </span>
                           )}
                         </td>
                         <td className="p-4 font-semibold text-slate-700 flex items-center gap-1.5">
                           <User size={12} className="text-slate-400" />
-                          {member ? member.name : 'Unknown Partner'}
+                          {member ? member.name : t('Unknown Partner')}
                         </td>
                         <td className="p-4 text-slate-500 max-w-xs truncate">{rep.notes || '—'}</td>
                         <td className="p-4 text-right font-black text-slate-900">{currency}{rep.amount.toLocaleString()}</td>
@@ -591,7 +593,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                             onClick={() => handleOpenEditRepayment(rep)}
                             className="p-1 px-2 hover:bg-emerald-50 text-slate-350 hover:text-emerald-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
                           >
-                            Edit
+                            {t('Edit')}
                           </button>
                           <button
                             onClick={() => {
@@ -601,7 +603,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                             }}
                             className="p-1 px-2 hover:bg-rose-50 text-slate-350 hover:text-rose-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
                           >
-                            Delete
+                            {t('Delete')}
                           </button>
                         </td>
                       </tr>
@@ -619,14 +621,14 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6 border-b border-slate-100">
-              <h3 className="font-extrabold text-slate-900 text-base">{editingAccountId ? 'Edit Creditor Profile' : 'Add Creditor Profile'}</h3>
-              <p className="text-slate-400 text-[10px] mt-0.5">Register workers unions, suppliers or machine services to hire on credit.</p>
+              <h3 className="font-extrabold text-slate-900 text-base">{editingAccountId ? t('Edit Creditor Profile') : t('Add Creditor Profile')}</h3>
+              <p className="text-slate-400 text-[10px] mt-0.5">{t('Register workers unions, suppliers or machine services to hire on credit.')}</p>
             </div>
 
             <form onSubmit={handleSubmitCreditor}>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Creditor Name *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Creditor Name *')}</label>
                   <input
                     type="text"
                     required
@@ -639,21 +641,21 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Creditor Type *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Creditor Type *')}</label>
                     <select
                       value={credType}
                       onChange={(e) => setCredType(e.target.value as any)}
                       className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
                     >
-                      <option value="Labour">Labour union</option>
-                      <option value="Tractor">Tractor / Hire</option>
-                      <option value="Vendor">Vendor / Shop</option>
-                      <option value="Other">Other Credits</option>
+                      <option value="Labour">{t('Labour union')}</option>
+                      <option value="Tractor">{t('Tractor / Hire')}</option>
+                      <option value="Vendor">{t('Vendor / Shop')}</option>
+                      <option value="Other">{t('Other Credits')}</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Phone Number</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Phone Number')}</label>
                     <input
                       type="text"
                       placeholder="e.g. +91 99999..."
@@ -665,7 +667,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Notes / Description</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Notes / Description')}</label>
                   <textarea
                     placeholder="Describe hourly/acre rates or specific terms..."
                     rows={3}
@@ -685,13 +687,13 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   }}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-xs font-bold bg-slate-900 text-white hover:bg-slate-850 rounded-xl transition-all cursor-pointer"
                 >
-                  {editingAccountId ? 'Save Changes' : 'Save Profile'}
+                  {editingAccountId ? t('Save Changes') : t('Save Profile')}
                 </button>
               </div>
             </form>
@@ -704,25 +706,25 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6 border-b border-slate-100">
-              <h3 className="font-extrabold text-slate-900 text-base">{editingRepaymentId ? 'Edit Part Repayment' : 'Record Part Repayment'}</h3>
-              <p className="text-slate-400 text-[10px] mt-0.5">{editingRepaymentId ? 'Update the details of this recorded repayment.' : 'Record capital paid by a partner directly to settle outstanding bills.'}</p>
+              <h3 className="font-extrabold text-slate-900 text-base">{editingRepaymentId ? t('Edit Part Repayment') : t('Record Part Repayment')}</h3>
+              <p className="text-slate-400 text-[10px] mt-0.5">{editingRepaymentId ? t('Update the details of this recorded repayment.') : t('Record capital paid by a partner directly to settle outstanding bills.')}</p>
             </div>
 
             <form onSubmit={handleSubmitRepayment}>
               <div className="p-6 space-y-4 font-medium">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Select Creditor *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Select Creditor *')}</label>
                   <select
                     value={repCreditorId}
                     onChange={(e) => setRepCreditorId(e.target.value)}
                     className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
                   >
-                    {!repCreditorId && <option value="">-- Choose Creditor --</option>}
+                    {!repCreditorId && <option value="">{t('-- Choose Creditor --')}</option>}
                     {creditAccounts.map(c => {
                       const due = creditorReports.find(r => r.account.id === c.id)?.outstandingBalance || 0;
                       return (
                         <option key={c.id} value={c.id}>
-                          {c.name} ({c.type} - Due: {currency}{due.toLocaleString()})
+                          {c.name} ({t(c.type)} - {t('Due')}: {currency}{due.toLocaleString()})
                         </option>
                       );
                     })}
@@ -731,7 +733,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Paid By (Partner) *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Paid By (Partner) *')}</label>
                     <select
                       value={repMemberId}
                       onChange={(e) => setRepMemberId(e.target.value)}
@@ -744,7 +746,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Payment Date *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Payment Date *')}</label>
                     <input
                       type="date"
                       required
@@ -756,7 +758,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Amount Paid ({currency}) *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Amount Paid')} ({currency}) *</label>
                   <input
                     type="number"
                     step="any"
@@ -769,7 +771,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Repayment Notes</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">{t('Repayment Notes')}</label>
                   <input
                     type="text"
                     placeholder="e.g. Paid cash for second installment"
@@ -789,13 +791,13 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   }}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl transition-all cursor-pointer"
                 >
-                  {editingRepaymentId ? 'Save Changes' : 'Record Repayment'}
+                  {editingRepaymentId ? t('Save Changes') : t('Record Repayment')}
                 </button>
               </div>
             </form>

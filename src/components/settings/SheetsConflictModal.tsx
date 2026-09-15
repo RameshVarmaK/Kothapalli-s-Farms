@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { AlertTriangle, GitMerge, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface ConflictData {
   local: any;
@@ -27,6 +28,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
   onKeepLocal,
   onCancel
 }) => {
+  const { t } = useLanguage();
   return (
     <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-in fade-in duration-100">
       <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in zoom-in-95 duration-150">
@@ -36,9 +38,9 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
             <AlertTriangle size={24} className="stroke-[2.5]" />
           </div>
           <div>
-            <h3 className="font-extrabold text-slate-900 text-base">Google Sheets Conflict Detected</h3>
+            <h3 className="font-extrabold text-slate-900 text-base">{t('Google Sheets Conflict Detected')}</h3>
             <p className="text-slate-650 text-xs font-semibold mt-1 leading-relaxed">
-              The local database on this device differs from the version saved in your linked Google Sheet. Select a synchronization strategy to resolve this inconsistency.
+              {t('The local database on this device differs from the version saved in your linked Google Sheet. Select a synchronization strategy to resolve this inconsistency.')}
             </p>
           </div>
         </div>
@@ -51,27 +53,27 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
             <div className="p-4 rounded-2xl border border-slate-150 bg-slate-50/50">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                <span className="font-bold text-xs uppercase tracking-wider text-slate-700">This Device (Local)</span>
+                <span className="font-bold text-xs uppercase tracking-wider text-slate-700">{t('This Device (Local)')}</span>
               </div>
               <div className="space-y-1.5 text-xs text-slate-600 font-semibold text-[11px]">
                 <p className="flex justify-between gap-2">
-                  <span className="text-slate-400">Latest Action:</span>
-                  <span className="text-slate-800 text-right max-w-[150px] truncate" title={conflictData.local.auditLogs?.[0]?.description || 'Initial Database State'}>
-                    {conflictData.local.auditLogs?.[0]?.description || 'Initial Database State'}
+                  <span className="text-slate-400">{t('Latest Action:')}</span>
+                  <span className="text-slate-800 text-right max-w-[150px] truncate" title={conflictData.local.auditLogs?.[0]?.description || t('Initial Database State')}>
+                    {conflictData.local.auditLogs?.[0]?.description || t('Initial Database State')}
                   </span>
                 </p>
                 <p className="flex justify-between">
-                  <span className="text-slate-400">Action Type:</span>
+                  <span className="text-slate-400">{t('Action Type:')}</span>
                   <span className="text-slate-800 font-mono text-[10px] uppercase bg-slate-100 px-1.5 rounded">
-                    {conflictData.local.auditLogs?.[0]?.actionType || 'none'}
+                    {conflictData.local.auditLogs?.[0]?.actionType || t('none')}
                   </span>
                 </p>
                 <p className="flex justify-between">
-                  <span className="text-slate-400">Timestamp:</span>
+                  <span className="text-slate-400">{t('Timestamp:')}</span>
                   <span className="text-slate-800 font-mono text-[10px]">
                     {conflictData.local.auditLogs?.[0]?.timestamp
                       ? new Date(conflictData.local.auditLogs[0].timestamp).toLocaleTimeString() + ' ' + new Date(conflictData.local.auditLogs[0].timestamp).toLocaleDateString()
-                      : 'N/A'}
+                      : t('N/A')}
                   </span>
                 </p>
               </div>
@@ -81,27 +83,27 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
             <div className="p-4 rounded-2xl border border-emerald-150 bg-emerald-50/10">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-                <span className="font-bold text-xs uppercase tracking-wider text-slate-750">Google Sheet (Cloud)</span>
+                <span className="font-bold text-xs uppercase tracking-wider text-slate-750">{t('Google Sheet (Cloud)')}</span>
               </div>
               <div className="space-y-1.5 text-xs text-slate-600 font-semibold text-[11px]">
                 <p className="flex justify-between gap-2">
-                  <span className="text-slate-400">Latest Action:</span>
-                  <span className="text-slate-800 text-right max-w-[150px] truncate" title={conflictData.cloud.auditLogs?.[0]?.description || 'Initial Database State'}>
-                    {conflictData.cloud.auditLogs?.[0]?.description || 'Initial Database State'}
+                  <span className="text-slate-400">{t('Latest Action:')}</span>
+                  <span className="text-slate-800 text-right max-w-[150px] truncate" title={conflictData.cloud.auditLogs?.[0]?.description || t('Initial Database State')}>
+                    {conflictData.cloud.auditLogs?.[0]?.description || t('Initial Database State')}
                   </span>
                 </p>
                 <p className="flex justify-between">
-                  <span className="text-slate-400">Action Type:</span>
+                  <span className="text-slate-400">{t('Action Type:')}</span>
                   <span className="text-slate-800 font-mono text-[10px] uppercase bg-slate-100 px-1.5 rounded">
-                    {conflictData.cloud.auditLogs?.[0]?.actionType || 'none'}
+                    {conflictData.cloud.auditLogs?.[0]?.actionType || t('none')}
                   </span>
                 </p>
                 <p className="flex justify-between">
-                  <span className="text-slate-400">Timestamp:</span>
+                  <span className="text-slate-400">{t('Timestamp:')}</span>
                   <span className="text-slate-800 font-mono text-[10px]">
                     {conflictData.cloud.auditLogs?.[0]?.timestamp
                       ? new Date(conflictData.cloud.auditLogs[0].timestamp).toLocaleTimeString() + ' ' + new Date(conflictData.cloud.auditLogs[0].timestamp).toLocaleDateString()
-                      : 'N/A'}
+                      : t('N/A')}
                   </span>
                 </p>
               </div>
@@ -110,7 +112,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
 
           {/* Difference breakdown checklist */}
           <div className="space-y-2">
-            <h4 className="font-bold text-[10px] text-slate-450 uppercase tracking-widest">Detail Discrepancies</h4>
+            <h4 className="font-bold text-[10px] text-slate-450 uppercase tracking-widest">{t('Detail Discrepancies')}</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(conflictData.diffDetails).map(([key, value]) => {
                 const typedVal = value as { localCount: number; cloudCount: number };
@@ -122,7 +124,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
                       isDiff ? 'border-amber-200 bg-amber-50/20' : 'border-slate-100 bg-slate-50/30'
                     }`}
                   >
-                    <span className="font-bold text-slate-500 capitalize text-[10px]">{key.replace(/([A-Z])/g, ' $1')}</span>
+                    <span className="font-bold text-slate-500 capitalize text-[10px]">{t(key.replace(/([A-Z])/g, ' $1'))}</span>
                     <div className="flex items-baseline gap-1 mt-1 font-mono text-xs">
                       <span className={`font-bold ${isDiff ? 'text-amber-700' : 'text-slate-700'}`}>
                         {typedVal.localCount}
@@ -152,11 +154,11 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-extrabold text-slate-900 text-xs sm:text-sm">Smart Merge Histories (Highly Recommended)</span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold uppercase">Safe Sync</span>
+                <span className="font-extrabold text-slate-900 text-xs sm:text-sm">{t('Smart Merge Histories (Highly Recommended)')}</span>
+                <span className="px-2 py-0.5 rounded-full text-[9px] bg-emerald-100 text-emerald-800 font-extrabold uppercase">{t('Safe Sync')}</span>
               </div>
               <p className="text-slate-500 text-[10px] leading-relaxed mt-1 font-semibold">
-                Merges conflict items by their unique tracking IDs. Preserves non-overlapping changes from both this device and Google Sheets.
+                {t('Merges conflict items by their unique tracking IDs. Preserves non-overlapping changes from both this device and Google Sheets.')}
               </p>
             </div>
           </button>
@@ -172,9 +174,9 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
                 <ArrowDownCircle size={18} />
               </div>
               <div>
-                <span className="font-extrabold text-slate-900 text-xs">Keep Cloud (Overwrite Local)</span>
+                <span className="font-extrabold text-slate-900 text-xs">{t('Keep Cloud (Overwrite Local)')}</span>
                 <p className="text-slate-500 text-[10px] leading-normal mt-1 font-medium">
-                  Replaces this device database with the version on Google Sheets. Discards local edits.
+                  {t('Replaces this device database with the version on Google Sheets. Discards local edits.')}
                 </p>
               </div>
             </button>
@@ -189,9 +191,9 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
                 <ArrowUpCircle size={18} />
               </div>
               <div>
-                <span className="font-extrabold text-slate-900 text-xs">Keep Local (Overwrite Cloud)</span>
+                <span className="font-extrabold text-slate-900 text-xs">{t('Keep Local (Overwrite Cloud)')}</span>
                 <p className="text-slate-500 text-[10px] leading-normal mt-1 font-medium">
-                  Pushes this device's state to Google Sheets, completely overwriting the spreadsheet.
+                  {t("Pushes this device's state to Google Sheets, completely overwriting the spreadsheet.")}
                 </p>
               </div>
             </button>
@@ -204,7 +206,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
               onClick={onCancel}
               className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
             >
-              Cancel & Postpone Resolution
+              {t('Cancel & Postpone Resolution')}
             </button>
           </div>
         </div>

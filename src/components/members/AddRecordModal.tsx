@@ -6,6 +6,7 @@
 import React from 'react';
 import { Field, Member } from '../../types';
 import { AlertTriangle } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface AddRecordModalProps {
   isOpen: boolean;
@@ -85,6 +86,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
   setSeasonSharesError,
   onSubmitSeason,
 }) => {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   const sumOfShares = Object.keys(fieldShares).reduce((total: number, mId: string) => {
@@ -96,9 +98,9 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
       <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {activeTab === 'directory' && (
           <form onSubmit={onSubmitMember} className="p-6 space-y-4">
-            <h3 className="font-bold text-sm text-gray-800">{isEditingMember ? 'Edit Partner Details' : 'Add Sown Partner Record'}</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingMember ? t('Edit Partner Details') : t('Add Sown Partner Record')}</h3>
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partner Human Name</label>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Partner Human Name')}</label>
               <input
                 type="text"
                 required
@@ -109,7 +111,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Phone Number (Optional)</label>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Phone Number (Optional)')}</label>
               <input
                 type="text"
                 placeholder="e.g. +91 98452 11002"
@@ -125,13 +127,13 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 onClick={onClose}
                 className="flex-1 py-2 bg-white border border-gray-100 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white"
               >
-                {isEditingMember ? 'Save Changes' : 'Save Partner Profile'}
+                {isEditingMember ? t('Save Changes') : t('Save Partner Profile')}
               </button>
             </div>
           </form>
@@ -139,7 +141,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
 
         {activeTab === 'fields' && (
           <form onSubmit={onSubmitField} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-            <h3 className="font-bold text-sm text-gray-800">{isEditingField ? 'Edit Field & Ownership Shares' : 'Register Sown Plot Boundary'}</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingField ? t('Edit Field & Ownership Shares') : t('Register Sown Plot Boundary')}</h3>
 
             {fieldSharesError && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-800 text-[10px] flex items-start gap-2">
@@ -150,7 +152,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Field Name</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Field Name')}</label>
                 <input
                   type="text"
                   required
@@ -161,7 +163,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Area size (Acres)</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Area size (Acres)')}</label>
                 <input
                   type="number"
                   required
@@ -175,7 +177,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Location description</label>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Location description')}</label>
               <input
                 type="text"
                 placeholder="e.g. Behind electric sub-station road"
@@ -188,8 +190,8 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
             {/* Ownership configuration list */}
             <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-100">
               <div className="flex justify-between items-center text-[10px] text-gray-400 font-bold uppercase">
-                <span>Partner Name</span>
-                <span>Ratio Split (%)</span>
+                <span>{t('Partner Name')}</span>
+                <span>{t('Ratio Split (%)')}</span>
               </div>
 
               <div className="divide-y divide-gray-150 space-y-2">
@@ -219,7 +221,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
 
               {/* Validate on board live counter */}
               <div className="flex justify-between items-center text-[10px] uppercase font-semibold text-gray-500 pt-2 border-t border-gray-150">
-                <span>Total share ratio allocation</span>
+                <span>{t('Total share ratio allocation')}</span>
                 <span className={`font-bold text-xs ${Math.abs(sumOfShares - 100) < 0.1 ? 'text-emerald-600' : 'text-amber-500'}`}>
                   {sumOfShares}% / 100%
                 </span>
@@ -232,13 +234,13 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 onClick={onClose}
                 className="flex-1 py-2 bg-white border border-gray-100 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white"
               >
-                {isEditingField ? 'Save Changes' : 'Add Field Plot'}
+                {isEditingField ? t('Save Changes') : t('Add Field Plot')}
               </button>
             </div>
           </form>
@@ -246,7 +248,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
 
         {activeTab === 'seasons' && (
           <form onSubmit={onSubmitSeason} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-            <h3 className="font-bold text-sm text-gray-800">{isEditingSeason ? 'Edit Season & Ownership Shares' : 'Sow New Crop Cycle Season'}</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingSeason ? t('Edit Season & Ownership Shares') : t('Sow New Crop Cycle Season')}</h3>
 
             {seasonSharesError && (
               <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-red-800 text-[10px] flex items-start gap-2">
@@ -256,7 +258,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
             )}
 
             <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Target field Plot</label>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Target field Plot')}</label>
               <select
                 value={seasonFieldId}
                 onChange={e => setSeasonFieldId(e.target.value)}
@@ -268,13 +270,13 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 ))}
               </select>
               {isEditingSeason && (
-                <p className="text-[10px] text-gray-400 mt-1">A season's target field can't be changed after sowing.</p>
+                <p className="text-[10px] text-gray-400 mt-1">{t("A season's target field can't be changed after sowing.")}</p>
               )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sown Crop Name</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Sown Crop Name')}</label>
                 <input
                   type="text"
                   required
@@ -285,7 +287,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sowing Date</label>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Sowing Date')}</label>
                 <input
                   type="date"
                   required
@@ -299,8 +301,8 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
             {/* Season-level custom partner shares configuration */}
             <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <div className="flex justify-between items-center">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest block">Season Partner Shares (%)</span>
-                <span className="text-[9px] text-emerald-800 bg-emerald-50 border border-emerald-150 font-bold px-2 py-0.5 rounded-md">Customizable per Cycle</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest block">{t('Season Partner Shares (%)')}</span>
+                <span className="text-[9px] text-emerald-800 bg-emerald-50 border border-emerald-150 font-bold px-2 py-0.5 rounded-md">{t('Customizable per Cycle')}</span>
               </div>
 
               <div className="divide-y divide-slate-150 space-y-2">
@@ -333,7 +335,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 const totalSharesSum = Object.keys(seasonShares).reduce((acc, mId) => acc + (parseFloat(seasonShares[mId]) || 0), 0);
                 return (
                   <div className="flex justify-between items-center text-[10px] uppercase font-bold text-slate-400 pt-2 border-t border-slate-200">
-                    <span>Total shares sum</span>
+                    <span>{t('Total shares sum')}</span>
                     <span className={`font-extrabold text-xs ${Math.abs(totalSharesSum - 100) < 0.1 ? 'text-emerald-600' : 'text-amber-500'}`}>
                       {totalSharesSum}% / 100%
                     </span>
@@ -348,13 +350,13 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 onClick={onClose}
                 className="flex-1 py-2 bg-white border border-gray-100 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50 cursor-pointer"
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="submit"
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white cursor-pointer"
               >
-                {isEditingSeason ? 'Save Changes' : 'Sow Crop'}
+                {isEditingSeason ? t('Save Changes') : t('Sow Crop')}
               </button>
             </div>
           </form>

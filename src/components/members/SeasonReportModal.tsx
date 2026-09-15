@@ -18,6 +18,7 @@ import {
 } from '../../types';
 import { computeStockLevels } from '../../utils/calculations';
 import { X, Copy, Check, Calendar, DollarSign, Package, Users, CheckCircle } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface SeasonReportModalProps {
   seasonId: string | null;
@@ -54,6 +55,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   copiedReportText,
   setCopiedReportText,
 }) => {
+  const { t } = useLanguage();
   if (!seasonId) return null;
   const season = seasons.find(s => s.id === seasonId);
   if (!season) return null;
@@ -209,12 +211,12 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-150 font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider">
-                Crop General Report
+                {t('Crop General Report')}
               </span>
               <span className="text-slate-300">|</span>
               <span className="text-xs text-slate-450 font-bold font-mono uppercase tracking-wider bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">ID: {season.id}</span>
             </div>
-            <h3 className="text-base font-extrabold text-slate-800 mt-1.5">{season.cropName} Cycle on {field ? field.name : 'Unknown Plot'}</h3>
+            <h3 className="text-base font-extrabold text-slate-800 mt-1.5">{season.cropName} {t('Cycle on')} {field ? field.name : t('Unknown Plot')}</h3>
           </div>
           <button
             onClick={onClose}
@@ -230,39 +232,39 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           {/* Financial Reconciliation Summary Dashboard */}
           <div>
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3">
-              Financial Reconciliation Summary
+              {t('Financial Reconciliation Summary')}
             </h4>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
               <div className="p-4 rounded-2xl bg-amber-50/30 border border-amber-100 flex flex-col justify-between">
-                <span className="text-[9px] text-amber-700 font-bold uppercase block tracking-wider">Direct Outlays</span>
+                <span className="text-[9px] text-amber-700 font-bold uppercase block tracking-wider">{t('Direct Outlays')}</span>
                 <span className="text-md font-extrabold text-amber-850 font-mono mt-1.5 block">
                   {currency}{Math.round(sumDir).toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-orange-50/30 border border-orange-100 flex flex-col justify-between">
-                <span className="text-[9px] text-orange-700 font-bold uppercase block tracking-wider">Common Allocated</span>
+                <span className="text-[9px] text-orange-700 font-bold uppercase block tracking-wider">{t('Common Allocated')}</span>
                 <span className="text-md font-extrabold text-orange-850 font-mono mt-1.5 block">
                   {currency}{Math.round(sumAlloc).toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-sky-50/30 border border-sky-100 flex flex-col justify-between">
-                <span className="text-[9px] text-sky-700 font-bold uppercase block tracking-wider">Labor Hired</span>
+                <span className="text-[9px] text-sky-700 font-bold uppercase block tracking-wider">{t('Labor Hired')}</span>
                 <span className="text-md font-extrabold text-sky-850 font-mono mt-1.5 block">
                   {currency}{Math.round(sumLab).toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-purple-50/30 border border-purple-100 flex flex-col justify-between">
-                <span className="text-[9px] text-purple-700 font-bold uppercase block tracking-wider">Stock Consumed</span>
+                <span className="text-[9px] text-purple-700 font-bold uppercase block tracking-wider">{t('Stock Consumed')}</span>
                 <span className="text-md font-extrabold text-purple-855 font-mono mt-1.5 block">
                   {currency}{Math.round(sumStock).toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className={`p-4 rounded-2xl col-span-2 lg:col-span-1 border flex flex-col justify-between ${netPayback >= 0 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'}`}>
-                <span className={`text-[9px] font-bold uppercase block tracking-wider ${netPayback >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>Net Operating Profits</span>
+                <span className={`text-[9px] font-bold uppercase block tracking-wider ${netPayback >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{t('Net Operating Profits')}</span>
                 <span className={`text-md font-extrabold font-mono mt-1.5 block ${netPayback >= 0 ? 'text-emerald-800' : 'text-rose-850'}`}>
                   {currency}{Math.round(netPayback).toLocaleString('en-IN')}
                 </span>
@@ -271,13 +273,13 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
             <div className="mt-3.5 p-4.5 rounded-2xl bg-emerald-600 text-white flex flex-wrap justify-between items-center gap-3 shadow-2xs">
               <div>
-                <span className="text-[9px] text-emerald-150 font-bold uppercase tracking-widest">Total Sales Revenues Got</span>
+                <span className="text-[9px] text-emerald-150 font-bold uppercase tracking-widest">{t('Total Sales Revenues Got')}</span>
                 <span className="text-lg font-extrabold font-mono block mt-0.5">
                   {currency}{Math.round(sumRev).toLocaleString('en-IN')}
                 </span>
               </div>
               <div>
-                <span className="text-[9px] text-emerald-150 font-bold uppercase tracking-widest">Total Operating Expenses Outlay</span>
+                <span className="text-[9px] text-emerald-150 font-bold uppercase tracking-widest">{t('Total Operating Expenses Outlay')}</span>
                 <span className="text-lg font-extrabold font-mono block mt-0.5">
                   {currency}{Math.round(totCost).toLocaleString('en-IN')}
                 </span>
@@ -289,10 +291,10 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <Calendar size={13} className="text-slate-500" />
-              <span>Section 1: Timelines Activity Logs</span>
+              <span>{t('Section 1: Timelines Activity Logs')}</span>
             </h4>
             {sAct.length === 0 ? (
-              <p className="text-slate-400 text-xs italic">No crop activity timeline logs registered for this season cycle.</p>
+              <p className="text-slate-400 text-xs italic">{t('No crop activity timeline logs registered for this season cycle.')}</p>
             ) : (
               <div className="space-y-3">
                 {sAct.map((a, i) => (
@@ -315,14 +317,14 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <DollarSign size={13} className="text-slate-500" />
-              <span>Section 2: Cash Outlays & Direct Expenses</span>
+              <span>{t('Section 2: Cash Outlays & Direct Expenses')}</span>
             </h4>
             {combinedExps.length === 0 ? (
-              <p className="text-slate-400 text-xs italic">No cash expenses associated with this cycle.</p>
+              <p className="text-slate-400 text-xs italic">{t('No cash expenses associated with this cycle.')}</p>
             ) : (
               <div className="space-y-2.5">
                 {combinedExps.map(e => {
-                  const payer = members.find(m => m.id === e.paidByMemberId)?.name || 'Unknown';
+                  const payer = members.find(m => m.id === e.paidByMemberId)?.name || t('Unknown');
                   const isCommon = e.targetType === 'common';
                   const actualAmt = isCommon ? (e.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : e.amount;
                   return (
@@ -330,7 +332,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                       <div className="flex gap-2">
                         <span className="font-mono text-slate-400">[{e.date}]</span>
                         <span className="font-bold text-slate-705">{e.category}</span>
-                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">Common Allocated split</span>}
+                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
                       <span className="font-bold font-mono text-slate-800">
                         {currency}{Math.round(actualAmt).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">by {payer}</span>
@@ -346,10 +348,10 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <Package size={13} className="text-slate-500" />
-              <span>Section 3: Stock Materials Consumed</span>
+              <span>{t('Section 3: Stock Materials Consumed')}</span>
             </h4>
             {combinedUsages.length === 0 ? (
-              <p className="text-slate-400 text-xs italic">No material seed/input inventory usage recorded.</p>
+              <p className="text-slate-400 text-xs italic">{t('No material seed/input inventory usage recorded.')}</p>
             ) : (
               <div className="space-y-2.5">
                 {combinedUsages.map(u => {
@@ -361,8 +363,8 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                     <div key={u.id} className="flex justify-between items-center text-xs">
                       <div className="flex gap-2">
                         <span className="font-mono text-slate-400">[{u.date}]</span>
-                        <span className="font-bold text-slate-705">{item ? item.name : 'Unknown Item'}</span>
-                        {isCommon && <span className="text-[9px] bg-purple-50 text-purple-750 border border-purple-150 font-bold px-1.5 rounded uppercase">Split</span>}
+                        <span className="font-bold text-slate-705">{item ? item.name : t('Unknown Item')}</span>
+                        {isCommon && <span className="text-[9px] bg-purple-50 text-purple-750 border border-purple-150 font-bold px-1.5 rounded uppercase">{t('Split')}</span>}
                       </div>
                       <span className="font-mono font-bold text-slate-800">
                         {qty} {item ? item.unit : ''} @ {currency}{Math.round(rate)} = {currency}{Math.round(qty * rate).toLocaleString('en-IN')}
@@ -378,22 +380,22 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <Users size={13} className="text-slate-500" />
-              <span>Section 4: Hired Labor Manpower Utilized</span>
+              <span>{t('Section 4: Hired Labor Manpower Utilized')}</span>
             </h4>
             {combinedLabours.length === 0 ? (
-              <p className="text-slate-400 text-xs italic">No hired daily wage worker logs associated.</p>
+              <p className="text-slate-400 text-xs italic">{t('No hired daily wage worker logs associated.')}</p>
             ) : (
               <div className="space-y-2.5">
                 {combinedLabours.map(l => {
-                  const payer = members.find(m => m.id === l.paidByMemberId)?.name || 'Unknown';
+                  const payer = members.find(m => m.id === l.paidByMemberId)?.name || t('Unknown');
                   const isCommon = l.targetType === 'common';
                   const actualCost = isCommon ? (l.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : l.totalCost;
                   return (
                     <div key={l.id} className="flex justify-between items-center text-xs">
                       <div className="flex gap-2">
                         <span className="font-mono text-slate-400">[{l.date}]</span>
-                        <span className="font-bold text-slate-705">{l.workersCount} worker(s) at {currency}{l.wageRate}/worker</span>
-                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">Common Allocated split</span>}
+                        <span className="font-bold text-slate-705">{l.workersCount} {t('worker(s) at')} {currency}{l.wageRate}/{t('worker')}</span>
+                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
                       <span className="font-mono font-bold text-slate-800">
                         {currency}{Math.round(actualCost).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">paid by {payer}</span>
@@ -409,14 +411,14 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <CheckCircle size={13} className="text-slate-500" />
-              <span>Section 5: Harvest Yield Earnings</span>
+              <span>{t('Section 5: Harvest Yield Earnings')}</span>
             </h4>
             {sRevenues.length === 0 ? (
-              <p className="text-slate-400 text-xs italic">No crops sales transactions registered for this cycle.</p>
+              <p className="text-slate-400 text-xs italic">{t('No crops sales transactions registered for this cycle.')}</p>
             ) : (
               <div className="space-y-2.5">
                 {sRevenues.map(r => {
-                  const rcvr = members.find(m => m.id === r.receivedByMemberId)?.name || 'Unknown';
+                  const rcvr = members.find(m => m.id === r.receivedByMemberId)?.name || t('Unknown');
                   return (
                     <div key={r.id} className="flex justify-between items-center text-xs">
                       <div className="flex gap-2">
@@ -442,7 +444,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             onClick={onClose}
             className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-650 rounded-xl cursor-pointer"
           >
-            Close View
+            {t('Close View')}
           </button>
           <button
             type="button"
@@ -450,7 +452,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs hover:shadow-md transition-all flex items-center gap-2 active:scale-95"
           >
             {copiedReportText ? <Check size={14} className="animate-bounce" /> : <Copy size={14} />}
-            <span>{copiedReportText ? 'Copied Full Report!' : 'Export & Copy Report'}</span>
+            <span>{copiedReportText ? t('Copied Full Report!') : t('Export & Copy Report')}</span>
           </button>
         </div>
 

@@ -6,6 +6,7 @@
 import React from 'react';
 import { Season } from '../../types';
 import { X } from 'lucide-react';
+import { useLanguage } from '../../hooks/useLanguage';
 
 interface CloseSeasonModalProps {
   seasonId: string | null;
@@ -24,6 +25,7 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
   onClose,
   onConfirm,
 }) => {
+  const { t } = useLanguage();
   if (!seasonId) return null;
   const season = seasons.find(s => s.id === seasonId);
   if (!season) return null;
@@ -34,10 +36,10 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
         <div className="flex justify-between items-start">
           <div>
             <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-150 font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider">
-              Conclude Cropping Cycle
+              {t('Conclude Cropping Cycle')}
             </span>
-            <h3 className="text-sm font-extrabold text-slate-800 mt-2">Mark Crop Harvested</h3>
-            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">Conclude "{season.cropName}" cycle and freeze its ledger records.</p>
+            <h3 className="text-sm font-extrabold text-slate-800 mt-2">{t('Mark Crop Harvested')}</h3>
+            <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{t('Conclude')} "{season.cropName}" {t('cycle and freeze its ledger records.')}</p>
           </div>
           <button
             onClick={onClose}
@@ -49,7 +51,7 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
 
         <div className="space-y-3">
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Harvesting End Date</label>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">{t('Harvesting End Date')}</label>
             <input
               type="date"
               required
@@ -66,14 +68,14 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
             onClick={onClose}
             className="flex-1 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-550 hover:bg-slate-50 cursor-pointer"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="button"
             onClick={() => onConfirm(seasonId, date)}
             className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white cursor-pointer shadow-xs active:scale-95 transition-transform text-center"
           >
-            Confirm Harvest
+            {t('Confirm Harvest')}
           </button>
         </div>
       </div>

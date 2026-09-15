@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import React from 'react';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface NavTab {
   id: string;
@@ -29,6 +30,7 @@ export function MobileNavDrawer({
   activeTab,
   onSelectTab
 }: MobileNavDrawerProps) {
+  const { t } = useLanguage();
   const handleTabClick = (tabId: string) => {
     onSelectTab(tabId);
     onClose();
@@ -66,7 +68,7 @@ export function MobileNavDrawer({
           {groups.map((group, idx) => (
             <div key={group.id} className={idx > 0 ? 'mt-4' : ''}>
               <div className="px-4 pb-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                {group.label}
+                {t(group.label)}
               </div>
               <div className="space-y-1">
                 {group.tabs.map((tab) => (
@@ -80,7 +82,7 @@ export function MobileNavDrawer({
                     }`}
                   >
                     <span className="text-xl">{tab.icon}</span>
-                    <span>{tab.label}</span>
+                    <span>{t(tab.label)}</span>
                   </button>
                 ))}
               </div>

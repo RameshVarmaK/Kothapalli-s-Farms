@@ -1,0 +1,107 @@
+// Telugu translations for StockTab.tsx and src/components/stock/* (the "Inventory" tab).
+export const teStock: Record<string, string> = {
+  'Inventory Sown Value': 'నిల్వ సరుకు విలువ',
+  'Asset Reserve': 'ఆస్తి నిల్వ',
+  'Record Ledger': 'లెడ్జర్ నమోదు చేయండి',
+  'Reserves': 'నిల్వలు',
+  'Intakes': 'వచ్చినవి',
+  'Usage': 'వినియోగం',
+
+  'Stock Reserves Valuation': 'నిల్వ సరుకు మూల్యనిర్ణయం',
+  '+ Create Input Type': '+ ఇన్‌పుట్ రకం సృష్టించండి',
+  'Material Identifier': 'సరుకు పేరు',
+  'Category': 'వర్గం',
+  'Available Qty': 'లభ్యమైన పరిమాణం',
+  'Weighted Avg Cost': 'సగటు ధర',
+  'Reserve Value': 'నిల్వ విలువ',
+  'No farm inputs registered': 'ఏ వ్యవసాయ ఇన్‌పుట్‌లు నమోదు చేయలేదు',
+  'Register seed, fertilizer, pesticide, or fuel types here first — then log purchases and field usage against them.':
+    'ముందుగా విత్తనం, ఎరువు, పురుగుమందు లేదా ఇంధన రకాలను ఇక్కడ నమోదు చేయండి — తర్వాత వాటికి సంబంధించిన కొనుగోళ్లు మరియు పొలంలో వాడకాన్ని నమోదు చేయవచ్చు.',
+  'Create First Input Type': 'మొదటి ఇన్‌పుట్ రకాన్ని సృష్టించండి',
+  'Edit Input Type': 'ఇన్‌పుట్ రకాన్ని సవరించండి',
+
+  'Stock Purchasing Ledger (Intakes)': 'సరుకు కొనుగోలు లెడ్జర్ (వచ్చినవి)',
+  'Capital Outlays': 'మూలధన వ్యయాలు',
+  'Register an input type first': 'ముందుగా ఒక ఇన్‌పుట్ రకాన్ని నమోదు చేయండి',
+  'No purchases logged yet': 'ఇంకా ఏ కొనుగోళ్లు నమోదు చేయలేదు',
+  'You need at least one input type (seed, fertilizer, etc.) before you can log a purchase against it.':
+    'కొనుగోలు నమోదు చేయడానికి ముందు కనీసం ఒక ఇన్‌పుట్ రకం (విత్తనం, ఎరువు మొదలైనవి) ఉండాలి.',
+  'Log every bag of fertilizer, seed, or fuel bought — it builds the weighted-average cost used across field usage.':
+    'కొన్న ప్రతి బ్యాగు ఎరువు, విత్తనం లేదా ఇంధనాన్ని నమోదు చేయండి — ఇది పొలంలో వాడకానికి ఉపయోగించే సగటు ధరను లెక్కిస్తుంది.',
+  'Log First Purchase': 'మొదటి కొనుగోలును నమోదు చేయండి',
+  'Unknown Material': 'తెలియని సరుకు',
+  'Unknown': 'తెలియదు',
+  'Paid by': 'చెల్లించినవారు',
+  'Unit Cost:': 'యూనిట్ ధర:',
+  'Added': 'చేర్చినది',
+  'Edit Purchase': 'కొనుగోలును సవరించండి',
+
+  'Field Usage Consumptions': 'పొలంలో వినియోగం',
+  'Weighted Consumption': 'సగటు వినియోగం',
+  'Log a purchase first': 'ముందుగా ఒక కొనుగోలును నమోదు చేయండి',
+  'No field usage logged yet': 'ఇంకా పొలంలో వినియోగం నమోదు చేయలేదు',
+  'You need at least one input type before you can record it being used on a field.':
+    'పొలంలో వాడకాన్ని నమోదు చేయడానికి ముందు కనీసం ఒక ఇన్‌పుట్ రకం ఉండాలి.',
+  'There’s nothing on hand to consume yet — log a purchase to bring stock in first.':
+    'వాడుకోవడానికి ఇంకా చేతిలో ఏమీ లేదు — ముందుగా సరుకును తీసుకురావడానికి కొనుగోలును నమోదు చేయండి.',
+  'Record when seed, fertilizer, or pesticide is applied to a field — it charges the cost to that crop cycle automatically.':
+    'విత్తనం, ఎరువు లేదా పురుగుమందును పొలానికి వేసినప్పుడు నమోదు చేయండి — ఇది ఆ పంట సీజన్‌కు ఖర్చును స్వయంచాలకంగా జమ చేస్తుంది.',
+  'Log First Usage': 'మొదటి వినియోగాన్ని నమోదు చేయండి',
+  'Common Split': 'సాధారణ పంపిణీ',
+  'Shared allocation rule across season': 'సీజన్ అంతటా భాగస్వామ్య పంపిణీ నియమం',
+  'Used': 'వాడినది',
+  'Edit Usage': 'వినియోగాన్ని సవరించండి',
+
+  'Log Input Purchase (Asset)': 'ఇన్‌పుట్ కొనుగోలును నమోదు చేయండి (ఆస్తి)',
+  'Log Field Usage (Expense)': 'పొలం వినియోగాన్ని నమోదు చేయండి (ఖర్చు)',
+  'Edit Material / Input Type': 'సరుకు / ఇన్‌పుట్ రకాన్ని సవరించండి',
+  'Add Sown Material / Input Type': 'కొత్త సరుకు / ఇన్‌పుట్ రకాన్ని జోడించండి',
+  'Item Name': 'వస్తువు పేరు',
+  'Category Type': 'వర్గం రకం',
+  'Unit of Measure': 'కొలత యూనిట్',
+  'Seed': 'విత్తనం',
+  'Fertilizer': 'ఎరువు',
+  'Pesticide': 'పురుగుమందు',
+  'Fuel': 'ఇంధనం',
+  'Other': 'ఇతర',
+  'Create Material': 'సరుకును సృష్టించండి',
+
+  'Record Input Intake Purchase (Asset)': 'ఇన్‌పుట్ కొనుగోలును నమోదు చేయండి (ఆస్తి)',
+  'Edit Input Intake Purchase (Asset)': 'ఇన్‌పుట్ కొనుగోలును సవరించండి (ఆస్తి)',
+  'Sown Stock Item type': 'సరుకు రకం',
+  'Quantity Purchased': 'కొనుగోలు చేసిన పరిమాణం',
+  'Total Bill Cost': 'మొత్తం బిల్లు ధర',
+  'Purchase Date': 'కొనుగోలు తేదీ',
+  'Funder (Who Funded?)': 'నిధులు అందించినవారు (ఎవరు చెల్లించారు?)',
+  'Save Purchase': 'కొనుగోలును సేవ్ చేయండి',
+
+  'Log Crop Field Stock Usage (Expense)': 'పంట పొలం సరుకు వినియోగాన్ని నమోదు చేయండి (ఖర్చు)',
+  'Edit Crop Field Stock Usage (Expense)': 'పంట పొలం సరుకు వినియోగాన్ని సవరించండి (ఖర్చు)',
+  'Select Material': 'సరుకును ఎంచుకోండి',
+  'Quantity Sown/Used': 'వాడిన/వేసిన పరిమాణం',
+  'Date Sown/Used': 'వాడిన/వేసిన తేదీ',
+  'Target Type': 'లక్ష్య రకం',
+  'Single Field Crop': 'ఒక్క పొలం పంట',
+  'Commonly Consumed': 'అన్నిటికీ కలిపి వాడినది',
+  'Crop Cycle Destination': 'పంట సీజన్ గమ్యం',
+  'Division Rule': 'విభజన నియమం',
+  'Equal Split': 'సమాన పంపిణీ',
+  'Area Proportional (Acres)': 'విస్తీర్ణం ప్రకారం (ఎకరాలు)',
+  'Manual Quantities': 'మాన్యువల్ పరిమాణాలు',
+  'Fields Participating': 'పాల్గొంటున్న పొలాలు',
+  'Qty used': 'వాడిన పరిమాణం',
+  'Link to Diary Event (Optional)': 'డైరీ ఈవెంట్‌కు లింక్ చేయండి (ఐచ్ఛికం)',
+  'Do not link to activity': 'కార్యకలాపానికి లింక్ చేయవద్దు',
+  'Log Usage': 'వినియోగాన్ని నమోదు చేయండి',
+
+  'Both a name and a unit (e.g. kg, litre, bag) are required.': 'పేరు మరియు యూనిట్ (ఉదా. kg, litre, bag) రెండూ అవసరం.',
+  'Select which material this purchase is for.': 'ఈ కొనుగోలు ఏ సరుకు కోసమో ఎంచుకోండి.',
+  'Select which material this usage is for.': 'ఈ వినియోగం ఏ సరుకు కోసమో ఎంచుకోండి.',
+
+  'Splits the quantity into identical shares across every checked field, regardless of size.':
+    'పరిమాణాన్ని పరిమాణంతో సంబంధం లేకుండా ఎంచుకున్న ప్రతి పొలానికి సమానంగా విభజిస్తుంది.',
+  'Splits the quantity in proportion to each field’s registered acreage — bigger fields carry a bigger share.':
+    'పరిమాణాన్ని ప్రతి పొలం నమోదు చేసిన విస్తీర్ణానికి అనుపాతంగా విభజిస్తుంది — పెద్ద పొలాలకు ఎక్కువ వాటా ఉంటుంది.',
+  'You set the exact quantity per field yourself. The entries must add up to the total below.':
+    'మీరే ప్రతి పొలానికి ఖచ్చితమైన పరిమాణాన్ని సెట్ చేస్తారు. నమోదులు దిగువ మొత్తానికి సరిపోవాలి.',
+};

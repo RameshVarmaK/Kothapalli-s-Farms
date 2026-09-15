@@ -15,6 +15,7 @@ import {
   Member
 } from '../types';
 import { Calendar, Filter, Users, Package, DollarSign, CloudSun, Plus, X, Sprout } from 'lucide-react';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface TimelineTabProps {
   activities: Activity[];
@@ -41,6 +42,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
   currency,
   onAddActivity
 }) => {
+  const { t } = useLanguage();
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('all');
   const [selectedActivityType, setSelectedActivityType] = useState<string>('all');
 
@@ -57,17 +59,17 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
   const handleSaveActivity = (e: React.FormEvent) => {
     e.preventDefault();
     if (!actSeasonId) {
-      setFormError('Please select a corresponding Crop Season.');
+      setFormError(t('Please select a corresponding Crop Season.'));
       return;
     }
     if (!actNotes.trim()) {
-      setFormError('Please provide descriptive activity notes.');
+      setFormError(t('Please provide descriptive activity notes.'));
       return;
     }
-    
+
     const targetSeason = seasons.find(s => s.id === actSeasonId);
     if (!targetSeason) {
-      setFormError('Invalid Season selection.');
+      setFormError(t('Invalid Season selection.'));
       return;
     }
     
@@ -116,8 +118,8 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
       {/* Tab Header Banner with Add Activity Action */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
         <div>
-          <h2 className="text-base font-extrabold text-slate-800">Farm Activity Logs & Timeline</h2>
-          <p className="text-xs text-slate-400 font-medium mt-0.5">Track field treatments, irrigation periods, weeding, harvest work, or maintenance events.</p>
+          <h2 className="text-base font-extrabold text-slate-800">{t('Farm Activity Logs & Timeline')}</h2>
+          <p className="text-xs text-slate-400 font-medium mt-0.5">{t('Track field treatments, irrigation periods, weeding, harvest work, or maintenance events.')}</p>
         </div>
         <button
           onClick={() => {
@@ -128,7 +130,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
           className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs cursor-pointer transition-all active:scale-95 whitespace-nowrap"
         >
           <Plus size={15} />
-          <span>Record Farm Activity</span>
+          <span>{t('Record Farm Activity')}</span>
         </button>
       </div>
 
@@ -140,7 +142,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
             <div className="p-5 border-b border-slate-100 bg-slate-50/60 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <Sprout className="text-emerald-600" size={18} />
-                <h3 className="font-extrabold text-slate-800 text-sm">Record Manual Activity</h3>
+                <h3 className="font-extrabold text-slate-800 text-sm">{t('Record Manual Activity')}</h3>
               </div>
               <button
                 onClick={() => setShowAddForm(false)}
@@ -160,37 +162,37 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
               )}
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Activity/Operation Type</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t('Activity/Operation Type')}</label>
                 <select
                   value={actType}
                   onChange={e => setActType(e.target.value as any)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold cursor-pointer focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 >
-                  <option value="Irrigation">💦 Irrigation / Watering</option>
-                  <option value="Weeding">🌱 Weeding / Clearing</option>
-                  <option value="Fertilizing">🍁 Fertilizing Input</option>
-                  <option value="Spraying">💨 Spraying Pesticide</option>
-                  <option value="Sowing">🌾 Sowing / Soil Prep</option>
-                  <option value="Harvesting">🚜 Harvesting Cycle</option>
-                  <option value="Equipment/Motor repair">🔧 Equipment / Motor Repair</option>
-                  <option value="Transport">🚛 Transport / Logistics</option>
-                  <option value="Other">📝 Other Manual Activity</option>
+                  <option value="Irrigation">{t('💦 Irrigation / Watering')}</option>
+                  <option value="Weeding">{t('🌱 Weeding / Clearing')}</option>
+                  <option value="Fertilizing">{t('🍁 Fertilizing Input')}</option>
+                  <option value="Spraying">{t('💨 Spraying Pesticide')}</option>
+                  <option value="Sowing">{t('🌾 Sowing / Soil Prep')}</option>
+                  <option value="Harvesting">{t('🚜 Harvesting Cycle')}</option>
+                  <option value="Equipment/Motor repair">{t('🔧 Equipment / Motor Repair')}</option>
+                  <option value="Transport">{t('🚛 Transport / Logistics')}</option>
+                  <option value="Other">{t('📝 Other Manual Activity')}</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Associated Crop Cycle</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t('Associated Crop Cycle')}</label>
                 <select
                   value={actSeasonId}
                   onChange={e => setActSeasonId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 font-semibold cursor-pointer focus:ring-1 focus:ring-emerald-500 focus:outline-none"
                 >
-                  <option value="">-- Choose Crop Season --</option>
+                  <option value="">{t('-- Choose Crop Season --')}</option>
                   {seasons.map(s => {
                     const f = fields.find(field => field.id === s.fieldId);
                     return (
                       <option key={s.id} value={s.id}>
-                        {s.cropName} ({f ? f.name : 'Unknown Field'}) {s.isClosed ? '• Closed' : '• Open'}
+                        {s.cropName} ({f ? f.name : t('Unknown Field')}) {s.isClosed ? t('• Closed') : t('• Open')}
                       </option>
                     );
                   })}
@@ -199,7 +201,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Date Done</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t('Date Done')}</label>
                   <input
                     type="date"
                     required
@@ -210,7 +212,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Weather Condition</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t('Weather Condition')}</label>
                   <input
                     type="text"
                     placeholder="e.g. Sunny, Rain"
@@ -222,7 +224,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Operation Description / Notes</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t('Operation Description / Notes')}</label>
                 <textarea
                   rows={3}
                   required
@@ -234,7 +236,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Visual snaps / Photo URLs (Optional)</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{t('Visual snaps / Photo URLs (Optional)')}</label>
                 <input
                   type="text"
                   placeholder="Comma-separated image URLs"
@@ -250,13 +252,13 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                   onClick={() => setShowAddForm(false)}
                   className="flex-1 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 cursor-pointer text-center"
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white cursor-pointer select-none"
                 >
-                  Conclude Log
+                  {t('Conclude Log')}
                 </button>
               </div>
             </form>
@@ -268,7 +270,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center">
         <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold uppercase tracking-wider">
           <Filter size={14} className="text-slate-400" />
-          <span>Filter Feed:</span>
+          <span>{t('Filter Feed:')}</span>
         </div>
 
         {/* Season Selector */}
@@ -278,12 +280,12 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
             onChange={e => setSelectedSeasonId(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 text-xs text-slate-700 rounded-xl px-3.5 py-2.5 font-semibold focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
           >
-            <option value="all">🌾 All Active & Historic Cycles</option>
+            <option value="all">{t('🌾 All Active & Historic Cycles')}</option>
             {seasons.map(s => {
               const f = fields.find(field => field.id === s.fieldId);
               return (
                 <option key={s.id} value={s.id}>
-                  {s.cropName} ({f ? f.name : 'Unknown Field'}) {s.isClosed ? '• Closed' : '• Open'}
+                  {s.cropName} ({f ? f.name : t('Unknown Field')}) {s.isClosed ? t('• Closed') : t('• Open')}
                 </option>
               );
             })}
@@ -297,16 +299,16 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
             onChange={e => setSelectedActivityType(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 text-xs text-slate-700 rounded-xl px-3.5 py-2.5 font-semibold focus:ring-1 focus:ring-emerald-500 focus:outline-none cursor-pointer"
           >
-            <option value="all">🔍 All Activity Types</option>
-            <option value="Sowing">Sowing</option>
-            <option value="Irrigation">Irrigation</option>
-            <option value="Weeding">Weeding</option>
-            <option value="Fertilizing">Fertilizing</option>
-            <option value="Spraying">Spraying</option>
-            <option value="Harvesting">Harvesting</option>
-            <option value="Equipment/Motor repair">Equipment/Motor Repair</option>
-            <option value="Transport">Transport</option>
-            <option value="Other">Other</option>
+            <option value="all">{t('🔍 All Activity Types')}</option>
+            <option value="Sowing">{t('Sowing')}</option>
+            <option value="Irrigation">{t('Irrigation')}</option>
+            <option value="Weeding">{t('Weeding')}</option>
+            <option value="Fertilizing">{t('Fertilizing')}</option>
+            <option value="Spraying">{t('Spraying')}</option>
+            <option value="Harvesting">{t('Harvesting')}</option>
+            <option value="Equipment/Motor repair">{t('Equipment/Motor Repair')}</option>
+            <option value="Transport">{t('Transport')}</option>
+            <option value="Other">{t('Other')}</option>
           </select>
         </div>
       </div>
@@ -315,7 +317,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
       <div className="relative border-l-2 border-slate-200 pl-6 ml-4 space-y-8 py-2">
         {filteredActivities.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 text-slate-400 font-semibold text-xs">
-            No activities logged matching the active filters.
+            {t('No activities logged matching the active filters.')}
           </div>
         ) : (
           filteredActivities.map(act => {
@@ -339,12 +341,12 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3.5 mb-3.5">
                     <div>
                       <span className="text-[9px] font-extrabold text-emerald-800 tracking-widest uppercase px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-lg">
-                        {act.type}
+                        {t(act.type)}
                       </span>
                       <h3 className="font-bold text-slate-800 text-sm mt-2 flex items-center gap-2">
-                        <span>{season ? season.cropName : 'Unknown Crop'}</span>
+                        <span>{season ? season.cropName : t('Unknown Crop')}</span>
                         <span className="text-slate-400 font-semibold text-xs bg-slate-100 px-1.5 py-0.5 rounded">
-                          {field ? field.name : 'Unknown Field'}
+                          {field ? field.name : t('Unknown Field')}
                         </span>
                       </h3>
                     </div>
@@ -397,7 +399,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                               <p className="text-rose-900 font-extrabold font-mono text-xs mt-1">
                                 {currency}{exp.amount.toLocaleString('en-IN')}
                               </p>
-                              <p className="text-rose-500 font-semibold mt-1">Paid by: {payer ? payer.name : 'Unknown'}</p>
+                              <p className="text-rose-500 font-semibold mt-1">{t('Paid by:')} {payer ? payer.name : t('Unknown')}</p>
                             </div>
                           </div>
                         );
@@ -412,12 +414,12 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                               <Users size={12} />
                             </span>
                             <div>
-                              <p className="font-bold text-amber-950 uppercase tracking-tight text-[10px] leading-snug">Field Labour</p>
+                              <p className="font-bold text-amber-950 uppercase tracking-tight text-[10px] leading-snug">{t('Field Labour')}</p>
                               <p className="text-amber-900 font-extrabold font-mono text-xs mt-1">
                                 {currency}{lab.totalCost.toLocaleString('en-IN')}
                               </p>
                               <p className="text-amber-500 font-semibold mt-1">
-                                {lab.workersCount} worker(s) • Paid: {payer ? payer.name : 'Unknown'}
+                                {lab.workersCount} {t('worker(s) • Paid:')} {payer ? payer.name : t('Unknown')}
                               </p>
                             </div>
                           </div>
@@ -436,13 +438,13 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                             </span>
                             <div>
                               <p className="font-bold text-emerald-950 uppercase tracking-tight text-[10px] leading-snug">
-                                {stockItem ? stockItem.name : 'Unknown InputUsed'}
+                                {stockItem ? stockItem.name : t('Unknown InputUsed')}
                               </p>
                               <p className="text-emerald-900 font-extrabold mt-1">
-                                <span className="font-mono">{usage.quantityUsed} {stockItem?.unit}</span> used
+                                <span className="font-mono">{usage.quantityUsed} {stockItem?.unit}</span> {t('used')}
                               </p>
                               <p className="text-emerald-600 font-bold font-mono text-[10px] uppercase mt-1">
-                                Cost: {currency}{Math.round(valueCharged).toLocaleString('en-IN')}
+                                {t('Cost:')} {currency}{Math.round(valueCharged).toLocaleString('en-IN')}
                               </p>
                             </div>
                           </div>

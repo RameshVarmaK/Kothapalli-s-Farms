@@ -19,6 +19,7 @@ import {
   SettlementSummary,
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
+import { useLanguage } from '../hooks/useLanguage';
 import { TrendingUp, TrendingDown, IndianRupee, Layers, Sprout, Coins } from 'lucide-react';
 import {
   BarChart,
@@ -64,6 +65,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   creditRepayments = [],
   onSelectTab
 }) => {
+  const { t } = useLanguage();
   const [statusFilter, setStatusFilter] = useState<'active' | 'closed' | 'all'>('active');
 
   // Get all season IDs to compute overall totals
@@ -181,26 +183,26 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       <div className="space-y-6">
         <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-200 p-8 text-center">
           <div className="text-5xl mb-4">🚀</div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-3">Welcome to Kothapalli's Farms</h2>
-          <p className="text-slate-600 mb-6 max-w-xl mx-auto">Get started in 3 simple steps to track your farm's finances and operations.</p>
+          <h2 className="text-2xl font-bold text-slate-900 mb-3">{t("Welcome to Kothapalli's Farms")}</h2>
+          <p className="text-slate-600 mb-6 max-w-xl mx-auto">{t("Get started in 3 simple steps to track your farm's finances and operations.")}</p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <div className={`p-4 rounded-lg border-2 ${members.length === 0 ? 'border-amber-300 bg-amber-50' : 'border-emerald-300 bg-emerald-50'}`}>
               <div className="text-3xl mb-2">👥</div>
-              <h3 className="font-semibold text-slate-900 mb-1">Add Members</h3>
-              <p className="text-sm text-slate-600">Create partnership members who share farm responsibilities</p>
+              <h3 className="font-semibold text-slate-900 mb-1">{t('Add Members')}</h3>
+              <p className="text-sm text-slate-600">{t('Create partnership members who share farm responsibilities')}</p>
             </div>
 
             <div className={`p-4 rounded-lg border-2 ${fields.length === 0 ? 'border-amber-300 bg-amber-50' : 'border-emerald-300 bg-emerald-50'}`}>
               <div className="text-3xl mb-2">🌾</div>
-              <h3 className="font-semibold text-slate-900 mb-1">Register Fields</h3>
-              <p className="text-sm text-slate-600">Define your farm plots and their specifications</p>
+              <h3 className="font-semibold text-slate-900 mb-1">{t('Register Fields')}</h3>
+              <p className="text-sm text-slate-600">{t('Define your farm plots and their specifications')}</p>
             </div>
 
             <div className="p-4 rounded-lg border-2 border-emerald-300 bg-emerald-50">
               <div className="text-3xl mb-2">📊</div>
-              <h3 className="font-semibold text-slate-900 mb-1">Track Operations</h3>
-              <p className="text-sm text-slate-600">Log expenses, labour, harvests, and settlements</p>
+              <h3 className="font-semibold text-slate-900 mb-1">{t('Track Operations')}</h3>
+              <p className="text-sm text-slate-600">{t('Log expenses, labour, harvests, and settlements')}</p>
             </div>
           </div>
 
@@ -210,7 +212,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 onClick={() => onSelectTab('Members')}
                 className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                Add First Member →
+                {t('Add First Member →')}
               </button>
             )}
             {fields.length === 0 && (
@@ -218,7 +220,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 onClick={() => onSelectTab('Fields & Directory')}
                 className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Register Fields →
+                {t('Register Fields →')}
               </button>
             )}
             {members.length > 0 && fields.length > 0 && (
@@ -226,7 +228,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 onClick={() => onSelectTab('Transactions')}
                 className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                Start Logging Transactions →
+                {t('Start Logging Transactions →')}
               </button>
             )}
           </div>
@@ -242,27 +244,27 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {/* Active Crop Seasons */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[140px]">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Active Crop Seasons</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{t('Active Crop Seasons')}</p>
             <h2 className="text-3xl font-bold text-slate-800">
               {seasons.filter(s => !s.isClosed).length.toString().padStart(2, '0')}
             </h2>
           </div>
           <p className="text-xs text-emerald-600 mt-2 font-medium truncate">
-            ● {seasons.filter(s => !s.isClosed).map(s => s.cropName).slice(0, 3).join(', ') || 'No active crop seasons'}
+            ● {seasons.filter(s => !s.isClosed).map(s => s.cropName).slice(0, 3).join(', ') || t('No active crop seasons')}
           </p>
         </div>
 
         {/* Total Sales Revenue */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[140px]">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Sales Revenue</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{t('Total Sales Revenue')}</p>
             <h2 className="text-3xl font-bold text-slate-800 font-mono">
               {currency}{totalRevenue.toLocaleString('en-IN')}
             </h2>
           </div>
           <div className="w-full bg-slate-100 h-1.5 rounded-full mt-4 overflow-hidden">
-            <div 
-              className="bg-emerald-500 h-1.5 rounded-full transition-all" 
+            <div
+              className="bg-emerald-500 h-1.5 rounded-full transition-all"
               style={{ width: totalRevenue > 0 ? `${Math.min(100, Math.max(10, (totalRevenue / (totalExpense + totalRevenue || 1)) * 100))}%` : '0%' }}
             ></div>
           </div>
@@ -271,20 +273,20 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
         {/* Operational Costs */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between min-h-[140px]">
           <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Operational Costs</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{t('Operational Costs')}</p>
             <h2 className="text-3xl font-bold text-slate-800 font-mono">
               {currency}{totalExpense.toLocaleString('en-IN')}
             </h2>
           </div>
           <p className="text-xs text-amber-600 mt-2 font-medium">
-            Avg cost per {areaUnit || 'acre'}: {currency}{Math.round(averageCostPerAcre).toLocaleString('en-IN')}
+            {t('Avg cost per')} {areaUnit || 'acre'}: {currency}{Math.round(averageCostPerAcre).toLocaleString('en-IN')}
           </p>
         </div>
 
         {/* Accumulated Net Profit Highlight Card */}
         <div className={`${totalProfit >= 0 ? 'bg-emerald-950 border-emerald-900 text-white shadow-md' : 'bg-slate-900 border-slate-800 text-white shadow-md'} p-5 rounded-2xl border flex flex-col justify-between min-h-[140px]`}>
           <div>
-            <p className={`text-xs font-semibold ${totalProfit >= 0 ? 'text-emerald-300' : 'text-slate-300'} uppercase tracking-wider mb-1`}>Net Profit / Loss</p>
+            <p className={`text-xs font-semibold ${totalProfit >= 0 ? 'text-emerald-300' : 'text-slate-300'} uppercase tracking-wider mb-1`}>{t('Net Profit / Loss')}</p>
             <h2 className="text-3xl font-bold font-mono">
               {totalProfit < 0 ? '-' : ''}{currency}{Math.abs(totalProfit).toLocaleString('en-IN')}
             </h2>
@@ -297,7 +299,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             ) : (
               <span className="w-2 h-2 rounded-full bg-slate-400" />
             )}
-            <span>Ledgers balanced to zero</span>
+            <span>{t('Ledgers balanced to zero')}</span>
           </div>
         </div>
       </div>
@@ -308,19 +310,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div>
             <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
               <Coins className="text-amber-500" size={16} />
-              Partner Investment Standing
+              {t('Partner Investment Standing')}
             </h3>
-            <p className="text-xs text-slate-400 mt-1">Total operational cash and materials funded by each agricultural partner</p>
+            <p className="text-xs text-slate-400 mt-1">{t('Total operational cash and materials funded by each agricultural partner')}</p>
           </div>
           <div className="bg-slate-50 border border-slate-100 px-3.5 py-1.5 rounded-xl font-medium text-xs text-slate-600 flex items-center gap-1.5">
-            <span>Overall Capital Spent:</span>
+            <span>{t('Overall Capital Spent:')}</span>
             <span className="font-bold font-mono text-slate-800">{currency}{totalCombinedInvested.toLocaleString('en-IN')}</span>
           </div>
         </div>
 
         {totalCombinedInvested === 0 ? (
           <div className="text-center py-10 bg-slate-50 border border-dashed border-slate-200 rounded-xl">
-            <p className="text-slate-400 text-xs">No investments recorded yet. Register expenses, stock purchases, or labour services to see standings.</p>
+            <p className="text-slate-400 text-xs">{t('No investments recorded yet. Register expenses, stock purchases, or labour services to see standings.')}</p>
           </div>
         ) : (
           <div className="w-full" style={{ minHeight: '320px' }}>
@@ -369,10 +371,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
               <Sprout className="text-emerald-600" size={16} />
-              Crop Seasons Ledger Cards
+              {t('Crop Seasons Ledger Cards')}
             </h2>
             <span className="text-[10px] font-mono text-slate-400 font-bold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
-              {filteredLedgers.length} shown
+              {filteredLedgers.length} {t('shown')}
             </span>
           </div>
 
@@ -386,7 +388,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     : 'text-slate-400 hover:text-slate-700'
                 }`}
               >
-                All ({summary.ledgers.length})
+                {t('All')} ({summary.ledgers.length})
               </button>
               <button
                 onClick={() => setStatusFilter('active')}
@@ -396,7 +398,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     : 'text-slate-400 hover:text-slate-700'
                 }`}
               >
-                Active ({summary.ledgers.filter(l => {
+                {t('Active')} ({summary.ledgers.filter(l => {
                   const s = seasons.find(x => x.id === l.seasonId);
                   return s && !s.isClosed;
                 }).length})
@@ -409,7 +411,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     : 'text-slate-400 hover:text-slate-700'
                 }`}
               >
-                Closed ({summary.ledgers.filter(l => {
+                {t('Closed')} ({summary.ledgers.filter(l => {
                   const s = seasons.find(x => x.id === l.seasonId);
                   return s && s.isClosed;
                 }).length})
@@ -420,7 +422,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
               onClick={() => onSelectTab('settle')}
               className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl transition-all hover:bg-emerald-100 cursor-pointer shadow-3xs"
             >
-              Finalize Settle
+              {t('Finalize Settle')}
             </button>
           </div>
         </div>
@@ -429,14 +431,14 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div className="text-center py-16 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3">
             <span className="text-3xl text-slate-350">🌾</span>
             <div>
-              <p className="text-slate-800 font-bold text-sm">No cropping cycles found</p>
+              <p className="text-slate-800 font-bold text-sm">{t('No cropping cycles found')}</p>
               <p className="text-slate-400 text-xs mt-1">There are no seasons with status "{statusFilter}" currently registered.</p>
             </div>
             <button
               onClick={() => setStatusFilter('all')}
               className="mt-2 text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
             >
-              Clear filters and view all cycles
+              {t('Clear filters and view all cycles')}
             </button>
           </div>
         ) : (
@@ -461,7 +463,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       </p>
                     </div>
                     <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border ${season.isClosed ? 'bg-slate-105 text-slate-600 border-slate-200' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
-                      {season.isClosed ? 'Closed' : 'Active'}
+                      {season.isClosed ? t('Closed') : t('Active')}
                     </span>
                   </div>
 
@@ -470,19 +472,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     {/* Financial Metrics */}
                     <div className="grid grid-cols-3 gap-3 bg-slate-50/50 p-4 rounded-xl text-center border border-slate-100">
                       <div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Expenses</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">{t('Expenses')}</span>
                         <p className="text-sm font-bold font-mono text-slate-800 mt-1">
                           {currency}{ledger.totalExpense.toLocaleString('en-IN')}
                         </p>
                       </div>
                       <div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Revenues</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">{t('Revenues')}</span>
                         <p className="text-sm font-bold font-mono text-slate-800 mt-1">
                           {currency}{ledger.totalRevenue.toLocaleString('en-IN')}
                         </p>
                       </div>
                       <div>
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">Net Profit</span>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">{t('Net Profit')}</span>
                         <p className={`text-sm font-extrabold font-mono mt-1 ${ledger.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {ledger.netProfit >= 0 ? '+' : ''}{ledger.netProfit.toLocaleString('en-IN')}
                         </p>
@@ -492,13 +494,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     {/* Operational Metrics */}
                     <div className="grid grid-cols-2 gap-4 text-xs border-b border-slate-100 pb-4 font-medium text-slate-500">
                       <div className="flex justify-between items-center">
-                        <span>Expense / {areaUnit}</span>
+                        <span>{t('Expense /')} {areaUnit}</span>
                         <span className="font-bold text-slate-800 font-mono">
                           {currency}{Math.round(costPerAcre).toLocaleString('en-IN')}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span>Profit / {areaUnit}</span>
+                        <span>{t('Profit /')} {areaUnit}</span>
                         <span className={`font-bold font-mono ${profitPerAcre >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                           {currency}{Math.round(profitPerAcre).toLocaleString('en-IN')}
                         </span>
@@ -507,7 +509,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
                     {/* Partner Net Position / Standing */}
                     <div>
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Partner Share Standings (This Cycle)</h4>
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">{t('Partner Share Standings (This Cycle)')}</h4>
                       <div className="space-y-2.5">
                         {ledger.statements.map(stmt => {
                           const isOwed = stmt.netPosition >= 0;
@@ -516,10 +518,10 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                               <span className="text-slate-700 font-bold">{stmt.memberName} <span className="text-[10px] text-slate-400 font-medium font-mono">({stmt.sharePercentage || 0}%)</span></span>
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] text-slate-400 font-medium font-mono">
-                                  paid {currency}{Math.round(stmt.paidAmount).toLocaleString('en-IN')}
+                                  {t('paid')} {currency}{Math.round(stmt.paidAmount).toLocaleString('en-IN')}
                                 </span>
                                 <span className={`px-2.5 py-1 rounded-lg font-bold font-mono ${isOwed ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                                  {isOwed ? 'Owed' : 'Owes'} {currency}{Math.abs(Math.round(stmt.netPosition)).toLocaleString('en-IN')}
+                                  {isOwed ? t('Owed') : t('Owes')} {currency}{Math.abs(Math.round(stmt.netPosition)).toLocaleString('en-IN')}
                                 </span>
                               </div>
                             </div>
@@ -531,7 +533,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
                   {/* Footer Link */}
                   <div className="p-3.5 bg-slate-50/50 border-t border-slate-100 text-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Sowing Date: {season.startDate} {season.endDate ? `• Closed: ${season.endDate}` : ''}
+                    {t('Sowing Date:')} {season.startDate} {season.endDate ? <>• {t('Closed:')} {season.endDate}</> : ''}
                   </div>
                 </div>
               );

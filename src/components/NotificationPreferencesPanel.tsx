@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Bell, MessageCircle, Phone, AlertCircle, Check } from 'lucide-react';
 import { NotificationPreferences, NotificationEvent, Member } from '../types';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface NotificationPreferencesPanelProps {
   member: Member;
@@ -22,6 +23,7 @@ export function NotificationPreferencesPanel({
   onSave,
   isSaving = false
 }: NotificationPreferencesPanelProps) {
+  const { t } = useLanguage();
   const [channel, setChannel] = useState<'sms' | 'whatsapp' | 'none'>(
     preference?.channel || 'none'
   );
@@ -78,7 +80,7 @@ export function NotificationPreferencesPanel({
       {/* Channel Selection */}
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-slate-700" id="channel-label">
-          Notification Channel
+          {t('Notification Channel')}
         </label>
         <div className="space-y-2" role="group" aria-labelledby="channel-label">
           <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer focus-within:ring-2 focus-within:ring-emerald-500">
@@ -91,7 +93,7 @@ export function NotificationPreferencesPanel({
               aria-label="Disable notifications"
             />
             <span className="flex-1 text-sm font-medium text-slate-700">
-              Disabled - No notifications
+              {t('Disabled - No notifications')}
             </span>
           </label>
 
@@ -106,7 +108,7 @@ export function NotificationPreferencesPanel({
             />
             <Phone size={18} className="text-blue-600" aria-hidden="true" />
             <span className="flex-1 text-sm font-medium text-slate-700">
-              SMS (Text Message)
+              {t('SMS (Text Message)')}
             </span>
           </label>
 
@@ -121,7 +123,7 @@ export function NotificationPreferencesPanel({
             />
             <MessageCircle size={18} className="text-green-600" aria-hidden="true" />
             <span className="flex-1 text-sm font-medium text-slate-700">
-              WhatsApp Message
+              {t('WhatsApp Message')}
             </span>
           </label>
         </div>
@@ -131,7 +133,7 @@ export function NotificationPreferencesPanel({
       {channel !== 'none' && (
         <div className="space-y-2">
           <label htmlFor="phone-input" className="block text-sm font-semibold text-slate-700">
-            Phone Number
+            {t('Phone Number')}
           </label>
           <input
             id="phone-input"
@@ -145,7 +147,7 @@ export function NotificationPreferencesPanel({
             aria-describedby="phone-hint"
           />
           <p id="phone-hint" className="text-xs text-slate-500">
-            Include country code (e.g., +91 for India)
+            {t('Include country code (e.g., +91 for India)')}
           </p>
         </div>
       )}
@@ -153,7 +155,7 @@ export function NotificationPreferencesPanel({
       {/* Event Selection */}
       <div className="space-y-3">
         <label htmlFor="events-group" className="block text-sm font-semibold text-slate-700">
-          Notify me when:
+          {t('Notify me when:')}
         </label>
         <div className="space-y-2" id="events-group" role="group" aria-label="Notification event types">
           {(Object.keys(EVENT_LABELS) as NotificationEvent[]).map(event => (
@@ -170,7 +172,7 @@ export function NotificationPreferencesPanel({
                 aria-label={`Notify when ${EVENT_LABELS[event].toLowerCase()}`}
               />
               <span className="text-sm font-medium text-slate-700">
-                {EVENT_LABELS[event]}
+                {t(EVENT_LABELS[event])}
               </span>
             </label>
           ))}
@@ -199,7 +201,7 @@ export function NotificationPreferencesPanel({
         className="w-full px-4 py-2.5 text-sm sm:text-base bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors active:scale-95"
         aria-label={`${isSaving ? 'Saving' : 'Save'} notification preferences for ${member.name}`}
       >
-        {isSaving ? 'Saving...' : 'Save Preferences'}
+        {isSaving ? t('Saving...') : t('Save Preferences')}
       </button>
     </div>
   );

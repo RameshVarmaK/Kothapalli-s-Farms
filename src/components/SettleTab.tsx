@@ -21,6 +21,7 @@ import {
 import { buildSettlementLedger, computeStockLevels } from '../utils/calculations';
 import { CheckCircle2, AlertOctagon, Download, Share2, Printer, ClipboardCheck } from 'lucide-react';
 import { convertToCSV, downloadFile, safeStorageGet, safeStorageSet } from '../utils/database';
+import { useLanguage } from '../hooks/useLanguage';
 
 interface SettleTabProps {
   fields: Field[];
@@ -51,6 +52,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
   creditAccounts = [],
   creditRepayments = []
 }) => {
+  const { t } = useLanguage();
   const [selectedSeasonIds, setSelectedSeasonIds] = useState<string[]>(
     seasons.map(s => s.id)
   );
@@ -262,13 +264,13 @@ export const SettleTab: React.FC<SettleTabProps> = ({
       {/* Selector and Settings Bar */}
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 print:hidden">
         <div className="flex justify-between items-center flex-wrap gap-2">
-          <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">Select Cropping seasons for Settlement</h3>
+          <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">{t('Select Cropping seasons for Settlement')}</h3>
           <div className="flex gap-2 text-[10px]">
             <button onClick={selectAll} className="text-emerald-700 font-bold px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-150 rounded-lg cursor-pointer">
-              Include All
+              {t('Include All')}
             </button>
             <button onClick={selectOnlyOpen} className="text-slate-600 font-bold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg cursor-pointer">
-              Include Active Only
+              {t('Include Active Only')}
             </button>
           </div>
         </div>
@@ -288,7 +290,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                 }`}
               >
                 <span>{s.cropName}</span>
-                <span className="text-[9px] text-slate-400 mt-1 font-medium">{f?.name || 'Unknown Field'}</span>
+                <span className="text-[9px] text-slate-400 mt-1 font-medium">{f?.name || t('Unknown Field')}</span>
               </button>
             );
           })}
@@ -309,12 +311,12 @@ export const SettleTab: React.FC<SettleTabProps> = ({
             </span>
           )}
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Ledger Balances Check</span>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">{t('Ledger Balances Check')}</span>
             <p className="text-sm font-bold text-slate-800 mt-0.5">
-              {summary.isBalanced ? '✓ Settlement engine balances exactly to zero' : '⚠ Balancing Discrepancy'}
+              {summary.isBalanced ? t('✓ Settlement engine balances exactly to zero') : t('⚠ Balancing Discrepancy')}
             </p>
             <span className="text-[10px] text-slate-400 font-bold block mt-0.5 mono-num uppercase">
-              Difference: {currency}{summary.totalSettlementDiscrepancy}
+              {t('Difference')}: {currency}{summary.totalSettlementDiscrepancy}
             </span>
           </div>
         </div>
@@ -325,11 +327,11 @@ export const SettleTab: React.FC<SettleTabProps> = ({
             <ClipboardCheck size={20} />
           </span>
           <div>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Total Funds Disbursed</span>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">{t('Total Funds Disbursed')}</span>
             <p className="text-sm font-bold text-slate-800 mt-0.5 font-mono">
               {currency}{Math.round(summary.ledgers.reduce((sum, l) => sum + l.totalExpense, 0)).toLocaleString('en-IN')}
             </p>
-            <span className="text-[10px] text-slate-450 font-bold block mt-0.5 uppercase">100% purchases tracked</span>
+            <span className="text-[10px] text-slate-450 font-bold block mt-0.5 uppercase">{t('100% purchases tracked')}</span>
           </div>
         </div>
 
@@ -340,21 +342,21 @@ export const SettleTab: React.FC<SettleTabProps> = ({
             className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-150 hover:border-slate-350 rounded-xl transition-all cursor-pointer flex-1 text-center"
           >
             <Download size={16} />
-            <span>Export CSV</span>
+            <span>{t('Export CSV')}</span>
           </button>
           <button
             onClick={handleShareCSV}
             className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-150 hover:border-slate-350 rounded-xl transition-all cursor-pointer flex-1 text-center"
           >
             <Share2 size={16} className={copiedCSV ? "text-emerald-600 animate-bounce" : ""} />
-            <span>{copiedCSV ? 'Copied CSV!' : 'Share CSV'}</span>
+            <span>{copiedCSV ? t('Copied CSV!') : t('Share CSV')}</span>
           </button>
           <button
             onClick={() => window.print()}
             className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-150 hover:border-slate-350 rounded-xl transition-all cursor-pointer flex-1 text-center"
           >
             <Printer size={16} />
-            <span>Print PDF</span>
+            <span>{t('Print PDF')}</span>
           </button>
         </div>
       </div>
@@ -362,9 +364,9 @@ export const SettleTab: React.FC<SettleTabProps> = ({
       {/* MAIN SETTLEMENT MATRIX TABLE */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4.5 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
-          <h3 className="font-bold text-sm text-slate-800 uppercase tracking-wider">Settlement Matrix Table</h3>
+          <h3 className="font-bold text-sm text-slate-800 uppercase tracking-wider">{t('Settlement Matrix Table')}</h3>
           <span className="text-[10px] font-bold text-emerald-700 tracking-widest bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-lg">
-            TRANSPARENT AUDIT SECURE
+            {t('TRANSPARENT AUDIT SECURE')}
           </span>
         </div>
 
@@ -372,12 +374,12 @@ export const SettleTab: React.FC<SettleTabProps> = ({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 text-slate-400 font-bold bg-slate-50/50 text-[10px] uppercase tracking-widest">
-                <th className="px-6 py-4">Partner Name</th>
-                <th className="px-6 py-4 text-right">Entitled Profit</th>
-                <th className="px-6 py-4 text-right">Spent Funding</th>
-                <th className="px-6 py-4 text-right">Revenue Got</th>
-                <th className="px-6 py-4 text-right">Settle Position</th>
-                <th className="px-6 py-4 text-right">Recommendation</th>
+                <th className="px-6 py-4">{t('Partner Name')}</th>
+                <th className="px-6 py-4 text-right">{t('Entitled Profit')}</th>
+                <th className="px-6 py-4 text-right">{t('Spent Funding')}</th>
+                <th className="px-6 py-4 text-right">{t('Revenue Got')}</th>
+                <th className="px-6 py-4 text-right">{t('Settle Position')}</th>
+                <th className="px-6 py-4 text-right">{t('Recommendation')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -400,7 +402,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                     </td>
                     <td className="px-6 py-4.5 text-right">
                       <span className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase border ${isCreditor ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-red-50 text-red-700 border-red-100'}`}>
-                        {isCreditor ? 'Receives' : 'Pays'}
+                        {isCreditor ? t('Receives') : t('Pays')}
                       </span>
                     </td>
                   </tr>
@@ -414,15 +416,15 @@ export const SettleTab: React.FC<SettleTabProps> = ({
       {/* MINIMIZED WHO-PAYS-WHOM DEBT CLEARING RECOMMENDATIONS */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4.5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
-          <h3 className="font-bold text-sm text-slate-800 uppercase tracking-wider">Minimized Clearing Transfers</h3>
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block">DEBT SIMPLIFICATION</span>
+          <h3 className="font-bold text-sm text-slate-800 uppercase tracking-wider">{t('Minimized Clearing Transfers')}</h3>
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block">{t('DEBT SIMPLIFICATION')}</span>
         </div>
 
         <div className="p-6 space-y-4">
           {summary.debts.length === 0 ? (
             <div className="text-center py-8 text-emerald-700 font-bold bg-emerald-50/30 rounded-xl border border-emerald-100 flex flex-col items-center justify-center gap-1.5">
               <span className="text-2xl">🏆</span>
-              <span className="uppercase text-[11px] tracking-wider text-emerald-800">All partner accounts are perfectly balanced. No clearing transfers needed!</span>
+              <span className="uppercase text-[11px] tracking-wider text-emerald-800">{t('All partner accounts are perfectly balanced. No clearing transfers needed!')}</span>
             </div>
           ) : (
             summary.debts.map((debt, idx) => {
@@ -458,18 +460,18 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                       <span className={`font-bold text-[10px] tracking-wider uppercase px-2.5 py-1 rounded-lg border ${
                         isCleared ? 'bg-emerald-100 text-emerald-850 border-emerald-200' : 'bg-red-50 text-red-650 border-red-100'
                       }`}>
-                        Pay Out
+                        {t('Pay Out')}
                       </span>
                       <div>
                         <span className={`font-bold text-sm ${isCleared ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                           {debt.fromName}
                         </span>
-                        <span className="text-slate-400 text-[10px] font-bold uppercase block mt-1">Transfer directly</span>
+                        <span className="text-slate-400 text-[10px] font-bold uppercase block mt-1">{t('Transfer directly')}</span>
                       </div>
                     </div>
 
                     <div className="text-center px-5 py-3 bg-white rounded-2xl border border-slate-200 border-dashed min-w-[140px] flex flex-col justify-center items-center shrink-0">
-                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-1">Clears Balance</span>
+                      <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider mb-1">{t('Clears Balance')}</span>
                       <span className={`text-lg font-extrabold font-mono ${isCleared ? 'text-emerald-700/60 line-through' : 'text-emerald-600'}`}>
                         {currency}{mtFormat(debt.amount).toLocaleString('en-IN')}
                       </span>
@@ -480,12 +482,12 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                         <span className={`font-bold text-sm ${isCleared ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                           {debt.toName}
                         </span>
-                        <span className="text-slate-400 text-[10px] font-bold uppercase block mt-1">Recovers outlay</span>
+                        <span className="text-slate-400 text-[10px] font-bold uppercase block mt-1">{t('Recovers outlay')}</span>
                       </div>
                       <span className={`font-bold text-[10px] tracking-wider uppercase px-2.5 py-1 rounded-lg border ${
                         isCleared ? 'bg-emerald-100 text-emerald-850 border-emerald-200' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                       }`}>
-                        Receive
+                        {t('Receive')}
                       </span>
                     </div>
 
@@ -493,13 +495,13 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                       {isCleared ? (
                         <div className="flex flex-col items-center gap-1">
                           <span className="text-[10px] font-extrabold tracking-wider text-emerald-700 uppercase bg-emerald-100 border border-emerald-205 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-3xs">
-                            ✓ Cleared
+                            {t('✓ Cleared')}
                           </span>
                           <button
                             onClick={() => handleUnclearMainDebt(debt, subEntries)}
                             className="text-[9px] text-slate-450 hover:text-red-500 hover:underline font-bold cursor-pointer transition-colors"
                           >
-                            Mark Uncleared
+                            {t('Mark Uncleared')}
                           </button>
                         </div>
                       ) : (
@@ -507,7 +509,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                           onClick={() => handleClearMainDebt(debt, subEntries)}
                           className="w-full md:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-750 font-bold text-white rounded-xl text-[10px] shadow-xs active:scale-95 cursor-pointer transition-all uppercase tracking-wider"
                         >
-                          Mark Transferred
+                          {t('Mark Transferred')}
                         </button>
                       )}
                     </div>
@@ -518,10 +520,10 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                     <div className="mt-2 pt-3.5 border-t border-slate-200/80">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                          Constituent Season Sub-Debts ({subEntries.length})
+                          {t('Constituent Season Sub-Debts')} ({subEntries.length})
                         </span>
                         <span className="text-[9px] text-slate-400 font-medium">
-                          Checking all items clears the parent transfer
+                          {t('Checking all items clears the parent transfer')}
                         </span>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -552,7 +554,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                                   </span>
                                   {isOppositeFlow && (
                                     <span className="ml-1.5 text-[8px] font-bold uppercase tracking-wider text-amber-600 px-1 py-0.25 bg-amber-50 rounded border border-amber-100">
-                                      Offset / Deduction
+                                      {t('Offset / Deduction')}
                                     </span>
                                   )}
                                 </div>

@@ -21,6 +21,7 @@ import {
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
 import { safeStorageGet } from '../utils/database';
+import { useLanguage } from '../hooks/useLanguage';
 import { Plus, Users, Grid, Sprout } from 'lucide-react';
 import { PartnersDirectory } from './members/PartnersDirectory';
 import { FieldsList } from './members/FieldsList';
@@ -80,6 +81,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   onDeleteField,
   onDeleteSeason
 }) => {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'directory' | 'fields' | 'seasons'>('seasons');
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
@@ -393,7 +395,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
               activeTab === 'seasons' ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-750'
             }`}
           >
-            <span className="flex items-center gap-1.5"><Grid size={12}/> Sown Seasons</span>
+            <span className="flex items-center gap-1.5"><Grid size={12}/> {t('Sown Seasons')}</span>
           </button>
           <button
             onClick={() => setActiveTab('fields')}
@@ -401,7 +403,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
               activeTab === 'fields' ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-750'
             }`}
           >
-            <span className="flex items-center gap-1.5"><Sprout size={12}/> Fields</span>
+            <span className="flex items-center gap-1.5"><Sprout size={12}/> {t('Fields')}</span>
           </button>
           <button
             onClick={() => setActiveTab('directory')}
@@ -409,7 +411,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
               activeTab === 'directory' ? 'bg-white text-emerald-850 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-750'
             }`}
           >
-            <span className="flex items-center gap-1.5"><Users size={12}/> Partners</span>
+            <span className="flex items-center gap-1.5"><Users size={12}/> {t('Partners')}</span>
           </button>
         </div>
 
@@ -421,7 +423,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
         >
           <Plus size={14} />
-          {activeTab === 'directory' ? 'Add Partner' : activeTab === 'fields' ? 'New Field' : 'Sow Crop'}
+          {activeTab === 'directory' ? t('Add Partner') : activeTab === 'fields' ? t('New Field') : t('Sow Crop')}
         </button>
       </div>
 
