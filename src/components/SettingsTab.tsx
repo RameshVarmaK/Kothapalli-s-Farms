@@ -17,6 +17,7 @@ import { NotificationPreferencesPanel } from './NotificationPreferencesPanel';
 import { NotificationDeliveryLog } from './NotificationDeliveryLog';
 import { getNotificationDeliveries, clearNotificationDeliveries } from '../utils/notifications';
 import { LocalizationPreferencesCard } from './settings/LocalizationPreferencesCard';
+import { FarmLocationCard } from './settings/FarmLocationCard';
 import { BackupRestoreCard } from './settings/BackupRestoreCard';
 import { GoogleSheetsSyncPanel } from './settings/GoogleSheetsSyncPanel';
 import { AuditLogTable } from './settings/AuditLogTable';
@@ -232,6 +233,15 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       areaUnit
     });
     setPreferencesMessage({ text: 'General preferences updated successfully!', isError: false });
+  };
+
+  const handleSaveFarmLocation = (name: string, latitude: number, longitude: number) => {
+    onSaveSettings({
+      ...settings,
+      farmLocationName: name,
+      farmLatitude: latitude,
+      farmLongitude: longitude
+    });
   };
 
   const handleJSONExport = () => {
@@ -465,6 +475,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onImport={handleJSONImport}
         />
       </div>
+
+      <FarmLocationCard
+        farmLocationName={settings.farmLocationName}
+        onSaveLocation={handleSaveFarmLocation}
+      />
 
       <GoogleSheetsSyncPanel
         settings={settings}

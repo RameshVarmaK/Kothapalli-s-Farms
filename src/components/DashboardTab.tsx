@@ -20,6 +20,7 @@ import {
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
 import { useLanguage } from '../hooks/useLanguage';
+import { WeatherCard } from './WeatherCard';
 import { TrendingUp, TrendingDown, IndianRupee, Layers, Sprout, Coins } from 'lucide-react';
 import {
   BarChart,
@@ -46,6 +47,9 @@ interface DashboardTabProps {
   areaUnit: string;
   creditAccounts?: CreditAccount[];
   creditRepayments?: CreditRepayment[];
+  farmLocationName?: string;
+  farmLatitude?: number;
+  farmLongitude?: number;
   onSelectTab: (tab: string) => void;
 }
 
@@ -63,6 +67,9 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   areaUnit,
   creditAccounts = [],
   creditRepayments = [],
+  farmLocationName,
+  farmLatitude,
+  farmLongitude,
   onSelectTab
 }) => {
   const { t } = useLanguage();
@@ -181,6 +188,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   if (members.length === 0 || fields.length === 0) {
     return (
       <div className="space-y-6">
+        <WeatherCard
+          farmLocationName={farmLocationName}
+          farmLatitude={farmLatitude}
+          farmLongitude={farmLongitude}
+          onGoToSettings={() => onSelectTab('settings')}
+        />
         <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-200 p-8 text-center">
           <div className="text-5xl mb-4">🚀</div>
           <h2 className="text-2xl font-bold text-slate-900 mb-3">{t("Welcome to Kothapalli's Farms")}</h2>
@@ -209,7 +222,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             {members.length === 0 && (
               <button
-                onClick={() => onSelectTab('Members')}
+                onClick={() => onSelectTab('members')}
                 className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
               >
                 {t('Add First Member →')}
@@ -217,7 +230,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             )}
             {fields.length === 0 && (
               <button
-                onClick={() => onSelectTab('Fields & Directory')}
+                onClick={() => onSelectTab('members')}
                 className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
               >
                 {t('Register Fields →')}
@@ -225,7 +238,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             )}
             {members.length > 0 && fields.length > 0 && (
               <button
-                onClick={() => onSelectTab('Transactions')}
+                onClick={() => onSelectTab('money')}
                 className="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors"
               >
                 {t('Start Logging Transactions →')}
@@ -239,6 +252,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   return (
     <div className="space-y-6">
+      <WeatherCard
+        farmLocationName={farmLocationName}
+        farmLatitude={farmLatitude}
+        farmLongitude={farmLongitude}
+        onGoToSettings={() => onSelectTab('settings')}
+      />
+
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Active Crop Seasons */}

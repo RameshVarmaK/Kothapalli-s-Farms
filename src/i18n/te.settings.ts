@@ -3,6 +3,15 @@
 export const teSettings: Record<string, string> = {
   // --- LocalizationPreferencesCard ---
   'Localization Preferences': 'స్థానికీకరణ ప్రాధాన్యతలు',
+  'Farm Location (for Weather)': 'వ్యవసాయ క్షేత్ర స్థానం (వాతావరణం కోసం)',
+  "Set your nearest town or village so the Home dashboard can show current weather and a short forecast.":
+    'హోమ్ డాష్‌బోర్డ్‌లో ప్రస్తుత వాతావరణం మరియు స్వల్ప ఫోర్‌కాస్ట్ చూపించడానికి మీ దగ్గరి పట్టణం లేదా గ్రామం పేరు నమోదు చేయండి.',
+  'Current location:': 'ప్రస్తుత స్థానం:',
+  "Couldn't find that place — try a nearby town or district name.": 'ఆ ప్రాంతం కనుగొనబడలేదు — దగ్గరి పట్టణం లేదా జిల్లా పేరు ప్రయత్నించండి.',
+  'Location lookup failed — check your connection and try again.': 'స్థానం అన్వేషణ విఫలమైంది — మీ నెట్‌వర్క్ కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి.',
+  'e.g. Vijayawada, Guntur': 'ఉదా. విజయవాడ, గుంటూరు',
+  'Searching...': 'అన్వేషిస్తోంది...',
+  'Set Location': 'స్థానం సెట్ చేయండి',
   'Currency Indicator': 'కరెన్సీ గుర్తు',
   '₹ INR (Rupees)': '₹ INR (రూపాయలు)',
   '$ USD (Dollars)': '$ USD (డాలర్లు)',
@@ -180,6 +189,8 @@ export const teSettings: Record<string, string> = {
   'Seasonal Trends': 'సీజనల్ ట్రెండ్‌లు',
   'Field ROI Performance': 'పొలం ROI పనితీరు',
   'Member Contributions': 'సభ్యుల సహకారం',
+  'Yield Trends (per acre)': 'దిగుబడి ధోరణులు (ఎకరానికి)',
+  'Yield / acre': 'దిగుబడి / ఎకరం',
   'Top Crops by Profit': 'లాభం ప్రకారం టాప్ పంటలు',
   'Crop': 'పంట',
   'Profit': 'లాభం',

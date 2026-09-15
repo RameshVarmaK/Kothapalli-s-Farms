@@ -168,6 +168,9 @@ export interface Settings {
   areaUnit: string; // e.g. "acres"
   googleDriveLinked: boolean;
   linkedSpreadsheetId?: string;
+  farmLocationName?: string;
+  farmLatitude?: number;
+  farmLongitude?: number;
 }
 
 // Settlement result definitions

@@ -45,6 +45,16 @@ export interface SeasonalTrend {
   expenseCount: number;
 }
 
+export interface YieldTrend {
+  seasonId: string;
+  fieldId: string;
+  fieldName: string;
+  cropName: string;
+  startDate: string;
+  totalQuantity: number;
+  yieldPerAcre: number;
+}
+
 /**
  * Calculate profitability for each crop/season/field combination
  */
@@ -257,6 +267,36 @@ export function calculateSeasonalTrends(db: LocalDatabase): SeasonalTrend[] {
   return Array.from(trends.values())
     .map(t => ({ ...t, netProfit: t.totalRevenue - t.totalExpenses }))
     .sort((a, b) => a.month - b.month);
+}
+
+/**
+ * Calculate harvested quantity per acre for each closed-enough season (any
+ * season with at least one recorded harvest sale), sorted chronologically so
+ * the trend line reads left-to-right by sowing date.
+ */
+export function calculateYieldTrends(db: LocalDatabase): YieldTrend[] {
+  return (db.seasons || [])
+    .map(season => {
+      const field = (db.fields || []).find(f => f.id === season.fieldId);
+      if (!field) return null;
+
+      const totalQuantity = (db.revenues || [])
+        .filter(r => r.seasonId === season.id)
+        .reduce((sum, r) => sum + r.quantity, 0);
+      if (totalQuantity <= 0) return null;
+
+      return {
+        seasonId: season.id,
+        fieldId: field.id,
+        fieldName: field.name,
+        cropName: season.cropName,
+        startDate: season.startDate,
+        totalQuantity,
+        yieldPerAcre: field.area > 0 ? totalQuantity / field.area : 0
+      };
+    })
+    .filter((v): v is YieldTrend => v !== null)
+    .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 }
 
 /**

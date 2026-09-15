@@ -1976,6 +1976,9 @@ function AppShell() {
               areaUnit={settings.areaUnit}
               creditAccounts={creditAccounts}
               creditRepayments={creditRepayments}
+              farmLocationName={settings.farmLocationName}
+              farmLatitude={settings.farmLatitude}
+              farmLongitude={settings.farmLongitude}
               onSelectTab={(tab) => setActiveTab(tab as any)}
             />
           )}

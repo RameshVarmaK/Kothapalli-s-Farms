@@ -10,6 +10,7 @@ import {
   calculateMemberContribution,
   calculateFieldPerformance,
   calculateSeasonalTrends,
+  calculateYieldTrends,
   formatCurrency,
   percentChange
 } from '../utils/analytics';
@@ -29,6 +30,7 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
   const members = calculateMemberContribution(db);
   const fields = calculateFieldPerformance(db);
   const trends = calculateSeasonalTrends(db);
+  const yieldTrends = calculateYieldTrends(db);
 
   const colors = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#d1fae5'];
 
@@ -40,7 +42,8 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         crops,
         members,
         fields,
-        trends
+        trends,
+        yieldTrends
       }, null, 2);
       const blob = new Blob([data], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -57,7 +60,10 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         ['Profit Margin (%)', stats.profitMargin.toFixed(1)],
         [],
         ['Crop', 'Revenue', 'Expenses', 'Profit', 'Margin (%)'],
-        ...crops.map(c => [c.cropName, c.revenue, c.expenses, c.profit, c.profitMargin.toFixed(1)])
+        ...crops.map(c => [c.cropName, c.revenue, c.expenses, c.profit, c.profitMargin.toFixed(1)]),
+        [],
+        ['Season Crop', 'Field', 'Sown Date', 'Total Quantity', 'Yield / Acre'],
+        ...yieldTrends.map(yt => [yt.cropName, yt.fieldName, yt.startDate, yt.totalQuantity, yt.yieldPerAcre.toFixed(2)])
       ].map(row => row.join(',')).join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
@@ -209,6 +215,25 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
           </div>
         )}
       </div>
+
+      {/* Yield Trends */}
+      {yieldTrends.length > 0 && (
+        <div className="bg-white rounded-lg border border-slate-200 p-4">
+          <h3 className="font-semibold text-slate-900 mb-4">{t('Yield Trends (per acre)')}</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={yieldTrends.map(yt => ({
+              label: `${yt.cropName} · ${yt.fieldName}`,
+              yieldPerAcre: Number(yt.yieldPerAcre.toFixed(2))
+            }))}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" angle={-45} textAnchor="end" height={100} />
+              <YAxis label={{ value: t('Yield / acre'), angle: -90, position: 'insideLeft' }} />
+              <Tooltip />
+              <Bar dataKey="yieldPerAcre" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
