@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { StockItem, StockUsage, Field, Season } from '../../types';
-import { Plus, Hammer } from 'lucide-react';
+import { Plus, Hammer, Pencil } from 'lucide-react';
 
 interface UsagesSegmentProps {
   usages: StockUsage[];
@@ -16,6 +16,7 @@ interface UsagesSegmentProps {
   fields: Field[];
   currency: string;
   onLogUsage: () => void;
+  onEditUsage: (usage: StockUsage) => void;
 }
 
 export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
@@ -26,7 +27,8 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
   seasons,
   fields,
   currency,
-  onLogUsage
+  onLogUsage,
+  onEditUsage
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -82,13 +84,22 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
                   <p className="text-[10px] text-emerald-800 font-bold mt-1.5 uppercase tracking-wider">{destination}</p>
                   <span className="text-[9px] text-slate-400 block font-mono font-bold uppercase mt-1">{u.date}</span>
                 </div>
-                <div className="text-right">
-                  <span className="text-base font-bold font-mono block text-slate-850">
-                    {currency}{Math.round(valueCharged).toLocaleString('en-IN')}
-                  </span>
-                  <span className="text-[10px] text-slate-450 mt-1 block font-bold text-right bg-slate-100 px-1.5 py-0.5 rounded">
-                    Used {u.quantityUsed} {item?.unit}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-base font-bold font-mono block text-slate-850">
+                      {currency}{Math.round(valueCharged).toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-[10px] text-slate-450 mt-1 block font-bold text-right bg-slate-100 px-1.5 py-0.5 rounded">
+                      Used {u.quantityUsed} {item?.unit}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => onEditUsage(u)}
+                    className="p-1.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
+                    title="Edit Usage"
+                  >
+                    <Pencil size={13} />
+                  </button>
                 </div>
               </div>
             );

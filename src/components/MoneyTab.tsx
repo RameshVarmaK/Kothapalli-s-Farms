@@ -304,7 +304,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   const handleSaveExpense = (e: React.FormEvent) => {
     e.preventDefault();
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) return;
+    if (!amt || amt <= 0) {
+      setFormError('Enter an expense amount greater than 0 before saving.');
+      return;
+    }
 
     // Guard rail: if the user picked the "manual" allocation rule, make sure
     // their per-season values actually sum to the headline amount. Without
@@ -333,7 +336,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
     if (targetType === 'single') {
       const season = seasons.find(s => s.id === selectedSeasonId);
-      if (!season) return;
+      if (!season) {
+        setFormError('Pick a crop cycle to charge this expense against before saving.');
+        return;
+      }
       expensePost = {
         ...(baseExpense || {}),
         id: editingRecordId || `exp_${Date.now()}`,
@@ -400,8 +406,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     const rate = parseFloat(wageRate);
     const computedTotal = labourTotalCost ? parseFloat(labourTotalCost) : count * rate;
 
-    if (!computedTotal || computedTotal <= 0) return;
-    if (labourTargetType === 'single' && !selectedSeasonId) return;
+    if (!computedTotal || computedTotal <= 0) {
+      setFormError('Enter a workers count/wage rate or total cost greater than 0 before saving.');
+      return;
+    }
+    if (labourTargetType === 'single' && !selectedSeasonId) {
+      setFormError('Pick a crop cycle to charge this labour cost against before saving.');
+      return;
+    }
 
     // Same guard rail as the expense/usage manual-allocation checks: the
     // per-season values must sum to the headline total before saving.
@@ -428,7 +440,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
     if (labourTargetType === 'single') {
       const season = seasons.find(s => s.id === selectedSeasonId);
-      if (!season) return;
+      if (!season) {
+        setFormError('Pick a crop cycle to charge this labour cost against before saving.');
+        return;
+      }
       labourPost = {
         ...(baseLabour || {}),
         id: editingRecordId || `labour_${Date.now()}`,
@@ -492,9 +507,16 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     e.preventDefault();
     const qty = parseFloat(revenueQuantity);
     const sale = parseFloat(amount);
-    const season = seasons.find(s => s.id === selectedSeasonId)!;
+    const season = seasons.find(s => s.id === selectedSeasonId);
 
-    if (!sale || sale <= 0 || !season) return;
+    if (!sale || sale <= 0) {
+      setFormError('Enter a sale amount greater than 0 before saving.');
+      return;
+    }
+    if (!season) {
+      setFormError('Pick a crop cycle to credit this harvest sale against before saving.');
+      return;
+    }
 
     const baseRevenue = editingRecordId ? revenues.find(r => r.id === editingRecordId) : null;
 
@@ -683,7 +705,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                   Every expense, labour shift, and harvest sale you record shows up here — one running ledger for the whole partnership.
                 </p>
                 <button
-                  onClick={() => setIsOpenAddModal(true)}
+                  onClick={() => {
+                    setSelectedSeasonId(activeSeasons[0]?.id || '');
+                    setIsOpenAddModal(true);
+                  }}
                   className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
                 >
                   <Plus size={14} />

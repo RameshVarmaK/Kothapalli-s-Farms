@@ -5,18 +5,20 @@
 
 import React from 'react';
 import { StockItem } from '../../types';
-import { Plus, Archive } from 'lucide-react';
+import { Plus, Archive, Pencil } from 'lucide-react';
 
 interface StockLevelsSegmentProps {
   computedStockList: StockItem[];
   currency: string;
   onCreateItemType: () => void;
+  onEditItem: (item: StockItem) => void;
 }
 
 export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
   computedStockList,
   currency,
-  onCreateItemType
+  onCreateItemType,
+  onEditItem
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -38,12 +40,13 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
             <th className="px-6 py-4 text-right">Available Qty</th>
             <th className="px-6 py-4 text-right">Weighted Avg Cost</th>
             <th className="px-6 py-4 text-right">Reserve Value</th>
+            <th className="px-6 py-4"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
           {computedStockList.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-6 py-0">
+              <td colSpan={6} className="px-6 py-0">
                 <div className="flex flex-col items-center justify-center text-center py-12">
                   <span className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
                     <Archive size={22} />
@@ -81,6 +84,15 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
                   </td>
                   <td className="px-6 py-4 text-right font-bold font-mono text-emerald-600">
                     {currency}{Math.round(val).toLocaleString('en-IN')}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => onEditItem(item)}
+                      className="p-1.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
+                      title="Edit Input Type"
+                    >
+                      <Pencil size={13} />
+                    </button>
                   </td>
                 </tr>
               );

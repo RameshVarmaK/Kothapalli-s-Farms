@@ -32,8 +32,11 @@ interface StockTabProps {
   activities: Activity[];
   currency: string;
   onAddStockItem: (item: StockItem) => void;
+  onUpdateStockItem: (item: StockItem) => void;
   onAddPurchase: (purchase: StockPurchase) => void;
+  onUpdatePurchase: (purchase: StockPurchase) => void;
   onAddUsage: (usage: StockUsage) => void;
+  onUpdateUsage: (usage: StockUsage) => void;
 }
 
 export const StockTab: React.FC<StockTabProps> = ({
@@ -46,12 +49,18 @@ export const StockTab: React.FC<StockTabProps> = ({
   activities = [],
   currency,
   onAddStockItem,
+  onUpdateStockItem,
   onAddPurchase,
-  onAddUsage
+  onUpdatePurchase,
+  onAddUsage,
+  onUpdateUsage
 }) => {
   const [activeSegment, setActiveSegment] = useState<'levels' | 'purchases' | 'usages'>('levels');
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
   const [modalType, setModalType] = useState<'item' | 'purchase' | 'usage'>('purchase');
+  const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+  const [editingPurchase, setEditingPurchase] = useState<StockPurchase | null>(null);
+  const [editingUsage, setEditingUsage] = useState<StockUsage | null>(null);
 
   // Input Stock Item state
   const [itemName, setItemName] = useState('');
@@ -89,19 +98,38 @@ export const StockTab: React.FC<StockTabProps> = ({
       return;
     }
 
-    const newItem: StockItem = {
-      id: `item_${Date.now()}`,
-      name: itemName,
-      type: itemType,
-      unit: itemUnit,
-      quantityOnHand: 0,
-      weightedAverageCost: 0,
-      totalCostSpent: 0,
-      fundingByMember: {}
-    };
-
-    onAddStockItem(newItem);
+    if (editingItem) {
+      const updatedItem: StockItem = {
+        ...editingItem,
+        name: itemName,
+        type: itemType,
+        unit: itemUnit
+      };
+      onUpdateStockItem(updatedItem);
+    } else {
+      const newItem: StockItem = {
+        id: `item_${Date.now()}`,
+        name: itemName,
+        type: itemType,
+        unit: itemUnit,
+        quantityOnHand: 0,
+        weightedAverageCost: 0,
+        totalCostSpent: 0,
+        fundingByMember: {}
+      };
+      onAddStockItem(newItem);
+    }
     closeAndReset();
+  };
+
+  const handleOpenEditItem = (item: StockItem) => {
+    const pristine = stockItems.find(i => i.id === item.id) || item;
+    setEditingItem(pristine);
+    setItemName(pristine.name);
+    setItemType(pristine.type);
+    setItemUnit(pristine.unit);
+    setModalType('item');
+    setIsOpenAddModal(true);
   };
 
   const handleSavePurchase = (e: React.FormEvent) => {
@@ -114,23 +142,39 @@ export const StockTab: React.FC<StockTabProps> = ({
     const qty = parseFloat(purchaseQty);
     const cost = parseFloat(purchaseCost);
 
-    const newPurchase: StockPurchase = {
-      id: `purc_${Date.now()}`,
+    const purchasePost: StockPurchase = {
+      ...(editingPurchase || {}),
+      id: editingPurchase ? editingPurchase.id : `purc_${Date.now()}`,
       stockItemId: selectedItemId,
       quantity: qty,
       totalCost: cost,
       date: purchaseDate,
       paidByMemberId: purchasePayer
-    };
+    } as StockPurchase;
 
-    const validation = validatePurchase(newPurchase);
+    const validation = validatePurchase(purchasePost);
     if (!validation.valid) {
       setErrorMessage(validation.errors.join('; '));
       return;
     }
 
-    onAddPurchase(newPurchase);
+    if (editingPurchase) {
+      onUpdatePurchase(purchasePost);
+    } else {
+      onAddPurchase(purchasePost);
+    }
     closeAndReset();
+  };
+
+  const handleOpenEditPurchase = (purchase: StockPurchase) => {
+    setEditingPurchase(purchase);
+    setSelectedItemId(purchase.stockItemId);
+    setPurchaseQty(String(purchase.quantity));
+    setPurchaseCost(String(purchase.totalCost));
+    setPurchaseDate(purchase.date);
+    setPurchasePayer(purchase.paidByMemberId);
+    setModalType('purchase');
+    setIsOpenAddModal(true);
   };
 
   const handleSaveUsage = (e: React.FormEvent) => {
@@ -148,8 +192,14 @@ export const StockTab: React.FC<StockTabProps> = ({
     }
 
     const selectedStock = computedStockList.find(i => i.id === selectedItemId);
-    if (!selectedStock || selectedStock.quantityOnHand < qty) {
-      setErrorMessage(`Insufficient stock level on hand! Remaining stock available for ${selectedStock?.name || 'input'} is: ${selectedStock?.quantityOnHand || 0} ${selectedStock?.unit || ''}.`);
+    // computedStockList already has this exact usage's old quantity deducted
+    // (if we're editing one on the same material) — add it back before
+    // checking availability, else a same-or-smaller edit could be wrongly
+    // rejected as insufficient stock.
+    const reclaimedQty = (editingUsage && editingUsage.stockItemId === selectedItemId) ? editingUsage.quantityUsed : 0;
+    const availableForThisSave = (selectedStock?.quantityOnHand || 0) + reclaimedQty;
+    if (!selectedStock || availableForThisSave < qty) {
+      setErrorMessage(`Insufficient stock level on hand! Remaining stock available for ${selectedStock?.name || 'input'} is: ${availableForThisSave} ${selectedStock?.unit || ''}.`);
       return;
     }
 
@@ -159,7 +209,7 @@ export const StockTab: React.FC<StockTabProps> = ({
       const s = seasons.find(sea => sea.id === usageSeasonId);
       if (!s) return;
       newUsage = {
-        id: `use_${Date.now()}`,
+        id: editingUsage ? editingUsage.id : `use_${Date.now()}`,
         stockItemId: selectedItemId,
         quantityUsed: qty,
         date: usageDate,
@@ -217,7 +267,7 @@ export const StockTab: React.FC<StockTabProps> = ({
       }));
 
       newUsage = {
-        id: `use_${Date.now()}`,
+        id: editingUsage ? editingUsage.id : `use_${Date.now()}`,
         stockItemId: selectedItemId,
         quantityUsed: qty,
         date: usageDate,
@@ -228,18 +278,52 @@ export const StockTab: React.FC<StockTabProps> = ({
       };
     }
 
-    onAddUsage(newUsage);
+    if (editingUsage) {
+      onUpdateUsage(newUsage);
+    } else {
+      onAddUsage(newUsage);
+    }
     closeAndReset();
+  };
+
+  const handleOpenEditUsage = (usage: StockUsage) => {
+    setEditingUsage(usage);
+    setSelectedItemId(usage.stockItemId);
+    setUsageQty(String(usage.quantityUsed));
+    setUsageDate(usage.date);
+    setUsageTargetType(usage.targetType);
+    setUsageLinkedActivityId(usage.linkedActivityId || '');
+    if (usage.targetType === 'single') {
+      setUsageSeasonId(usage.targetSeasonId || '');
+      setUsageParticipatingSeasons([]);
+      setManualUsageAllocations({});
+    } else {
+      setUsageAllocationRule(usage.commonAllocationRule || 'equal');
+      setUsageParticipatingSeasons((usage.allocations || []).map(a => a.seasonId));
+      const manualMap: { [key: string]: string } = {};
+      (usage.allocations || []).forEach(a => {
+        manualMap[`${a.fieldId}_${a.seasonId}`] = String(a.quantity);
+      });
+      setManualUsageAllocations(manualMap);
+    }
+    setModalType('usage');
+    setIsOpenAddModal(true);
   };
 
   const closeAndReset = () => {
     setIsOpenAddModal(false);
+    setEditingItem(null);
+    setEditingPurchase(null);
+    setEditingUsage(null);
     setItemName('');
+    setItemType('Fertilizer');
     setItemUnit('');
     setPurchaseQty('');
     setPurchaseCost('');
     setSelectedItemId('');
     setUsageQty('');
+    setUsageTargetType('single');
+    setUsageAllocationRule('equal');
     setErrorMessage('');
     setUsageParticipatingSeasons([]);
     setManualUsageAllocations({});
@@ -337,6 +421,7 @@ export const StockTab: React.FC<StockTabProps> = ({
             setModalType('item');
             setIsOpenAddModal(true);
           }}
+          onEditItem={handleOpenEditItem}
         />
       )}
 
@@ -351,6 +436,7 @@ export const StockTab: React.FC<StockTabProps> = ({
             if (stockItems.length === 0) { setModalType('item'); } else { setModalType('purchase'); }
             setIsOpenAddModal(true);
           }}
+          onEditPurchase={handleOpenEditPurchase}
         />
       )}
 
@@ -368,6 +454,7 @@ export const StockTab: React.FC<StockTabProps> = ({
             if (stockItems.length === 0) { setModalType('item'); } else if (purchases.length === 0) { setModalType('purchase'); } else { setModalType('usage'); }
             setIsOpenAddModal(true);
           }}
+          onEditUsage={handleOpenEditUsage}
         />
       )}
 
@@ -381,6 +468,9 @@ export const StockTab: React.FC<StockTabProps> = ({
           activeSeasons={activeSeasons}
           setUsageSeasonId={setUsageSeasonId}
           onClose={closeAndReset}
+          isEditingItem={!!editingItem}
+          isEditingPurchase={!!editingPurchase}
+          isEditingUsage={!!editingUsage}
           itemName={itemName}
           setItemName={setItemName}
           itemType={itemType}

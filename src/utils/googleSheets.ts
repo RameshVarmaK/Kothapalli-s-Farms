@@ -62,7 +62,7 @@ export async function createSpreadsheet(accessToken: string): Promise<string> {
       { properties: { title: 'Seasons', gridProperties: { columnCount: 10, rowCount: 150 } } },
       { properties: { title: 'Activities', gridProperties: { columnCount: 10, rowCount: 1000 } } },
       { properties: { title: 'Expenses', gridProperties: { columnCount: 15, rowCount: 1000 } } },
-      { properties: { title: 'Labor', gridProperties: { columnCount: 10, rowCount: 1000 } } },
+      { properties: { title: 'Labor', gridProperties: { columnCount: 14, rowCount: 1000 } } },
       { properties: { title: 'StockItems', gridProperties: { columnCount: 10, rowCount: 200 } } },
       { properties: { title: 'StockPurchases', gridProperties: { columnCount: 10, rowCount: 1000 } } },
       { properties: { title: 'StockUsage', gridProperties: { columnCount: 10, rowCount: 1000 } } },
@@ -144,7 +144,7 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
     { title: 'Seasons', columnCount: 10, rowCount: 150 },
     { title: 'Activities', columnCount: 10, rowCount: 1000 },
     { title: 'Expenses', columnCount: 15, rowCount: 1000 },
-    { title: 'Labor', columnCount: 10, rowCount: 1000 },
+    { title: 'Labor', columnCount: 14, rowCount: 1000 },
     { title: 'StockItems', columnCount: 10, rowCount: 200 },
     { title: 'StockPurchases', columnCount: 10, rowCount: 1000 },
     { title: 'StockUsage', columnCount: 10, rowCount: 1000 },
@@ -235,7 +235,7 @@ export async function pushDataToSpreadsheet(
       values: toSheetRows(data.expenses, ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId']),
     },
     {
-      range: 'Labor!A1:L1000',
+      range: 'Labor!A1:N1000',
       values: toSheetRows(data.labours, ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations']),
     },
     {

@@ -12,6 +12,7 @@ interface AddRecordModalProps {
   activeTab: 'directory' | 'fields' | 'seasons';
   members: Member[];
   fields: Field[];
+  isEditingMember: boolean;
   isEditingField: boolean;
   isEditingSeason: boolean;
   onClose: () => void;
@@ -52,6 +53,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
   activeTab,
   members,
   fields,
+  isEditingMember,
   isEditingField,
   isEditingSeason,
   onClose,
@@ -94,7 +96,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
       <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {activeTab === 'directory' && (
           <form onSubmit={onSubmitMember} className="p-6 space-y-4">
-            <h3 className="font-bold text-sm text-gray-800">Add Sown Partner Record</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingMember ? 'Edit Partner Details' : 'Add Sown Partner Record'}</h3>
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Partner Human Name</label>
               <input
@@ -129,7 +131,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 type="submit"
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white"
               >
-                Save Partner Profile
+                {isEditingMember ? 'Save Changes' : 'Save Partner Profile'}
               </button>
             </div>
           </form>

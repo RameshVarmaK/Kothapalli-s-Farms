@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { StockItem, StockPurchase, Member } from '../../types';
-import { Plus, Coins } from 'lucide-react';
+import { Plus, Coins, Pencil } from 'lucide-react';
 
 interface PurchasesSegmentProps {
   purchases: StockPurchase[];
@@ -13,6 +13,7 @@ interface PurchasesSegmentProps {
   members: Member[];
   currency: string;
   onLogPurchase: () => void;
+  onEditPurchase: (purchase: StockPurchase) => void;
 }
 
 export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
@@ -20,7 +21,8 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
   stockItems,
   members,
   currency,
-  onLogPurchase
+  onLogPurchase,
+  onEditPurchase
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -68,13 +70,22 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
                     <span className="font-mono text-slate-500">Unit Cost: {currency}{Math.round(calculatedRate).toLocaleString('en-IN')}</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-base font-bold font-mono block text-slate-800">
-                    {currency}{p.totalCost.toLocaleString('en-IN')}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-bold block mt-1">
-                    Added {p.quantity} {item?.unit}
-                  </span>
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <span className="text-base font-bold font-mono block text-slate-800">
+                      {currency}{p.totalCost.toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded font-bold block mt-1">
+                      Added {p.quantity} {item?.unit}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => onEditPurchase(p)}
+                    className="p-1.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
+                    title="Edit Purchase"
+                  >
+                    <Pencil size={13} />
+                  </button>
                 </div>
               </div>
             );

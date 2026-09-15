@@ -656,7 +656,7 @@ function AppShell() {
 
           {/* Dynamic Sign-In Trigger button */}
           <button
-            onClick={handleLogin}
+            onClick={() => handleLogin()}
             className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-2xl border border-slate-250 shadow-xs hover:border-slate-350 hover:shadow-md cursor-pointer transition-all active:scale-98"
           >
             <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -1094,6 +1094,22 @@ function AppShell() {
     setDb(finalDb);
   };
 
+  const handleUpdateCreditRepayment = (updatedRep: CreditRepayment) => {
+    const nextList = creditRepayments.map(r => r.id === updatedRep.id ? updatedRep : r);
+    const newDb = { ...db, creditRepayments: nextList };
+    const creditor = creditAccounts.find(c => c.id === updatedRep.creditAccountId);
+    const memberName = members.find(m => m.id === updatedRep.memberId)?.name || 'Unknown Partner';
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'CreditRepayment' as any,
+      updatedRep.id,
+      `Updated settlement repayment of ${settings.currency}${updatedRep.amount} to creditor "${creditor ? creditor.name : 'Unknown'}" by partner "${memberName}"`,
+      updatedRep.memberId
+    );
+    setDb(finalDb);
+  };
+
   const handleDeleteCreditRepayment = (id: string) => {
     const target = creditRepayments.find(r => r.id === id);
     const nextList = creditRepayments.filter(r => r.id !== id);
@@ -1152,6 +1168,34 @@ function AppShell() {
     setDb(finalDb);
   };
 
+  const handleUpdateStockItem = (updatedItem: StockItem) => {
+    const nextList = stockItems.map(i => i.id === updatedItem.id ? updatedItem : i);
+    const newDb = { ...db, stockItems: nextList };
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'StockItem',
+      updatedItem.id,
+      `Updated physical asset ledger category details: "${updatedItem.name}"`
+    );
+    setDb(finalDb);
+  };
+
+  const handleUpdatePurchase = (updatedPurchase: StockPurchase) => {
+    const nextList = purchases.map(p => p.id === updatedPurchase.id ? updatedPurchase : p);
+    const item = stockItems.find(i => i.id === updatedPurchase.stockItemId);
+    const newDb = { ...db, purchases: nextList };
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'StockPurchase',
+      updatedPurchase.id,
+      `Updated stock replenishment record: ${updatedPurchase.quantity} ${item?.unit || ''} of "${item?.name || 'materials'}" for total ${settings.currency}${updatedPurchase.totalCost}`,
+      updatedPurchase.paidByMemberId
+    );
+    setDb(finalDb);
+  };
+
   const handleAddUsage = (use: StockUsage) => {
     const nextList = [...usages, use];
     const item = stockItems.find(i => i.id === use.stockItemId);
@@ -1178,6 +1222,20 @@ function AppShell() {
       'StockUsage',
       use.id,
       `Consumed physical stock out of stockroom: ${use.quantityUsed} ${item?.unit || ''} of "${item?.name || 'materials'}" as field expense input`
+    );
+    setDb(finalDb);
+  };
+
+  const handleUpdateUsage = (updatedUsage: StockUsage) => {
+    const nextList = usages.map(u => u.id === updatedUsage.id ? updatedUsage : u);
+    const item = stockItems.find(i => i.id === updatedUsage.stockItemId);
+    const newDb = { ...db, usages: nextList };
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'StockUsage',
+      updatedUsage.id,
+      `Updated stock usage record: ${updatedUsage.quantityUsed} ${item?.unit || ''} of "${item?.name || 'materials'}"`
     );
     setDb(finalDb);
   };
@@ -1543,6 +1601,19 @@ function AppShell() {
     setDb(finalDb);
   };
 
+  const handleUpdateMember = (updatedMember: Member) => {
+    const nextList = members.map(m => m.id === updatedMember.id ? updatedMember : m);
+    const newDb = { ...db, members: nextList };
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'Member',
+      updatedMember.id,
+      `Updated partner stakeholder details: "${updatedMember.name}"`
+    );
+    setDb(finalDb);
+  };
+
   const handleDeleteMember = (id: string) => {
     const target = members.find(m => m.id === id);
     if (!target) return;
@@ -1559,7 +1630,7 @@ function AppShell() {
     const repRefs = creditRepayments.filter(r => r.memberId === id).length;
     const fieldRefs = fields.filter(f => (f.shares || []).some(sh => sh.memberId === id)).length;
     const seasonRefs = seasons.filter(
-      s => s.useSeasonSpecificShares && (s.seasonShares || []).some(sh => sh.memberId === id),
+      s => (s.shares || []).some(sh => sh.memberId === id),
     ).length;
     const totalRefs = expRefs + labRefs + revRefs + purRefs + repRefs + fieldRefs + seasonRefs;
 
@@ -1924,8 +1995,11 @@ function AppShell() {
               activities={activities}
               currency={settings.currency}
               onAddStockItem={handleAddStockItem}
+              onUpdateStockItem={handleUpdateStockItem}
               onAddPurchase={handleAddPurchase}
+              onUpdatePurchase={handleUpdatePurchase}
               onAddUsage={handleAddUsage}
+              onUpdateUsage={handleUpdateUsage}
             />
           )}
 
@@ -1977,6 +2051,7 @@ function AppShell() {
               creditAccounts={creditAccounts}
               creditRepayments={creditRepayments}
               onAddMember={handleAddMember}
+              onUpdateMember={handleUpdateMember}
               onAddField={handleAddField}
               onUpdateField={handleUpdateField}
               onAddSeason={handleAddSeason}
@@ -2002,6 +2077,7 @@ function AppShell() {
               onEditCreditAccount={handleEditCreditAccount}
               onDeleteCreditAccount={handleDeleteCreditAccount}
               onAddCreditRepayment={handleAddCreditRepayment}
+              onUpdateCreditRepayment={handleUpdateCreditRepayment}
               onDeleteCreditRepayment={handleDeleteCreditRepayment}
             />
           )}

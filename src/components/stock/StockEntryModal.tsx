@@ -22,6 +22,9 @@ interface StockEntryModalProps {
   activeSeasons: Season[];
   setUsageSeasonId: (id: string) => void;
   onClose: () => void;
+  isEditingItem: boolean;
+  isEditingPurchase: boolean;
+  isEditingUsage: boolean;
 
   // Item form state
   itemName: string;
@@ -84,6 +87,9 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
   activeSeasons,
   setUsageSeasonId,
   onClose,
+  isEditingItem,
+  isEditingPurchase,
+  isEditingUsage,
   itemName,
   setItemName,
   itemType,
@@ -169,7 +175,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
         {/* ITEM CREATION FORM */}
         {modalType === 'item' && (
           <form onSubmit={onSubmitItem} className="p-6 space-y-4">
-            <h3 className="font-bold text-sm text-gray-800">Add Sown Material / Input Type</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingItem ? 'Edit Material / Input Type' : 'Add Sown Material / Input Type'}</h3>
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Item Name</label>
               <input
@@ -222,7 +228,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 type="submit"
                 className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700"
               >
-                Create Material
+                {isEditingItem ? 'Save Changes' : 'Create Material'}
               </button>
             </div>
           </form>
@@ -231,7 +237,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
         {/* LOG PURCHASE FORM */}
         {modalType === 'purchase' && (
           <form onSubmit={onSubmitPurchase} className="p-6 space-y-4">
-            <h3 className="font-bold text-sm text-gray-800">Record Input Intake Purchase (Asset)</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingPurchase ? 'Edit Input Intake Purchase (Asset)' : 'Record Input Intake Purchase (Asset)'}</h3>
 
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Sown Stock Item type</label>
@@ -309,7 +315,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 type="submit"
                 className="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700"
               >
-                Save Purchase
+                {isEditingPurchase ? 'Save Changes' : 'Save Purchase'}
               </button>
             </div>
           </form>
@@ -318,7 +324,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
         {/* LOG USAGE FORM */}
         {modalType === 'usage' && (
           <form onSubmit={onSubmitUsage} className="p-6 space-y-4">
-            <h3 className="font-bold text-sm text-gray-800">Log Crop Field Stock Usage (Expense)</h3>
+            <h3 className="font-bold text-sm text-gray-800">{isEditingUsage ? 'Edit Crop Field Stock Usage (Expense)' : 'Log Crop Field Stock Usage (Expense)'}</h3>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -530,7 +536,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 type="submit"
                 className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-xl text-xs font-bold text-white shadow-sm"
               >
-                Log Usage
+                {isEditingUsage ? 'Save Changes' : 'Log Usage'}
               </button>
             </div>
           </form>

@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Member, SettlementSummary } from '../../types';
-import { Users, Trash2 } from 'lucide-react';
+import { Users, Pencil, Trash2 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 
 interface PartnersDirectoryProps {
@@ -13,6 +13,7 @@ interface PartnersDirectoryProps {
   summary: SettlementSummary;
   currency: string;
   onAddFirst: () => void;
+  onEditMember: (member: Member) => void;
   onDeleteMember: (id: string, name: string) => void;
 }
 
@@ -21,6 +22,7 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
   summary,
   currency,
   onAddFirst,
+  onEditMember,
   onDeleteMember,
 }) => {
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
@@ -72,6 +74,13 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                         {profitPos >= 0 ? 'Receives' : 'Owes'} {currency}{Math.abs(Math.round(profitPos)).toLocaleString('en-IN')}
                       </span>
                     </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEditMember(member); }}
+                      className="p-2 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
+                      title="Edit Partner Details"
+                    >
+                      <Pencil size={14} />
+                    </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDeleteMember(member.id, member.name); }}
                       className="p-2 rounded-lg text-slate-350 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"

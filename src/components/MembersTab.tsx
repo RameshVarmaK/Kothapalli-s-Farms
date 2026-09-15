@@ -44,6 +44,7 @@ interface MembersTabProps {
   creditAccounts?: CreditAccount[];
   creditRepayments?: CreditRepayment[];
   onAddMember: (item: Member) => void;
+  onUpdateMember: (item: Member) => void;
   onAddField: (item: Field) => void;
   onUpdateField: (item: Field) => void;
   onAddSeason: (item: Season) => void;
@@ -69,6 +70,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   creditAccounts = [],
   creditRepayments = [],
   onAddMember,
+  onUpdateMember,
   onAddField,
   onUpdateField,
   onAddSeason,
@@ -80,6 +82,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'directory' | 'fields' | 'seasons'>('seasons');
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [editingSeason, setEditingSeason] = useState<Season | null>(null);
   const [selectedReportSeasonId, setSelectedReportSeasonId] = useState<string | null>(null);
@@ -211,14 +214,29 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     e.preventDefault();
     if (!memberName) return;
 
-    const newMember: Member = {
-      id: `m_${Date.now()}`,
-      name: memberName,
-      phone: memberPhone || undefined
-    };
-
-    onAddMember(newMember);
+    if (editingMember) {
+      const updatedMember: Member = {
+        ...editingMember,
+        name: memberName,
+        phone: memberPhone || undefined
+      };
+      onUpdateMember(updatedMember);
+    } else {
+      const newMember: Member = {
+        id: `m_${Date.now()}`,
+        name: memberName,
+        phone: memberPhone || undefined
+      };
+      onAddMember(newMember);
+    }
     closeAndReset();
+  };
+
+  const handleOpenEditMember = (member: Member) => {
+    setEditingMember(member);
+    setMemberName(member.name);
+    setMemberPhone(member.phone || '');
+    setIsOpenAddModal(true);
   };
 
   const handleSaveField = (e: React.FormEvent) => {
@@ -335,6 +353,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
 
   const closeAndReset = () => {
     setIsOpenAddModal(false);
+    setEditingMember(null);
     setEditingField(null);
     setEditingSeason(null);
     setMemberName('');
@@ -412,6 +431,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           summary={summary}
           currency={currency}
           onAddFirst={() => setIsOpenAddModal(true)}
+          onEditMember={handleOpenEditMember}
           onDeleteMember={handleDeleteMember}
         />
       )}
@@ -452,6 +472,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         activeTab={activeTab}
         members={members}
         fields={fields}
+        isEditingMember={!!editingMember}
         isEditingField={!!editingField}
         isEditingSeason={!!editingSeason}
         onClose={closeAndReset}

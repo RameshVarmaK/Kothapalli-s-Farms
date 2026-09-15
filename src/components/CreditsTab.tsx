@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { CreditAccount, CreditRepayment, Expense, Labour, Member, Season, Field } from '../types';
-import { Plus, Trash2, CreditCard, ChevronRight, Calculator, Calendar, User, Search, RefreshCw, AlertCircle, Coins, ArrowUpRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, CreditCard, ChevronRight, Calculator, Calendar, User, Search, RefreshCw, AlertCircle, Coins, ArrowUpRight } from 'lucide-react';
 
 interface CreditsTabProps {
   creditAccounts: CreditAccount[];
@@ -17,7 +17,9 @@ interface CreditsTabProps {
   fields: Field[];
   currency: string;
   onAddCreditAccount: (account: CreditAccount) => void;
+  onEditCreditAccount: (account: CreditAccount) => void;
   onAddCreditRepayment: (repayment: CreditRepayment) => void;
+  onUpdateCreditRepayment: (repayment: CreditRepayment) => void;
   onDeleteCreditAccount: (id: string) => void;
   onDeleteCreditRepayment: (id: string) => void;
 }
@@ -32,7 +34,9 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
   fields = [],
   currency,
   onAddCreditAccount,
+  onEditCreditAccount,
   onAddCreditRepayment,
+  onUpdateCreditRepayment,
   onDeleteCreditAccount,
   onDeleteCreditRepayment
 }) => {
@@ -43,7 +47,9 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
   // Modal open states
   const [isOpenAddCreditor, setIsOpenAddCreditor] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [isOpenAddRepayment, setIsOpenAddRepayment] = useState(false);
+  const [editingRepaymentId, setEditingRepaymentId] = useState<string | null>(null);
 
   // Form states - Creditor
   const [credName, setCredName] = useState('');
@@ -73,18 +79,31 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
     e.preventDefault();
     if (!credName.trim()) return;
 
-    const newCreditor: CreditAccount = {
-      id: `cred_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      name: credName.trim(),
-      phone: credPhone.trim() || undefined,
-      type: credType,
-      notes: credNotes.trim() || undefined
-    };
+    if (editingAccountId) {
+      const existing = creditAccounts.find(c => c.id === editingAccountId);
+      const updatedCreditor: CreditAccount = {
+        ...(existing as CreditAccount),
+        id: editingAccountId,
+        name: credName.trim(),
+        phone: credPhone.trim() || undefined,
+        type: credType,
+        notes: credNotes.trim() || undefined
+      };
+      onEditCreditAccount(updatedCreditor);
+    } else {
+      const newCreditor: CreditAccount = {
+        id: `cred_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name: credName.trim(),
+        phone: credPhone.trim() || undefined,
+        type: credType,
+        notes: credNotes.trim() || undefined
+      };
+      onAddCreditAccount(newCreditor);
+      setSelectedCreditorId(newCreditor.id);
+    }
 
-    onAddCreditAccount(newCreditor);
-    setSelectedCreditorId(newCreditor.id);
-    
     // Reset form
+    setEditingAccountId(null);
     setCredName('');
     setCredPhone('');
     setCredType('Labour');
@@ -92,27 +111,58 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
     setIsOpenAddCreditor(false);
   };
 
-  // Handle adding repayment
+  const handleOpenEditAccount = (account: CreditAccount) => {
+    setEditingAccountId(account.id);
+    setCredName(account.name);
+    setCredPhone(account.phone || '');
+    setCredType(account.type);
+    setCredNotes(account.notes || '');
+    setIsOpenAddCreditor(true);
+  };
+
+  // Handle adding/editing repayment
   const handleSubmitRepayment = (e: React.FormEvent) => {
     e.preventDefault();
     const creditorId = repCreditorId || selectedCreditorId;
     if (!creditorId || !repMemberId || !repAmount || isNaN(Number(repAmount)) || Number(repAmount) <= 0) return;
 
-    const newRepayment: CreditRepayment = {
-      id: `rep_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      creditAccountId: creditorId,
-      memberId: repMemberId,
-      amount: Number(repAmount),
-      date: repDate,
-      notes: repNotes.trim() || undefined
-    };
-
-    onAddCreditRepayment(newRepayment);
+    if (editingRepaymentId) {
+      const updatedRepayment: CreditRepayment = {
+        id: editingRepaymentId,
+        creditAccountId: creditorId,
+        memberId: repMemberId,
+        amount: Number(repAmount),
+        date: repDate,
+        notes: repNotes.trim() || undefined
+      };
+      onUpdateCreditRepayment(updatedRepayment);
+    } else {
+      const newRepayment: CreditRepayment = {
+        id: `rep_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        creditAccountId: creditorId,
+        memberId: repMemberId,
+        amount: Number(repAmount),
+        date: repDate,
+        notes: repNotes.trim() || undefined
+      };
+      onAddCreditRepayment(newRepayment);
+    }
 
     // Reset form
     setRepAmount('');
     setRepNotes('');
+    setEditingRepaymentId(null);
     setIsOpenAddRepayment(false);
+  };
+
+  const handleOpenEditRepayment = (rep: CreditRepayment) => {
+    setEditingRepaymentId(rep.id);
+    setRepCreditorId(rep.creditAccountId);
+    setRepMemberId(rep.memberId);
+    setRepAmount(String(rep.amount));
+    setRepDate(rep.date);
+    setRepNotes(rep.notes || '');
+    setIsOpenAddRepayment(true);
   };
 
   // Compute calculated values for each Creditor
@@ -220,7 +270,14 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
         <div className="flex gap-2">
           <button
-            onClick={() => setIsOpenAddCreditor(true)}
+            onClick={() => {
+              setEditingAccountId(null);
+              setCredName('');
+              setCredPhone('');
+              setCredType('Labour');
+              setCredNotes('');
+              setIsOpenAddCreditor(true);
+            }}
             className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold tracking-wide hover:bg-slate-850 transition-all cursor-pointer"
           >
             <Plus size={14} className="stroke-[2.5]" />
@@ -228,7 +285,15 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
           </button>
 
           <button
-            onClick={() => setIsOpenAddRepayment(true)}
+            onClick={() => {
+              setEditingRepaymentId(null);
+              setRepCreditorId(selectedCreditorId || creditAccounts[0]?.id || '');
+              setRepMemberId(members[0]?.id || '');
+              setRepAmount('');
+              setRepDate(new Date().toISOString().split('T')[0]);
+              setRepNotes('');
+              setIsOpenAddRepayment(true);
+            }}
             disabled={creditAccounts.length === 0}
             title={creditAccounts.length === 0 ? 'Add a creditor profile first before recording payments.' : undefined}
             className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold tracking-wide transition-all ${
@@ -330,18 +395,27 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      if (confirm('Are you sure you want to delete this creditor profile? All credit history records will lose connection.')) {
-                        onDeleteCreditAccount(selectedReport.account.id);
-                        setSelectedCreditorId(null);
-                      }
-                    }}
-                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl hover:text-rose-700 transition-all self-end sm:self-auto cursor-pointer"
-                    title="Delete creditor profile"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex items-center gap-1 self-end sm:self-auto">
+                    <button
+                      onClick={() => handleOpenEditAccount(selectedReport.account)}
+                      className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl hover:text-slate-700 transition-all cursor-pointer"
+                      title="Edit creditor profile"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this creditor profile? All credit history records will lose connection.')) {
+                          onDeleteCreditAccount(selectedReport.account.id);
+                          setSelectedCreditorId(null);
+                        }
+                      }}
+                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl hover:text-rose-700 transition-all cursor-pointer"
+                      title="Delete creditor profile"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-6 space-y-6">
@@ -427,6 +501,13 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                               <div className="flex items-center gap-3">
                                 <span className="font-extrabold text-emerald-700">-{currency}{r.amount.toLocaleString()}</span>
                                 <button
+                                  onClick={() => handleOpenEditRepayment(r)}
+                                  className="text-slate-300 hover:text-emerald-600 p-0.5 transition-all cursor-pointer"
+                                  title="Edit payment record"
+                                >
+                                  <Pencil size={13} />
+                                </button>
+                                <button
                                   onClick={() => {
                                     if (confirm('Delete this repayment entry?')) {
                                       onDeleteCreditRepayment(r.id);
@@ -507,6 +588,12 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                         <td className="p-4 text-right font-black text-slate-900">{currency}{rep.amount.toLocaleString()}</td>
                         <td className="p-4 text-center">
                           <button
+                            onClick={() => handleOpenEditRepayment(rep)}
+                            className="p-1 px-2 hover:bg-emerald-50 text-slate-350 hover:text-emerald-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
+                          >
+                            Edit
+                          </button>
+                          <button
                             onClick={() => {
                               if (confirm('Are you sure you want to delete this repayment record?')) {
                                 onDeleteCreditRepayment(rep.id);
@@ -532,7 +619,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6 border-b border-slate-100">
-              <h3 className="font-extrabold text-slate-900 text-base">Add Creditor Profile</h3>
+              <h3 className="font-extrabold text-slate-900 text-base">{editingAccountId ? 'Edit Creditor Profile' : 'Add Creditor Profile'}</h3>
               <p className="text-slate-400 text-[10px] mt-0.5">Register workers unions, suppliers or machine services to hire on credit.</p>
             </div>
 
@@ -592,7 +679,10 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
               <div className="flex gap-2.5 px-6 py-4 bg-slate-50 border-t border-slate-100 justify-end">
                 <button
                   type="button"
-                  onClick={() => setIsOpenAddCreditor(false)}
+                  onClick={() => {
+                    setEditingAccountId(null);
+                    setIsOpenAddCreditor(false);
+                  }}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                 >
                   Cancel
@@ -601,7 +691,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   type="submit"
                   className="px-4 py-2 text-xs font-bold bg-slate-900 text-white hover:bg-slate-850 rounded-xl transition-all cursor-pointer"
                 >
-                  Save Profile
+                  {editingAccountId ? 'Save Changes' : 'Save Profile'}
                 </button>
               </div>
             </form>
@@ -614,8 +704,8 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-6 border-b border-slate-100">
-              <h3 className="font-extrabold text-slate-900 text-base">Record Part Repayment</h3>
-              <p className="text-slate-400 text-[10px] mt-0.5">Record capital paid by a partner directly to settle outstanding bills.</p>
+              <h3 className="font-extrabold text-slate-900 text-base">{editingRepaymentId ? 'Edit Part Repayment' : 'Record Part Repayment'}</h3>
+              <p className="text-slate-400 text-[10px] mt-0.5">{editingRepaymentId ? 'Update the details of this recorded repayment.' : 'Record capital paid by a partner directly to settle outstanding bills.'}</p>
             </div>
 
             <form onSubmit={handleSubmitRepayment}>
@@ -693,7 +783,10 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
               <div className="flex gap-2.5 px-6 py-4 bg-slate-50 border-t border-slate-100 justify-end">
                 <button
                   type="button"
-                  onClick={() => setIsOpenAddRepayment(false)}
+                  onClick={() => {
+                    setEditingRepaymentId(null);
+                    setIsOpenAddRepayment(false);
+                  }}
                   className="px-4 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                 >
                   Cancel
@@ -702,7 +795,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   type="submit"
                   className="px-4 py-2 text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 rounded-xl transition-all cursor-pointer"
                 >
-                  Record Repayment
+                  {editingRepaymentId ? 'Save Changes' : 'Record Repayment'}
                 </button>
               </div>
             </form>

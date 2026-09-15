@@ -193,11 +193,14 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
                 </Pie>
                 <Tooltip formatter={(value) => formatCurrency(value as number, currency)} />
                 <Legend
-                  payload={members.slice(0, 5).map((m, index) => ({
-                    value: m.memberName,
-                    type: 'square',
-                    color: colors[index % colors.length]
-                  }))}
+                  {...({
+                    // recharts' public typings omit `payload`, but it's read at runtime
+                    payload: members.slice(0, 5).map((m, index) => ({
+                      value: m.memberName,
+                      type: 'square',
+                      color: colors[index % colors.length]
+                    }))
+                  } as any)}
                 />
               </PieChart>
             </ResponsiveContainer>
