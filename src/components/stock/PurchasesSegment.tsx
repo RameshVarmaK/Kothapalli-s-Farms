@@ -83,7 +83,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
                   </div>
                   <button
                     onClick={() => onEditPurchase(p)}
-                    className="p-1.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
+                    className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
                     title={t('Edit Purchase')}
                   >
                     <Pencil size={13} />

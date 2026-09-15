@@ -30,7 +30,7 @@ export function MobileNavDrawer({
   activeTab,
   onSelectTab
 }: MobileNavDrawerProps) {
-  const { t } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const handleTabClick = (tabId: string) => {
     onSelectTab(tabId);
     onClose();
@@ -55,12 +55,27 @@ export function MobileNavDrawer({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Menu</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X size={20} className="text-slate-600" />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              {(['en', 'te'] as const).map(lng => (
+                <button
+                  key={lng}
+                  onClick={() => setLanguage(lng)}
+                  className={`px-2.5 py-1.5 rounded-md text-[10px] font-bold uppercase cursor-pointer transition-all ${
+                    language === lng ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {lng}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X size={20} className="text-slate-600" />
+            </button>
+          </div>
         </div>
 
         {/* Navigation Items, grouped under the same 4 hubs as the desktop nav */}

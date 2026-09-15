@@ -24,7 +24,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({ auditLogs }) => {
         <span className="text-[10px] text-slate-450 font-bold bg-slate-100 px-2.5 py-1 rounded-full uppercase tracking-wider">{t('Bookkeeping Log Trail')}</span>
       </div>
 
-      <div className="max-h-64 overflow-y-auto">
+      <div className="max-h-64 overflow-y-auto overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="border-b border-slate-200 text-slate-400 font-bold text-[9px] uppercase tracking-widest bg-slate-50/50">

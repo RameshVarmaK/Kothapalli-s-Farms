@@ -57,14 +57,14 @@ export const FieldsList: React.FC<FieldsListProps> = ({
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onEditField(field)}
-                className="p-2 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
+                className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
                 title={t('Edit Field & Ownership Shares')}
               >
                 <Pencil size={14} />
               </button>
               <button
                 onClick={() => onDeleteField(field.id, field.name)}
-                className="p-2 rounded-lg text-slate-350 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
+                className="p-2.5 rounded-lg text-slate-350 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
               >
                 <Trash2 size={14} />
               </button>

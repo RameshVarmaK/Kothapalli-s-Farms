@@ -400,7 +400,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   <div className="flex items-center gap-1 self-end sm:self-auto">
                     <button
                       onClick={() => handleOpenEditAccount(selectedReport.account)}
-                      className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl hover:text-slate-700 transition-all cursor-pointer"
+                      className="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl hover:text-slate-700 transition-all cursor-pointer"
                       title={t('Edit creditor profile')}
                     >
                       <Pencil size={16} />
@@ -412,7 +412,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           setSelectedCreditorId(null);
                         }
                       }}
-                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl hover:text-rose-700 transition-all cursor-pointer"
+                      className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl hover:text-rose-700 transition-all cursor-pointer"
                       title={t('Delete creditor profile')}
                     >
                       <Trash2 size={16} />
@@ -504,7 +504,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 <span className="font-extrabold text-emerald-700">-{currency}{r.amount.toLocaleString()}</span>
                                 <button
                                   onClick={() => handleOpenEditRepayment(r)}
-                                  className="text-slate-300 hover:text-emerald-600 p-0.5 transition-all cursor-pointer"
+                                  className="text-slate-300 hover:text-emerald-600 p-2 transition-all cursor-pointer"
                                   title={t('Edit payment record')}
                                 >
                                   <Pencil size={13} />
@@ -515,7 +515,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                       onDeleteCreditRepayment(r.id);
                                     }
                                   }}
-                                  className="text-slate-300 hover:text-rose-500 p-0.5 transition-all cursor-pointer"
+                                  className="text-slate-300 hover:text-rose-500 p-2 transition-all cursor-pointer"
                                   title={t('Remove payment record')}
                                 >
                                   <Trash2 size={13} />
@@ -591,7 +591,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                         <td className="p-4 text-center">
                           <button
                             onClick={() => handleOpenEditRepayment(rep)}
-                            className="p-1 px-2 hover:bg-emerald-50 text-slate-350 hover:text-emerald-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
+                            className="p-2 px-2.5 hover:bg-emerald-50 text-slate-350 hover:text-emerald-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
                           >
                             {t('Edit')}
                           </button>
@@ -601,7 +601,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 onDeleteCreditRepayment(rep.id);
                               }
                             }}
-                            className="p-1 px-2 hover:bg-rose-50 text-slate-350 hover:text-rose-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
+                            className="p-2 px-2.5 hover:bg-rose-50 text-slate-350 hover:text-rose-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
                           >
                             {t('Delete')}
                           </button>

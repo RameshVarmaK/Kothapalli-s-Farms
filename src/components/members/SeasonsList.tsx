@@ -58,6 +58,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
           }}
         />
       ) : (
+      <div className="overflow-x-auto">
       <table className="w-full text-left text-xs border-collapse">
         <thead>
           <tr className="border-b border-slate-200 text-slate-400 bg-slate-50/50 font-bold text-[10px] uppercase tracking-widest">
@@ -85,7 +86,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                   </button>
                   <button
                     onClick={() => onEditSeason(s)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
+                    className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
                     title={t('Edit Season & Ownership Shares')}
                   >
                     <Pencil size={13} />
@@ -98,7 +99,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                       {checkSeasonSettled(s.id) ? (
                         <button
                           onClick={() => onDeleteSeason(s.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-250 hover:border-red-150 transition-colors cursor-pointer"
+                          className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-250 hover:border-red-150 transition-colors cursor-pointer"
                           title={t('Delete Season (Fully Settled)')}
                         >
                           <Trash2 size={13} />
@@ -123,6 +124,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
           })}
         </tbody>
       </table>
+      </div>
       )}
     </div>
   );

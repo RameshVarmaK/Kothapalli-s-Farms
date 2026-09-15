@@ -1838,7 +1838,7 @@ function AppShell() {
           </div>
 
           <div
-            className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
+            className="hidden md:flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
             title="Switch the app's language between English and Telugu"
           >
             {(['en', 'te'] as const).map(lng => (

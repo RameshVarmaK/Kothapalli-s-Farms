@@ -78,14 +78,14 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); onEditMember(member); }}
-                      className="p-2 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
+                      className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
                       title={t('Edit Partner Details')}
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDeleteMember(member.id, member.name); }}
-                      className="p-2 rounded-lg text-slate-350 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
+                      className="p-2.5 rounded-lg text-slate-350 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
                     >
                       <Trash2 size={14} />
                     </button>

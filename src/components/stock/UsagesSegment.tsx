@@ -97,7 +97,7 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
                   </div>
                   <button
                     onClick={() => onEditUsage(u)}
-                    className="p-1.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
+                    className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
                     title={t('Edit Usage')}
                   >
                     <Pencil size={13} />

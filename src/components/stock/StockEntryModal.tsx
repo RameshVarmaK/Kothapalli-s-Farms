@@ -176,7 +176,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
 
         {/* ITEM CREATION FORM */}
         {modalType === 'item' && (
-          <form onSubmit={onSubmitItem} className="p-6 space-y-4">
+          <form onSubmit={onSubmitItem} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
             <h3 className="font-bold text-sm text-gray-800">{isEditingItem ? t('Edit Material / Input Type') : t('Add Sown Material / Input Type')}</h3>
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Item Name')}</label>
@@ -238,7 +238,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
 
         {/* LOG PURCHASE FORM */}
         {modalType === 'purchase' && (
-          <form onSubmit={onSubmitPurchase} className="p-6 space-y-4">
+          <form onSubmit={onSubmitPurchase} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
             <h3 className="font-bold text-sm text-gray-800">{isEditingPurchase ? t('Edit Input Intake Purchase (Asset)') : t('Record Input Intake Purchase (Asset)')}</h3>
 
             <div>
@@ -325,7 +325,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
 
         {/* LOG USAGE FORM */}
         {modalType === 'usage' && (
-          <form onSubmit={onSubmitUsage} className="p-6 space-y-4">
+          <form onSubmit={onSubmitUsage} className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
             <h3 className="font-bold text-sm text-gray-800">{isEditingUsage ? t('Edit Crop Field Stock Usage (Expense)') : t('Log Crop Field Stock Usage (Expense)')}</h3>
 
             <div className="grid grid-cols-2 gap-4">

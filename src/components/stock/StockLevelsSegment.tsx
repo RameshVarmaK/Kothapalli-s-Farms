@@ -34,6 +34,7 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
         </button>
       </div>
 
+      <div className="overflow-x-auto">
       <table className="w-full text-left text-xs border-collapse">
         <thead>
           <tr className="border-b border-slate-200 text-slate-400 bg-slate-50/50 text-[10px] uppercase tracking-widest font-bold">
@@ -90,7 +91,7 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => onEditItem(item)}
-                      className="p-1.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
+                      className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
                       title={t('Edit Input Type')}
                     >
                       <Pencil size={13} />
@@ -102,6 +103,7 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 };
