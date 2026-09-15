@@ -26,7 +26,7 @@ import type {
   CreditAccount,
   CreditRepayment,
 } from '../src/types';
-import { tests as additionalTests } from './additional-scenarios.test';
+import { tests as additionalTests } from './additional-scenarios';
 
 type TestFn = () => void | Promise<void>;
 interface TestCase {

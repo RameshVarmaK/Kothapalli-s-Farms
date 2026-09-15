@@ -1,5 +1,7 @@
 # Backend Real-Time Sync Setup Guide
 
+> **Status: not implemented / not in use.** After evaluating this Firebase Realtime Database approach, the app kept its existing Google Sheets sync instead and extended it with a pre-push conflict check plus a 45s background reconciliation poll (see `src/utils/googleSheets.ts`). None of the setup below has been done, and the endpoints it describes (`/api/sync/updates`, `/api/sync/push`) are unused dead code. This doc is kept for reference only — don't follow it expecting a working sync path.
+
 ## Overview
 
 This guide explains how to set up the backend sync infrastructure to prevent data loss in multi-user scenarios. **Without this backend, you risk remote data being overwritten by local data.**

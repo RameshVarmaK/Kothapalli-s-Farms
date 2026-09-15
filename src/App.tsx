@@ -1210,6 +1210,32 @@ function AppShell() {
     setDb(finalDb);
   };
 
+  const handleUpdateField = (updatedField: Field) => {
+    const validation = validateFieldShares(updatedField);
+    if (!validation.valid) {
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Invalid Field Shares',
+        message: validation.error || 'Field shares must sum to 100%',
+        confirmText: 'OK',
+        onConfirm: () => setConfirmDialog(null)
+      });
+      logWarning('field_validation_failed', validation.error || 'Invalid field shares', { field: updatedField });
+      return;
+    }
+
+    const nextList = fields.map(f => f.id === updatedField.id ? updatedField : f);
+    const newDb = { ...db, fields: nextList };
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'Field',
+      updatedField.id,
+      `Updated land tract ownership/details: "${updatedField.name}"`
+    );
+    setDb(finalDb);
+  };
+
   const handleDeleteField = (id: string) => {
     const target = fields.find(f => f.id === id);
     if (!target) return;
@@ -1354,6 +1380,32 @@ function AppShell() {
       'Season',
       season.id,
       `Created and sowed cropping cycle: "${season.cropName}"`
+    );
+    setDb(finalDb);
+  };
+
+  const handleUpdateSeason = (updatedSeason: Season) => {
+    const validation = validateSeasonShares(updatedSeason);
+    if (!validation.valid) {
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Invalid Season Shares',
+        message: validation.error || 'Season shares must sum to 100%',
+        confirmText: 'OK',
+        onConfirm: () => setConfirmDialog(null)
+      });
+      logWarning('season_validation_failed', validation.error || 'Invalid season shares', { season: updatedSeason });
+      return;
+    }
+
+    const nextList = seasons.map(s => s.id === updatedSeason.id ? updatedSeason : s);
+    const newDb = { ...db, seasons: nextList };
+    const finalDb = addAuditLog(
+      newDb,
+      'edit',
+      'Season',
+      updatedSeason.id,
+      `Updated cropping cycle ownership/details: "${updatedSeason.cropName}"`
     );
     setDb(finalDb);
   };
@@ -1926,7 +1978,9 @@ function AppShell() {
               creditRepayments={creditRepayments}
               onAddMember={handleAddMember}
               onAddField={handleAddField}
+              onUpdateField={handleUpdateField}
               onAddSeason={handleAddSeason}
+              onUpdateSeason={handleUpdateSeason}
               onCloseSeason={handleCloseSeason}
               onDeleteMember={handleDeleteMember}
               onDeleteField={handleDeleteField}

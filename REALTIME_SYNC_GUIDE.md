@@ -1,5 +1,7 @@
 # Real-Time Multi-User Sync Implementation Guide
 
+> **Status: not implemented / not in use.** `realtimeSync.ts` and `RealtimeSyncStatus.tsx` below exist in the codebase but are never imported anywhere. The app's actual multi-user safety net is the Google Sheets sync in `src/utils/googleSheets.ts` (pre-push conflict check + 45s reconciliation poll). This doc is kept for reference only.
+
 ## Overview
 
 The real-time sync system enables multiple users to collaborate on the same farm ledger simultaneously with automatic conflict resolution and presence detection.
