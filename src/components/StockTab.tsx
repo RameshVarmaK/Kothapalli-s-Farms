@@ -209,7 +209,10 @@ export const StockTab: React.FC<StockTabProps> = ({
 
     if (usageTargetType === 'single') {
       const s = seasons.find(sea => sea.id === usageSeasonId);
-      if (!s) return;
+      if (!s) {
+        setErrorMessage(t('Pick a crop cycle to charge this usage against before saving.'));
+        return;
+      }
       newUsage = {
         id: editingUsage ? editingUsage.id : `use_${Date.now()}`,
         stockItemId: selectedItemId,
@@ -402,7 +405,7 @@ export const StockTab: React.FC<StockTabProps> = ({
           <button
             onClick={() => {
               setSelectedItemId(stockItems[0]?.id || '');
-              setUsageSeasonId(activeSeasons[0]?.id || '');
+              setUsageSeasonId(activeSeasons[0]?.id || seasons[0]?.id || '');
               setModalType('purchase');
               setIsOpenAddModal(true);
             }}

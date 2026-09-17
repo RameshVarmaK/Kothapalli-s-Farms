@@ -157,7 +157,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
             type="button"
             onClick={() => {
               setModalType('usage');
-              setUsageSeasonId(activeSeasons[0]?.id || '');
+              setUsageSeasonId(activeSeasons[0]?.id || seasons[0]?.id || '');
             }}
             className={`flex-1 text-center py-2 px-1.5 rounded-xl text-xs font-bold transition-all ${
               modalType === 'usage' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-450 hover:text-gray-600'

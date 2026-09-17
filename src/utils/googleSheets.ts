@@ -322,7 +322,7 @@ export async function pushDataToSpreadsheet(
  * Helper to parse Sheet row data into javascript objects using headers.
  * Safely deserializes JSON with error recovery.
  */
-function parseSheetRows<T>(rows: any[][]): T[] {
+export function parseSheetRows<T>(rows: any[][]): T[] {
   if (!rows || rows.length <= 1) return [];
   const headers = rows[0];
   const items: T[] = [];
@@ -356,9 +356,11 @@ function parseSheetRows<T>(rows: any[][]): T[] {
           // Fall back to string if JSON parsing fails
           item[header] = val;
         }
-      } else if (val === 'true') {
+      } else if (typeof val === 'string' && val.toLowerCase() === 'true') {
+        // Google Sheets returns boolean cells as "TRUE"/"FALSE" (uppercase) under the
+        // default FORMATTED_VALUE render option, not the lowercase "true"/"false" we write.
         item[header] = true;
-      } else if (val === 'false') {
+      } else if (typeof val === 'string' && val.toLowerCase() === 'false') {
         item[header] = false;
       } else if (!isNaN(Number(val)) && val !== '') {
         item[header] = Number(val);

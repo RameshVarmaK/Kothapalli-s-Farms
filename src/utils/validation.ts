@@ -127,12 +127,12 @@ export const validateExpense = (expense: Expense): { valid: boolean; errors: str
     errors.push('Expense category is required');
   }
 
-  if (!expense.paidByMemberId) {
+  if (expense.isCredit) {
+    if (!expense.creditAccountId) {
+      errors.push('Credit account is required for credit expenses');
+    }
+  } else if (!expense.paidByMemberId) {
     errors.push('Member who paid is required');
-  }
-
-  if (expense.isCredit && !expense.creditAccountId) {
-    errors.push('Credit account is required for credit expenses');
   }
 
   return { valid: errors.length === 0, errors };
@@ -151,7 +151,11 @@ export const validateLabour = (labour: Labour): { valid: boolean; errors: string
   const dateCheck = validateDateString(labour.date);
   if (!dateCheck.valid) errors.push(dateCheck.error!);
 
-  if (!labour.paidByMemberId) {
+  if (labour.isCredit) {
+    if (!labour.creditAccountId) {
+      errors.push('Credit account is required for credit labour costs');
+    }
+  } else if (!labour.paidByMemberId) {
     errors.push('Member who paid is required');
   }
 
@@ -199,7 +203,11 @@ export const validatePurchase = (purchase: StockPurchase): { valid: boolean; err
   const dateCheck = validateDateString(purchase.date);
   if (!dateCheck.valid) errors.push(dateCheck.error!);
 
-  if (!purchase.paidByMemberId) {
+  if (purchase.isCredit) {
+    if (!purchase.creditAccountId) {
+      errors.push('Credit account is required for credit purchases');
+    }
+  } else if (!purchase.paidByMemberId) {
     errors.push('Member who paid is required');
   }
 

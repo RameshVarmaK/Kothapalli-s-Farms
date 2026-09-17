@@ -4,6 +4,7 @@ import {
   validateExpense,
   validateLabour,
   validateRevenue,
+  validatePurchase,
   validateFieldShares,
   validateSeasonShares,
   validateQuantity,
@@ -11,7 +12,7 @@ import {
   validateSharesSum,
   validateDateString
 } from '../src/utils/validation';
-import { Expense, Labour, HarvestRevenue, Field, Season, MemberShare } from '../src/types';
+import { Expense, Labour, HarvestRevenue, StockPurchase, Field, Season, MemberShare } from '../src/types';
 
 describe('Validation Functions', () => {
   describe('Amount Validation', () => {
@@ -226,6 +227,26 @@ describe('Validation Functions', () => {
       expect(result.valid).toBe(false);
       expect(result.errors.some(e => e.toLowerCase().includes('credit account'))).toBe(true);
     });
+
+    it('should accept a credit expense with no paidByMemberId as long as a creditAccountId is set', () => {
+      // Regression test: the UI intentionally sends paidByMemberId: '' for credit
+      // entries (the creditor goes in creditAccountId instead). validateExpense used
+      // to require paidByMemberId unconditionally, so every credit expense failed
+      // with "Member who paid is required" even after picking a valid creditor.
+      const expense: Expense = {
+        id: 'exp1',
+        date: '2024-01-15',
+        amount: 1000,
+        paidByMemberId: '',
+        category: 'Seeds',
+        targetType: 'single',
+        isCredit: true,
+        creditAccountId: 'c1'
+      };
+      const result = validateExpense(expense);
+      expect(result.valid).toBe(true);
+      expect(result.errors.some(e => e.includes('Member who paid'))).toBe(false);
+    });
   });
 
   describe('Labour Validation', () => {
@@ -257,6 +278,103 @@ describe('Validation Functions', () => {
       };
       const result = validateLabour(labour);
       expect(result.valid).toBe(false);
+    });
+
+    it('should reject credit labour without creditAccountId', () => {
+      const labour: Labour = {
+        id: 'lab1',
+        date: '2024-01-15',
+        fieldId: 'f1',
+        seasonId: 's1',
+        workersCount: 5,
+        wageRate: 200,
+        totalCost: 1000,
+        paidByMemberId: '',
+        isCredit: true
+      };
+      const result = validateLabour(labour);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.toLowerCase().includes('credit account'))).toBe(true);
+    });
+
+    it('should accept a credit labour cost with no paidByMemberId as long as a creditAccountId is set', () => {
+      // Regression test: mirrors the credit-expense bug above for the labour form.
+      const labour: Labour = {
+        id: 'lab1',
+        date: '2024-01-15',
+        fieldId: 'f1',
+        seasonId: 's1',
+        workersCount: 5,
+        wageRate: 200,
+        totalCost: 1000,
+        paidByMemberId: '',
+        isCredit: true,
+        creditAccountId: 'c1'
+      };
+      const result = validateLabour(labour);
+      expect(result.valid).toBe(true);
+      expect(result.errors.some(e => e.includes('Member who paid'))).toBe(false);
+    });
+  });
+
+  describe('Purchase Validation', () => {
+    it('should accept a valid direct-paid purchase', () => {
+      const purchase: StockPurchase = {
+        id: 'p1',
+        stockItemId: 'stk1',
+        quantity: 10,
+        totalCost: 5000,
+        date: '2024-01-15',
+        paidByMemberId: 'm1'
+      };
+      const result = validatePurchase(purchase);
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject a purchase without paidByMemberId when not on credit', () => {
+      const purchase: StockPurchase = {
+        id: 'p1',
+        stockItemId: 'stk1',
+        quantity: 10,
+        totalCost: 5000,
+        date: '2024-01-15',
+        paidByMemberId: ''
+      };
+      const result = validatePurchase(purchase);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.includes('Member who paid'))).toBe(true);
+    });
+
+    it('should reject a credit purchase without creditAccountId', () => {
+      const purchase: StockPurchase = {
+        id: 'p1',
+        stockItemId: 'stk1',
+        quantity: 10,
+        totalCost: 5000,
+        date: '2024-01-15',
+        paidByMemberId: '',
+        isCredit: true
+      };
+      const result = validatePurchase(purchase);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some(e => e.toLowerCase().includes('credit account'))).toBe(true);
+    });
+
+    it('should accept a credit purchase with no paidByMemberId as long as a creditAccountId is set', () => {
+      // Regression test: mirrors the credit-expense bug above for stock purchases.
+      const purchase: StockPurchase = {
+        id: 'p1',
+        stockItemId: 'stk1',
+        quantity: 10,
+        totalCost: 5000,
+        date: '2024-01-15',
+        paidByMemberId: '',
+        isCredit: true,
+        creditAccountId: 'c1'
+      };
+      const result = validatePurchase(purchase);
+      expect(result.valid).toBe(true);
+      expect(result.errors.some(e => e.includes('Member who paid'))).toBe(false);
     });
   });
 

@@ -678,7 +678,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         {/* Action Quick Add */}
         <button
           onClick={() => {
-            setSelectedSeasonId(activeSeasons[0]?.id || '');
+            setSelectedSeasonId(activeSeasons[0]?.id || seasons[0]?.id || '');
             setIsOpenAddModal(true);
           }}
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
@@ -708,7 +708,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 </p>
                 <button
                   onClick={() => {
-                    setSelectedSeasonId(activeSeasons[0]?.id || '');
+                    setSelectedSeasonId(activeSeasons[0]?.id || seasons[0]?.id || '');
                     setIsOpenAddModal(true);
                   }}
                   className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
