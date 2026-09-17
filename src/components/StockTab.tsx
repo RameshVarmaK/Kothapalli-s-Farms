@@ -17,6 +17,7 @@ import {
 import { Plus, Archive } from 'lucide-react';
 import { computeStockLevels, calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
 import { validatePurchase, validateUsage } from '../utils/validation';
+import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 import { StockLevelsSegment } from './stock/StockLevelsSegment';
 import { PurchasesSegment } from './stock/PurchasesSegment';
@@ -87,6 +88,7 @@ export const StockTab: React.FC<StockTabProps> = ({
   const [usageLinkedActivityId, setUsageLinkedActivityId] = useState('');
 
   const [errorMessage, setErrorMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Computed live stats
   const computedStockList = computeStockLevels(stockItems, purchases, usages);
@@ -108,6 +110,7 @@ export const StockTab: React.FC<StockTabProps> = ({
         unit: itemUnit
       };
       onUpdateStockItem(updatedItem);
+      setToastMessage(t('Material updated'));
     } else {
       const newItem: StockItem = {
         id: `item_${Date.now()}`,
@@ -120,6 +123,7 @@ export const StockTab: React.FC<StockTabProps> = ({
         fundingByMember: {}
       };
       onAddStockItem(newItem);
+      setToastMessage(t('Material added'));
     }
     closeAndReset();
   };
@@ -162,8 +166,10 @@ export const StockTab: React.FC<StockTabProps> = ({
 
     if (editingPurchase) {
       onUpdatePurchase(purchasePost);
+      setToastMessage(t('Purchase updated'));
     } else {
       onAddPurchase(purchasePost);
+      setToastMessage(t('Purchase saved'));
     }
     closeAndReset();
   };
@@ -285,8 +291,10 @@ export const StockTab: React.FC<StockTabProps> = ({
 
     if (editingUsage) {
       onUpdateUsage(newUsage);
+      setToastMessage(t('Usage updated'));
     } else {
       onAddUsage(newUsage);
+      setToastMessage(t('Usage saved'));
     }
     closeAndReset();
   };
@@ -523,6 +531,10 @@ export const StockTab: React.FC<StockTabProps> = ({
           previewUsageQty={previewUsageQty}
           onSubmitUsage={handleSaveUsage}
         />
+      )}
+
+      {toastMessage && (
+        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
       )}
     </div>
   );

@@ -74,6 +74,17 @@ describe('MoneyTab - Add Expense crop-cycle default', () => {
     expect(onAddExpense.mock.calls[0][0].targetSeasonId).toBe('s1');
   });
 
+  it('shows a success toast instead of just closing the dialog silently', () => {
+    const seasons: Season[] = [
+      { id: 's1', fieldId: 'f1', cropName: 'Rice', startDate: '2024-01-01', isClosed: false },
+    ];
+    renderMoneyTab(seasons);
+
+    submitNewExpense('500', 'Seeds');
+
+    expect(screen.getByText('Expense saved')).toBeTruthy();
+  });
+
   it('submits against the active season when both an active and a closed season exist', () => {
     const seasons: Season[] = [
       { id: 's1', fieldId: 'f1', cropName: 'Wheat', startDate: '2023-01-01', isClosed: true, endDate: '2023-06-01' },

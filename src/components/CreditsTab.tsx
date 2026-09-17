@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { CreditAccount, CreditRepayment, Expense, Labour, Member, Season, Field } from '../types';
 import { Plus, Pencil, Trash2, CreditCard, ChevronRight, Calculator, Calendar, User, Search, RefreshCw, AlertCircle, Coins, ArrowUpRight } from 'lucide-react';
+import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 
 interface CreditsTabProps {
@@ -49,6 +50,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
   // Modal open states
   const [isOpenAddCreditor, setIsOpenAddCreditor] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [isOpenAddRepayment, setIsOpenAddRepayment] = useState(false);
   const [editingRepaymentId, setEditingRepaymentId] = useState<string | null>(null);
@@ -92,6 +94,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         notes: credNotes.trim() || undefined
       };
       onEditCreditAccount(updatedCreditor);
+      setToastMessage(t('Creditor updated'));
     } else {
       const newCreditor: CreditAccount = {
         id: `cred_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -102,6 +105,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
       };
       onAddCreditAccount(newCreditor);
       setSelectedCreditorId(newCreditor.id);
+      setToastMessage(t('Creditor added'));
     }
 
     // Reset form
@@ -138,6 +142,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         notes: repNotes.trim() || undefined
       };
       onUpdateCreditRepayment(updatedRepayment);
+      setToastMessage(t('Repayment updated'));
     } else {
       const newRepayment: CreditRepayment = {
         id: `rep_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -148,6 +153,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         notes: repNotes.trim() || undefined
       };
       onAddCreditRepayment(newRepayment);
+      setToastMessage(t('Repayment recorded'));
     }
 
     // Reset form
@@ -803,6 +809,10 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {toastMessage && (
+        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
       )}
     </div>
   );

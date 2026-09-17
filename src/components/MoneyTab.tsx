@@ -19,6 +19,7 @@ import {
 import { Plus, Filter, Trash2, ArrowUpRight, ArrowDownLeft, Users, Receipt, Calendar, Pencil, AlertTriangle, Check } from 'lucide-react';
 import { calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
 import { AttachmentUploader } from './AttachmentUploader';
+import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 
 interface MoneyTabProps {
@@ -75,6 +76,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   const [addTab, setAddTab] = useState<'expense' | 'labour' | 'revenue'>('expense');
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Form states
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -396,8 +398,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
     if (editingRecordId) {
       onEditExpense(expensePost);
+      setToastMessage(t('Expense updated'));
     } else {
       onAddExpense(expensePost);
+      setToastMessage(t('Expense saved'));
     }
     closeAndReset();
   };
@@ -499,8 +503,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
     if (editingRecordId) {
       onEditLabour(labourPost);
+      setToastMessage(t('Labour cost updated'));
     } else {
       onAddLabour(labourPost);
+      setToastMessage(t('Labour cost saved'));
     }
     closeAndReset();
   };
@@ -537,8 +543,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
     if (editingRecordId) {
       onEditRevenue(revenuePost);
+      setToastMessage(t('Harvest sale updated'));
     } else {
       onAddRevenue(revenuePost);
+      setToastMessage(t('Harvest sale saved'));
     }
     closeAndReset();
   };
@@ -1560,6 +1568,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {toastMessage && (
+        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
       )}
     </div>
   );

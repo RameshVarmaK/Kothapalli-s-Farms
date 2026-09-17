@@ -21,6 +21,7 @@ import {
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
 import { safeStorageGet } from '../utils/database';
+import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 import { Plus, Users, Grid, Sprout } from 'lucide-react';
 import { PartnersDirectory } from './members/PartnersDirectory';
@@ -84,6 +85,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'directory' | 'fields' | 'seasons'>('seasons');
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [editingSeason, setEditingSeason] = useState<Season | null>(null);
@@ -223,6 +225,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         phone: memberPhone || undefined
       };
       onUpdateMember(updatedMember);
+      setToastMessage(t('Partner updated'));
     } else {
       const newMember: Member = {
         id: `m_${Date.now()}`,
@@ -230,6 +233,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         phone: memberPhone || undefined
       };
       onAddMember(newMember);
+      setToastMessage(t('Partner added'));
     }
     closeAndReset();
   };
@@ -268,6 +272,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         shares: validatedShares
       };
       onUpdateField(updatedField);
+      setToastMessage(t('Field updated'));
     } else {
       const newField: Field = {
         id: `f_${Date.now()}`,
@@ -277,6 +282,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         shares: validatedShares
       };
       onAddField(newField);
+      setToastMessage(t('Field added'));
     }
     closeAndReset();
   };
@@ -321,6 +327,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         shares: validatedShares
       };
       onUpdateSeason(updatedSeason);
+      setToastMessage(t('Crop cycle updated'));
     } else {
       const newSeason: Season = {
         id: `s_${Date.now()}`,
@@ -331,6 +338,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         shares: validatedShares
       };
       onAddSeason(newSeason);
+      setToastMessage(t('Crop cycle sown'));
     }
     closeAndReset();
   };
@@ -534,8 +542,13 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         onConfirm={(id, date) => {
           onCloseSeason(id, date);
           setClosingSeasonId(null);
+          setToastMessage(t('Crop cycle marked harvested'));
         }}
       />
+
+      {toastMessage && (
+        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+      )}
     </div>
   );
 };

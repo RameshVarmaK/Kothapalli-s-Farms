@@ -149,7 +149,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       text  += `No stock materials consumed.\n`;
     } else {
       combinedUsages.forEach((u, i) => {
-        const item = stockItems.find(si => si.id === u.stockItemId);
+        const item = computedSt.find(si => si.id === u.stockItemId);
         const stName = item ? item.name : 'Unknown Item';
         const stUnit = item ? item.unit : '';
         const isCommon = u.targetType === 'common';
@@ -355,7 +355,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             ) : (
               <div className="space-y-2.5">
                 {combinedUsages.map(u => {
-                  const item = stockItems.find(si => si.id === u.stockItemId);
+                  const item = computedSt.find(si => si.id === u.stockItemId);
                   const rate = item ? item.weightedAverageCost : 0;
                   const isCommon = u.targetType === 'common';
                   const qty = isCommon ? (u.allocations?.find(al => al.seasonId === season.id)?.quantity || 0) : u.quantityUsed;

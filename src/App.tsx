@@ -15,6 +15,7 @@ import {
   isPlaceholderSpreadsheetId,
   safeStorageRemove
 } from './utils/database';
+import { classifySync, getLastSyncedFingerprint, setLastSyncedFingerprint } from './utils/syncConflict';
 import {
   validateExpense,
   validateLabour,
@@ -291,6 +292,7 @@ function AppShell() {
           }
 
           await pushDataToSpreadsheet(accessToken, targetSheetId, nextDb);
+          setLastSyncedFingerprint(nextDb);
           setSyncingState('success');
           setSyncMessage('Successfully synced with cloud Sheets!');
           setTimeout(() => setSyncingState('idle'), 3000);
@@ -336,12 +338,19 @@ function AppShell() {
       setDb(prev => {
         const base = prev || getInitialDatabase();
         const finalDb = normalizeCloudDb(sheetData, base, targetSheetId);
-        if (detectAndHandleConflict(finalDb, base, (cloudData) => {
-          setConflictData({ isOpen: true, cloudData });
-        })) {
+        const decision = classifySync(finalDb, base, getLastSyncedFingerprint());
+        if (decision === 'conflict') {
+          setConflictData({ isOpen: true, cloudData: finalDb });
+          return prev;
+        }
+        if (decision === 'keep-local') {
+          // Cloud hasn't moved since our last known sync, but this browser has
+          // unsynced local edits — keep them; the normal debounced push will
+          // send them up rather than clobbering local state with a stale pull.
           return prev;
         }
         saveDatabase(finalDb);
+        setLastSyncedFingerprint(finalDb);
         return finalDb;
       });
     } catch (err) {
@@ -470,15 +479,25 @@ function AppShell() {
               const base = prev || getInitialDatabase();
               const finalDb = normalizeCloudDb(sheetData, base, targetSheetId!);
 
-              // Detect conflicts between cloud and local data
-              if (prev && detectAndHandleConflict(finalDb, prev, (cloudData) => {
-                setConflictData({ isOpen: true, cloudData });
-              })) {
-                // Conflict detected; return current state (don't update yet)
-                return prev;
+              // Reconcile against the last state this browser is known to have
+              // agreed with the cloud on. Without that, a stale local cache
+              // (e.g. reopening the app after other edits happened elsewhere)
+              // reads as a "conflict" every time, when it's really just this
+              // browser's cache being behind — which should silently adopt the
+              // cloud data, not prompt the user.
+              if (prev) {
+                const decision = classifySync(finalDb, prev, getLastSyncedFingerprint());
+                if (decision === 'conflict') {
+                  setConflictData({ isOpen: true, cloudData: finalDb });
+                  return prev;
+                }
+                if (decision === 'keep-local') {
+                  return prev;
+                }
               }
 
               saveDatabase(finalDb);
+              setLastSyncedFingerprint(finalDb);
               return finalDb;
             });
           } else {
@@ -1752,6 +1771,11 @@ function AppShell() {
 
     setDb(finalDb);
     saveDatabase(finalDb);
+    // Whatever the user picked is now this browser's agreed-upon state with
+    // the cloud (the next push will reconcile "local" back up; "cloud"/"merge"
+    // already reflect it) — record it so future opens don't re-flag the same
+    // resolved difference as a conflict again.
+    setLastSyncedFingerprint(finalDb);
     setConflictData({ isOpen: false, cloudData: null });
 
     if (resolution !== 'local') {
