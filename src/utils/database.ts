@@ -19,7 +19,8 @@ import {
   CreditAccount,
   CreditRepayment,
   NotificationPreferences,
-  NotificationDelivery
+  NotificationDelivery,
+  SettlementClearance
 } from '../types';
 import { saveDatabaseHybrid, loadDatabaseHybrid } from './storage';
 
@@ -40,7 +41,38 @@ export interface LocalDatabase {
   creditRepayments?: CreditRepayment[];
   notificationPreferences?: NotificationPreferences[];
   notificationDeliveries?: NotificationDelivery[];
+  settlementClearances?: SettlementClearance[];
 }
+
+/**
+ * Every record collection on LocalDatabase, in one place.
+ *
+ * Hand-maintained copies of this list drifted apart more than once: season
+ * shares never reached the Sheets push, and a conflict "merge" silently
+ * dropped notification preferences because they were missing from its table
+ * list. Code that walks the collections generically reads them from here, and
+ * a test asserts this list still matches the interface.
+ */
+export const DATABASE_COLLECTIONS = [
+  'members',
+  'fields',
+  'seasons',
+  'activities',
+  'expenses',
+  'labours',
+  'stockItems',
+  'purchases',
+  'usages',
+  'revenues',
+  'auditLogs',
+  'creditAccounts',
+  'creditRepayments',
+  'notificationPreferences',
+  'notificationDeliveries',
+  'settlementClearances'
+] as const;
+
+export type DatabaseCollection = typeof DATABASE_COLLECTIONS[number];
 
 const STORAGE_KEY = 'farm_ledger_database';
 
@@ -88,6 +120,98 @@ export function safeStorageRemove(key: string): void {
   }
 }
 
+/**
+ * Expenses, labour, sales and stock usage used to mirror themselves into the
+ * timeline as system-generated Activity rows. They duplicated records that
+ * already live in the Money and Stock tabs, and because edits and deletes
+ * never touched them they drifted out of date. Nothing creates them any more;
+ * this drops the ones left behind, including any that come back from a
+ * Sheets pull. Manually logged activities, season-start and harvest entries
+ * are untouched.
+ */
+export function stripAutoActivities(activities: Activity[]): Activity[] {
+  return (activities || []).filter(act => !act.id?.startsWith('act_auto_'));
+}
+
+/**
+ * "Mark Transferred" ticks in the Settle tab used to live in these two
+ * localStorage keys, which made them per-device: they never reached Google
+ * Sheets, so a partner on another phone saw settled debts as outstanding.
+ * They now live in the database as `settlementClearances`. These keys are
+ * read once to carry existing ticks over.
+ */
+const LEGACY_CLEARED_DEBTS_KEY = 'farmledger_cleared_debts';
+const LEGACY_CLEARED_SUBS_KEY = 'farmledger_cleared_sub_entries';
+
+export const LEGACY_CLEARANCE_KEYS = [LEGACY_CLEARED_DEBTS_KEY, LEGACY_CLEARED_SUBS_KEY];
+
+/**
+ * Clearance keys originally ended with the rounded debt amount, e.g.
+ * `s1:mem_a:mem_b:4500`. That made the tick a function of the figure, so any
+ * recomputation — an edited partnership split, a late expense, a new sale —
+ * changed the key and the settled debt silently reappeared as outstanding.
+ * The amount is a value, not an identity; a settlement is identified by the
+ * seasons it covers and the two partners. This rewrites stored keys to the
+ * amount-free form, so existing ticks survive.
+ */
+export function normalizeClearanceKeys(clearances: SettlementClearance[]): SettlementClearance[] {
+  const seen = new Map<string, SettlementClearance>();
+
+  (clearances || []).forEach(entry => {
+    if (!entry || typeof entry.key !== 'string') return;
+
+    const segments = entry.key.split(':');
+    // <seasonIds>:<fromId>:<toId>:<roundedAmount> is the only legacy shape;
+    // member and season ids never contain a colon, so a 4th all-digit
+    // segment is unambiguously the amount.
+    const key =
+      segments.length === 4 && /^\d+$/.test(segments[3])
+        ? segments.slice(0, 3).join(':')
+        : entry.key;
+
+    const scope = entry.scope === 'sub' ? 'sub' : 'debt';
+    const id = `${scope}|${key}`;
+    const existing = seen.get(id);
+
+    // Two old keys can collapse onto one new key when the same pair was
+    // settled at different amounts. Keep the earliest real timestamp.
+    if (!existing) {
+      seen.set(id, { id, scope, key, clearedAt: entry.clearedAt || '' });
+    } else if (entry.clearedAt && (!existing.clearedAt || entry.clearedAt < existing.clearedAt)) {
+      seen.set(id, { ...existing, clearedAt: entry.clearedAt });
+    }
+  });
+
+  return Array.from(seen.values());
+}
+
+export function migrateLegacyClearances(): SettlementClearance[] {
+  const readKeys = (storageKey: string, scope: SettlementClearance['scope']): SettlementClearance[] => {
+    const raw = safeStorageGet(storageKey);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter((key: any) => typeof key === 'string' && key.trim() !== '')
+        .map((key: string) => ({
+          id: `${scope}|${key}`,
+          scope,
+          key,
+          clearedAt: ''
+        }));
+    } catch (e) {
+      console.warn(`Failed to migrate legacy clearances from ${storageKey}:`, e);
+      return [];
+    }
+  };
+
+  return normalizeClearanceKeys([
+    ...readKeys(LEGACY_CLEARED_DEBTS_KEY, 'debt'),
+    ...readKeys(LEGACY_CLEARED_SUBS_KEY, 'sub')
+  ]);
+}
+
 const DEFAULT_MEMBERS: Member[] = [];
 
 const DEFAULT_FIELDS: Field[] = [];
@@ -124,7 +248,7 @@ export function getInitialDatabase(): LocalDatabase {
         members: parsed.members || DEFAULT_MEMBERS || [],
         fields: parsed.fields || DEFAULT_FIELDS || [],
         seasons: parsed.seasons || DEFAULT_SEASONS || [],
-        activities: parsed.activities || [],
+        activities: stripAutoActivities(parsed.activities || []),
         expenses: parsed.expenses || DEFAULT_EXPENSES || [],
         labours: parsed.labours || DEFAULT_LABOUR || [],
         stockItems: parsed.stockItems || DEFAULT_STOCK || [],
@@ -134,7 +258,12 @@ export function getInitialDatabase(): LocalDatabase {
         auditLogs: parsed.auditLogs || [],
         settings: parsed.settings || DEFAULT_SETTINGS,
         creditAccounts: parsed.creditAccounts || [],
-        creditRepayments: parsed.creditRepayments || []
+        creditRepayments: parsed.creditRepayments || [],
+        // Absent (rather than empty) means this browser predates the move off
+        // localStorage, so carry any ticks it still holds over.
+        settlementClearances: parsed.settlementClearances
+          ? normalizeClearanceKeys(parsed.settlementClearances)
+          : migrateLegacyClearances()
       };
     } catch (e) {
       console.error('Error parsing localstorage database:', e);
@@ -156,7 +285,8 @@ export function getInitialDatabase(): LocalDatabase {
     auditLogs: DEFAULT_AUDIT,
     settings: DEFAULT_SETTINGS,
     creditAccounts: [],
-    creditRepayments: []
+    creditRepayments: [],
+    settlementClearances: []
   };
 
   saveDatabase(db);

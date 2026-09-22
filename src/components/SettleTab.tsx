@@ -17,10 +17,11 @@ import {
   CreditAccount,
   CreditRepayment,
   SettlementSummary,
+  SettlementClearance,
 } from '../types';
 import { buildSettlementLedger, computeStockLevels } from '../utils/calculations';
 import { CheckCircle2, AlertOctagon, Download, Share2, Printer, ClipboardCheck } from 'lucide-react';
-import { convertToCSV, downloadFile, safeStorageGet, safeStorageSet } from '../utils/database';
+import { convertToCSV, downloadFile } from '../utils/database';
 import { useLanguage } from '../hooks/useLanguage';
 
 interface SettleTabProps {
@@ -36,6 +37,8 @@ interface SettleTabProps {
   currency: string;
   creditAccounts?: CreditAccount[];
   creditRepayments?: CreditRepayment[];
+  settlementClearances?: SettlementClearance[];
+  onUpdateClearances?: (next: SettlementClearance[], description: string) => void;
 }
 
 export const SettleTab: React.FC<SettleTabProps> = ({
@@ -50,39 +53,60 @@ export const SettleTab: React.FC<SettleTabProps> = ({
   purchases = [],
   currency,
   creditAccounts = [],
-  creditRepayments = []
+  creditRepayments = [],
+  settlementClearances = [],
+  onUpdateClearances
 }) => {
   const { t } = useLanguage();
   const [selectedSeasonIds, setSelectedSeasonIds] = useState<string[]>(
     seasons.map(s => s.id)
   );
 
-  const [clearedDebts, setClearedDebts] = useState<string[]>(() => {
-    const saved = safeStorageGet('farmledger_cleared_debts');
-    try {
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
+  // Cleared markers live in the database so every partner and device sees the
+  // same settled debts; they used to sit in this browser's localStorage only.
+  const clearedDebts = useMemo(
+    () => settlementClearances.filter(c => c.scope === 'debt').map(c => c.key),
+    [settlementClearances]
+  );
+
+  const clearedSubEntries = useMemo(
+    () => settlementClearances.filter(c => c.scope === 'sub').map(c => c.key),
+    [settlementClearances]
+  );
+
+  const makeClearance = (scope: SettlementClearance['scope'], key: string): SettlementClearance => ({
+    id: `${scope}|${key}`,
+    scope,
+    key,
+    clearedAt: new Date().toISOString()
   });
 
-  const [clearedSubEntries, setClearedSubEntries] = useState<string[]>(() => {
-    const saved = safeStorageGet('farmledger_cleared_sub_entries');
-    try {
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  /**
+   * Applies one set of scope/key changes to the stored clearances. Adds are
+   * skipped when already present so an existing `clearedAt` is never reset.
+   */
+  const applyClearances = (
+    changes: { scope: SettlementClearance['scope']; keys: string[]; cleared: boolean }[],
+    description: string
+  ) => {
+    if (!onUpdateClearances) return;
 
-  const toggleClearedDebt = (key: string) => {
-    setClearedDebts(prev => {
-      const next = prev.includes(key)
-        ? prev.filter(k => k !== key)
-        : [...prev, key];
-      safeStorageSet('farmledger_cleared_debts', JSON.stringify(next));
-      return next;
+    let next = settlementClearances;
+    changes.forEach(({ scope, keys, cleared }) => {
+      if (keys.length === 0) return;
+      if (cleared) {
+        const existing = new Set(next.filter(c => c.scope === scope).map(c => c.key));
+        const additions = keys.filter(k => !existing.has(k)).map(k => makeClearance(scope, k));
+        next = [...next, ...additions];
+      } else {
+        const removing = new Set(keys);
+        next = next.filter(c => !(c.scope === scope && removing.has(c.key)));
+      }
     });
+
+    if (next !== settlementClearances) {
+      onUpdateClearances(next, description);
+    }
   };
 
   const toggleSeasonSelection = (seasonId: string) => {
@@ -166,57 +190,53 @@ export const SettleTab: React.FC<SettleTabProps> = ({
     return seasonSimplifiedDebts;
   });
 
+  // Keys deliberately carry no amount: a settlement is identified by the
+  // seasons it covers and the two partners, so a tick survives the figure
+  // being recomputed after a share edit or a late expense.
+  const subEntryKey = (sub: typeof allSeasonDebts[0]) =>
+    `${sub.seasonId}:${sub.fromId}:${sub.toId}`;
+
+  const mainDebtKey = (debt: typeof summary.debts[0]) =>
+    `${selectedSeasonIds.slice().sort().join(',')}:${debt.fromId}:${debt.toId}`;
+
+  const memberName = (id: string) => members.find(m => m.id === id)?.name || 'Unknown';
+
   const toggleClearedSubEntry = (sub: typeof allSeasonDebts[0], parentDebtKey: string) => {
-    const subKey = `${sub.seasonId}:${sub.fromId}:${sub.toId}:${Math.round(sub.amount)}`;
+    const subKey = subEntryKey(sub);
+    const nowCleared = !clearedSubEntries.includes(subKey);
 
-    setClearedSubEntries(prev => {
-      const next = prev.includes(subKey)
-        ? prev.filter(k => k !== subKey)
-        : [...prev, subKey];
-      safeStorageSet('farmledger_cleared_sub_entries', JSON.stringify(next));
-      return next;
-    });
-
-    // Unchecking any sub-entry immediately voids main explicit clearing
-    setClearedDebts(prev => {
-      const next = prev.filter(k => k !== parentDebtKey);
-      safeStorageSet('farmledger_cleared_debts', JSON.stringify(next));
-      return next;
-    });
+    applyClearances(
+      [
+        { scope: 'sub', keys: [subKey], cleared: nowCleared },
+        // Unchecking any sub-entry immediately voids main explicit clearing
+        { scope: 'debt', keys: [parentDebtKey], cleared: false }
+      ],
+      `${nowCleared ? 'Marked' : 'Unmarked'} ${sub.seasonCrop} settlement of ${currency}${Math.round(sub.amount)} from ${memberName(sub.fromId)} to ${memberName(sub.toId)} as transferred`
+    );
   };
 
   const handleClearMainDebt = (debt: typeof summary.debts[0], subEntries: typeof allSeasonDebts) => {
-    const debtKey = `${selectedSeasonIds.slice().sort().join(',')}:${debt.fromId}:${debt.toId}:${Math.round(debt.amount)}`;
+    const debtKey = mainDebtKey(debt);
 
-    setClearedDebts(prev => {
-      const next = prev.includes(debtKey) ? prev : [...prev, debtKey];
-      safeStorageSet('farmledger_cleared_debts', JSON.stringify(next));
-      return next;
-    });
-
-    const subKeysToAdd = subEntries.map(s => `${s.seasonId}:${s.fromId}:${s.toId}:${Math.round(s.amount)}`);
-    setClearedSubEntries(prev => {
-      const next = [...new Set([...prev, ...subKeysToAdd])];
-      safeStorageSet('farmledger_cleared_sub_entries', JSON.stringify(next));
-      return next;
-    });
+    applyClearances(
+      [
+        { scope: 'debt', keys: [debtKey], cleared: true },
+        { scope: 'sub', keys: subEntries.map(subEntryKey), cleared: true }
+      ],
+      `Marked settlement of ${currency}${Math.round(debt.amount)} from ${debt.fromName} to ${debt.toName} as transferred`
+    );
   };
 
   const handleUnclearMainDebt = (debt: typeof summary.debts[0], subEntries: typeof allSeasonDebts) => {
-    const debtKey = `${selectedSeasonIds.slice().sort().join(',')}:${debt.fromId}:${debt.toId}:${Math.round(debt.amount)}`;
+    const debtKey = mainDebtKey(debt);
 
-    setClearedDebts(prev => {
-      const next = prev.filter(k => k !== debtKey);
-      safeStorageSet('farmledger_cleared_debts', JSON.stringify(next));
-      return next;
-    });
-
-    const subKeysToRemove = new Set(subEntries.map(s => `${s.seasonId}:${s.fromId}:${s.toId}:${Math.round(s.amount)}`));
-    setClearedSubEntries(prev => {
-      const next = prev.filter(key => !subKeysToRemove.has(key));
-      safeStorageSet('farmledger_cleared_sub_entries', JSON.stringify(next));
-      return next;
-    });
+    applyClearances(
+      [
+        { scope: 'debt', keys: [debtKey], cleared: false },
+        { scope: 'sub', keys: subEntries.map(subEntryKey), cleared: false }
+      ],
+      `Reopened settlement of ${currency}${Math.round(debt.amount)} from ${debt.fromName} to ${debt.toName}`
+    );
   };
 
   // CSV Export
@@ -428,7 +448,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
             </div>
           ) : (
             summary.debts.map((debt, idx) => {
-              const debtKey = `${selectedSeasonIds.slice().sort().join(',')}:${debt.fromId}:${debt.toId}:${Math.round(debt.amount)}`;
+              const debtKey = mainDebtKey(debt);
               
               // Find matching individual sub-entries (debts at season level)
               const subEntries = allSeasonDebts.filter(item =>
@@ -436,10 +456,8 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                 (item.fromId === debt.toId && item.toId === debt.fromId)
               );
 
-              const isSubEntryCleared = (sub: typeof allSeasonDebts[0]) => {
-                const key = `${sub.seasonId}:${sub.fromId}:${sub.toId}:${Math.round(sub.amount)}`;
-                return clearedSubEntries.includes(key);
-              };
+              const isSubEntryCleared = (sub: typeof allSeasonDebts[0]) =>
+                clearedSubEntries.includes(subEntryKey(sub));
 
               // Bi-directional rule: If there are sub-entries and ALL are cleared, the main debt is cleared
               const allSubsCleared = subEntries.length > 0 && subEntries.every(isSubEntryCleared);
@@ -528,7 +546,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {subEntries.map((sub, sIdx) => {
-                          const subKey = `${sub.seasonId}:${sub.fromId}:${sub.toId}:${Math.round(sub.amount)}`;
+                          const subKey = subEntryKey(sub);
                           const isSubCleared = clearedSubEntries.includes(subKey);
                           const isOppositeFlow = sub.fromId === debt.toId;
 

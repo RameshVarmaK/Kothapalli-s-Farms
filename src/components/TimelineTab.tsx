@@ -316,8 +316,13 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
       {/* Vertical Timeline timeline */}
       <div className="relative border-l-2 border-slate-200 pl-6 ml-4 space-y-8 py-2">
         {filteredActivities.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 text-slate-400 font-semibold text-xs">
-            {t('No activities logged matching the active filters.')}
+          <div className="text-center py-12 px-6 bg-white rounded-2xl border border-slate-200">
+            <p className="text-slate-400 font-semibold text-xs">
+              {t('No activities logged matching the active filters.')}
+            </p>
+            <p className="text-slate-400 text-[11px] mt-2 max-w-sm mx-auto leading-relaxed">
+              {t('This timeline records field work — irrigation, weeding, spraying, repairs. Use "Record Farm Activity" above to add one. Expenses and sales live in the Money tab.')}
+            </p>
           </div>
         ) : (
           filteredActivities.map(act => {

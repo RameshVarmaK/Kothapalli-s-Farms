@@ -3,15 +3,6 @@
 export const teSettings: Record<string, string> = {
   // --- LocalizationPreferencesCard ---
   'Localization Preferences': 'స్థానికీకరణ ప్రాధాన్యతలు',
-  'Farm Location (for Weather)': 'వ్యవసాయ క్షేత్ర స్థానం (వాతావరణం కోసం)',
-  "Set your nearest town or village so the Home dashboard can show current weather and a short forecast.":
-    'హోమ్ డాష్‌బోర్డ్‌లో ప్రస్తుత వాతావరణం మరియు స్వల్ప ఫోర్‌కాస్ట్ చూపించడానికి మీ దగ్గరి పట్టణం లేదా గ్రామం పేరు నమోదు చేయండి.',
-  'Current location:': 'ప్రస్తుత స్థానం:',
-  "Couldn't find that place — try a nearby town or district name.": 'ఆ ప్రాంతం కనుగొనబడలేదు — దగ్గరి పట్టణం లేదా జిల్లా పేరు ప్రయత్నించండి.',
-  'Location lookup failed — check your connection and try again.': 'స్థానం అన్వేషణ విఫలమైంది — మీ నెట్‌వర్క్ కనెక్షన్ చూసి మళ్లీ ప్రయత్నించండి.',
-  'e.g. Vijayawada, Guntur': 'ఉదా. విజయవాడ, గుంటూరు',
-  'Searching...': 'అన్వేషిస్తోంది...',
-  'Set Location': 'స్థానం సెట్ చేయండి',
   'Currency Indicator': 'కరెన్సీ గుర్తు',
   '₹ INR (Rupees)': '₹ INR (రూపాయలు)',
   '$ USD (Dollars)': '$ USD (డాలర్లు)',
@@ -154,6 +145,8 @@ export const teSettings: Record<string, string> = {
   'Operation Description / Notes': 'ఆపరేషన్ వివరణ / నోట్స్',
   'Visual snaps / Photo URLs (Optional)': 'ఫోటోల URLలు (ఐచ్ఛికం)',
   'Conclude Log': 'లాగ్‌ను పూర్తి చేయండి',
+  'This timeline records field work — irrigation, weeding, spraying, repairs. Use "Record Farm Activity" above to add one. Expenses and sales live in the Money tab.':
+    'ఈ టైమ్‌లైన్ పొలం పనులను నమోదు చేస్తుంది — నీటి పారుదల, కలుపు తీత, పిచికారీ, మరమ్మతులు. జోడించడానికి పైన "వ్యవసాయ కార్యకలాపాన్ని నమోదు చేయండి" వాడండి. ఖర్చులు మరియు అమ్మకాలు డబ్బు ట్యాబ్‌లో ఉంటాయి.',
   'Filter Feed:': 'ఫీడ్ వడపోత:',
   '🌾 All Active & Historic Cycles': '🌾 అన్ని క్రియాశీల & గత సీజన్లు',
   '🔍 All Activity Types': '🔍 అన్ని కార్యకలాప రకాలు',

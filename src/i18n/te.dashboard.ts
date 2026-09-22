@@ -39,17 +39,4 @@ export const teDashboard: Record<string, string> = {
   'Sowing Date:': 'విత్తిన తేదీ:',
   'Closed:': 'ముగిసింది:',
 
-  'Set your farm location to see weather': 'వాతావరణం చూడటానికి మీ వ్యవసాయ క్షేత్ర స్థానాన్ని సెట్ చేయండి',
-  'Tap to open Audit & Config → Farm Location': 'తెరవడానికి తట్టండి: ఆడిట్ & సెట్టింగులు → వ్యవసాయ క్షేత్ర స్థానం',
-  'Weather unavailable right now — check your connection.': 'ఇప్పుడు వాతావరణ సమాచారం అందుబాటులో లేదు — మీ నెట్‌వర్క్ కనెక్షన్ చూడండి.',
-  'Loading weather...': 'వాతావరణం లోడ్ అవుతోంది...',
-  'Clear sky': 'నిర్మలమైన ఆకాశం',
-  'Partly cloudy': 'పాక్షికంగా మేఘావృతం',
-  'Fog': 'పొగమంచు',
-  'Drizzle': 'చిరుజల్లులు',
-  'Rain': 'వర్షం',
-  'Snow': 'మంచు',
-  'Rain showers': 'వర్ష జల్లులు',
-  'Thunderstorm': 'తుఫాను',
-  'Weather': 'వాతావరణం',
 };

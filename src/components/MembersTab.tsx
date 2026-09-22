@@ -18,9 +18,9 @@ import {
   CreditAccount,
   CreditRepayment,
   SettlementSummary,
+  SettlementClearance,
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
-import { safeStorageGet } from '../utils/database';
 import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 import { Plus, Users, Grid, Sprout } from 'lucide-react';
@@ -45,6 +45,7 @@ interface MembersTabProps {
   currency: string;
   creditAccounts?: CreditAccount[];
   creditRepayments?: CreditRepayment[];
+  settlementClearances?: SettlementClearance[];
   onAddMember: (item: Member) => void;
   onUpdateMember: (item: Member) => void;
   onAddField: (item: Field) => void;
@@ -71,6 +72,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   currency,
   creditAccounts = [],
   creditRepayments = [],
+  settlementClearances = [],
   onAddMember,
   onUpdateMember,
   onAddField,
@@ -161,6 +163,13 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     ],
   );
 
+  // The Settle tab's "Mark Transferred" ticks, which this badge reflects. They
+  // live in the database so the badge agrees across partners and devices.
+  const clearedSubKeys = useMemo(
+    () => new Set(settlementClearances.filter(c => c.scope === 'sub').map(c => c.key)),
+    [settlementClearances]
+  );
+
   const checkSeasonSettled = (seasonId: string) => {
     const ledger = summary.ledgers.find(l => l.seasonId === seasonId);
     if (!ledger) return true;
@@ -200,17 +209,10 @@ export const MembersTab: React.FC<MembersTabProps> = ({
 
     if (seasonSimplifiedDebts.length === 0) return true;
 
-    const saved = safeStorageGet('farmledger_cleared_sub_entries');
-    let clearedKeys: string[] = [];
-    try {
-      clearedKeys = saved ? JSON.parse(saved) : [];
-    } catch {
-      clearedKeys = [];
-    }
-
     return seasonSimplifiedDebts.every(sub => {
-      const subKey = `${sub.seasonId}:${sub.fromId}:${sub.toId}:${Math.round(sub.amount)}`;
-      return clearedKeys.includes(subKey);
+      // Amount-free, matching the keys the Settle tab writes.
+      const subKey = `${sub.seasonId}:${sub.fromId}:${sub.toId}`;
+      return clearedSubKeys.has(subKey);
     });
   };
 

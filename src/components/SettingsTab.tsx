@@ -11,13 +11,13 @@ import {
   PLACEHOLDER_SPREADSHEET_ID,
   safeStorageGet,
   safeStorageSet,
+  DATABASE_COLLECTIONS,
 } from '../utils/database';
 import { findExistingSpreadsheet, createSpreadsheet, pushDataToSpreadsheet, pullDataFromSpreadsheet } from '../utils/googleSheets';
 import { NotificationPreferencesPanel } from './NotificationPreferencesPanel';
 import { NotificationDeliveryLog } from './NotificationDeliveryLog';
 import { getNotificationDeliveries, clearNotificationDeliveries } from '../utils/notifications';
 import { LocalizationPreferencesCard } from './settings/LocalizationPreferencesCard';
-import { FarmLocationCard } from './settings/FarmLocationCard';
 import { BackupRestoreCard } from './settings/BackupRestoreCard';
 import { GoogleSheetsSyncPanel } from './settings/GoogleSheetsSyncPanel';
 import { AuditLogTable } from './settings/AuditLogTable';
@@ -77,20 +77,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     : null;
 
   const checkDatabaseDiff = (local: any, cloud: any) => {
-    const tables = [
-      'members',
-      'fields',
-      'seasons',
-      'activities',
-      'expenses',
-      'labours',
-      'stockItems',
-      'purchases',
-      'usages',
-      'revenues',
-      'creditAccounts',
-      'creditRepayments'
-    ];
+    // Audit logs are excluded: they differ constantly by design and would
+    // report every comparison as a conflict.
+    const tables = DATABASE_COLLECTIONS.filter(name => name !== 'auditLogs');
 
     let hasDiff = false;
     const diffDetails: { [key: string]: { localCount: number; cloudCount: number } } = {};
@@ -131,21 +120,14 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   const smartMergeDatabases = (local: any, cloud: any) => {
     const merged: any = {};
-    const tables = [
-      'members',
-      'fields',
-      'seasons',
-      'activities',
-      'expenses',
-      'labours',
-      'stockItems',
-      'purchases',
-      'usages',
-      'revenues',
-      'creditAccounts',
-      'creditRepayments',
-      'auditLogs'
-    ];
+    // Every collection, or the merged result silently drops the ones left out
+    // — and it is pushed straight to Sheets afterwards.
+    const tables = DATABASE_COLLECTIONS;
+
+    // Not every collection is keyed by `id`: notification preferences carry one
+    // row per member. Keying strictly on `id` dropped them from the merge even
+    // once they were listed, and the merged result is pushed straight to Sheets.
+    const recordKey = (item: any) => item?.id ?? item?.memberId;
 
     tables.forEach(table => {
       const localArr = local?.[table] || [];
@@ -154,29 +136,29 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       // Cloud elements loaded first
       cloudArr.forEach((item: any) => {
-        if (item && item.id) {
-          itemMap.set(item.id, item);
+        if (recordKey(item)) {
+          itemMap.set(recordKey(item), item);
         }
       });
 
       // Local elements merge and combine
       localArr.forEach((item: any) => {
-        if (item && item.id) {
-          const existing = itemMap.get(item.id);
+        if (recordKey(item)) {
+          const existing = itemMap.get(recordKey(item));
           if (!existing) {
-            itemMap.set(item.id, item);
+            itemMap.set(recordKey(item), item);
           } else {
             const cloudDate = existing.timestamp || existing.date || '';
             const localDate = item.timestamp || item.date || '';
 
             if (cloudDate && localDate) {
               if (new Date(localDate) >= new Date(cloudDate)) {
-                itemMap.set(item.id, { ...existing, ...item });
+                itemMap.set(recordKey(item), { ...existing, ...item });
               } else {
-                itemMap.set(item.id, { ...item, ...existing });
+                itemMap.set(recordKey(item), { ...item, ...existing });
               }
             } else {
-              itemMap.set(item.id, { ...existing, ...item });
+              itemMap.set(recordKey(item), { ...existing, ...item });
             }
           }
         }
@@ -233,15 +215,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       areaUnit
     });
     setPreferencesMessage({ text: 'General preferences updated successfully!', isError: false });
-  };
-
-  const handleSaveFarmLocation = (name: string, latitude: number, longitude: number) => {
-    onSaveSettings({
-      ...settings,
-      farmLocationName: name,
-      farmLatitude: latitude,
-      farmLongitude: longitude
-    });
   };
 
   const handleJSONExport = () => {
@@ -475,11 +448,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onImport={handleJSONImport}
         />
       </div>
-
-      <FarmLocationCard
-        farmLocationName={settings.farmLocationName}
-        onSaveLocation={handleSaveFarmLocation}
-      />
 
       <GoogleSheetsSyncPanel
         settings={settings}

@@ -168,9 +168,21 @@ export interface Settings {
   areaUnit: string; // e.g. "acres"
   googleDriveLinked: boolean;
   linkedSpreadsheetId?: string;
-  farmLocationName?: string;
-  farmLatitude?: number;
-  farmLongitude?: number;
+}
+
+/**
+ * A debt the partners have marked as actually transferred in the Settle tab.
+ *
+ * `key` is the identity of the debt as the Settle tab computes it:
+ * `<seasonIds>:<fromMemberId>:<toMemberId>:<roundedAmount>`. A 'debt' scope
+ * key covers the combined debt across the seasons selected at the time; a
+ * 'sub' scope key covers one season's slice of it.
+ */
+export interface SettlementClearance {
+  id: string; // `${scope}|${key}`, so the two scopes can never collide on one row
+  scope: 'debt' | 'sub';
+  key: string;
+  clearedAt: string; // ISO timestamp
 }
 
 // Settlement result definitions

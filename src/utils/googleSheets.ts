@@ -95,7 +95,7 @@ export async function createSpreadsheet(accessToken: string): Promise<string> {
 /**
  * Transforms an array of objects to Excel-exportable / Google Sheet spreadsheet rows.
  */
-function toSheetRows<T extends object>(data: T[], headers: string[]): any[][] {
+export function toSheetRows<T extends object>(data: T[], headers: string[]): any[][] {
   const rows = [headers];
   if (!data) return rows;
   data.forEach(item => {
@@ -152,6 +152,8 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
     { title: 'AuditLogs', columnCount: 10, rowCount: 5000 },
     { title: 'CreditAccounts', columnCount: 10, rowCount: 500 },
     { title: 'CreditRepayments', columnCount: 10, rowCount: 1000 },
+    { title: 'SettlementClearances', columnCount: 10, rowCount: 1000 },
+    { title: 'NotificationPreferences', columnCount: 10, rowCount: 200 },
   ];
 
   const missingSheets = requiredSheets.filter(s => !existingTitles.has(s.title));
@@ -206,6 +208,8 @@ export async function pushDataToSpreadsheet(
     auditLogs: any[];
     creditAccounts?: any[];
     creditRepayments?: any[];
+    settlementClearances?: any[];
+    notificationPreferences?: any[];
   }
 ): Promise<void> {
   // Gracefully ensure all relevant sheet tabs exist beforehand
@@ -224,7 +228,11 @@ export async function pushDataToSpreadsheet(
     },
     {
       range: 'Seasons!A1:J150',
-      values: toSheetRows(data.seasons, ['id', 'fieldId', 'cropName', 'startDate', 'endDate', 'isClosed']),
+      // 'shares' holds the season-level ownership override. Leaving it out of
+      // this list meant an edited split was saved locally but never pushed, so
+      // the next pull handed back a season with no shares and the UI silently
+      // fell back to the field-level split.
+      values: toSheetRows(data.seasons, ['id', 'fieldId', 'cropName', 'startDate', 'endDate', 'isClosed', 'shares']),
     },
     {
       range: 'Activities!A1:J1000',
@@ -265,6 +273,15 @@ export async function pushDataToSpreadsheet(
     {
       range: 'CreditRepayments!A1:F1000',
       values: toSheetRows(data.creditRepayments || [], ['id', 'creditAccountId', 'memberId', 'amount', 'date', 'notes']),
+    },
+    {
+      range: 'SettlementClearances!A1:D1000',
+      values: toSheetRows(data.settlementClearances || [], ['id', 'scope', 'key', 'clearedAt']),
+    },
+    {
+      // Keyed by memberId, not id: there is exactly one preference row per member.
+      range: 'NotificationPreferences!A1:D200',
+      values: toSheetRows(data.notificationPreferences || [], ['memberId', 'channel', 'phoneNumber', 'enabledEvents']),
     },
   ];
 
@@ -319,10 +336,17 @@ export async function pushDataToSpreadsheet(
 }
 
 /**
+ * Collections whose rows are identified by something other than `id`.
+ */
+const SHEET_ID_FIELDS: Record<string, string> = {
+  notificationPreferences: 'memberId'
+};
+
+/**
  * Helper to parse Sheet row data into javascript objects using headers.
  * Safely deserializes JSON with error recovery.
  */
-export function parseSheetRows<T>(rows: any[][]): T[] {
+export function parseSheetRows<T>(rows: any[][], idField: string = 'id'): T[] {
   if (!rows || rows.length <= 1) return [];
   const headers = rows[0];
   const items: T[] = [];
@@ -330,7 +354,6 @@ export function parseSheetRows<T>(rows: any[][]): T[] {
   for (let i = 1; i < rows.length; i++) {
     const row = rows[i];
     const item: any = {};
-    let isValidRow = true;
 
     headers.forEach((header, index) => {
       let val = row[index];
@@ -338,19 +361,23 @@ export function parseSheetRows<T>(rows: any[][]): T[] {
         val = '';
       }
 
+      // A cell that is already a real boolean must pass through untouched.
+      // The branches below only recognise the *string* forms Sheets returns
+      // under FORMATTED_VALUE; without this, an actual `false` falls through
+      // to the numeric branch and becomes 0.
+      if (typeof val === 'boolean') {
+        item[header] = val;
+        return;
+      }
+
       // Safely restore JSON stringified arrays or objects
       if (typeof val === 'string' && (val.startsWith('[') || val.startsWith('{'))) {
         try {
-          const parsed = JSON.parse(val);
-          // Basic validation: arrays should contain objects, not primitives
-          if (Array.isArray(parsed)) {
-            if (parsed.length > 0 && typeof parsed[0] !== 'object') {
-              console.warn(`Invalid array in ${header} at row ${i}: contains primitives instead of objects`);
-              isValidRow = false;
-              return;
-            }
-          }
-          item[header] = parsed;
+          // Arrays of primitives are legitimate here — Activity.photos holds
+          // image URLs and NotificationPreferences.enabledEvents holds event
+          // names. Rejecting them discarded the whole record, so a logged
+          // activity with a photo vanished on the next pull.
+          item[header] = JSON.parse(val);
         } catch (e) {
           console.warn(`Failed to parse JSON in ${header} at row ${i}: ${val.slice(0, 50)}...`);
           // Fall back to string if JSON parsing fails
@@ -369,8 +396,9 @@ export function parseSheetRows<T>(rows: any[][]): T[] {
       }
     });
 
-    // Only add rows with valid IDs
-    if (isValidRow && item.id && String(item.id).trim() !== '') {
+    // Only add rows carrying an identity. Most collections use `id`; a few
+    // are keyed by something else (notification preferences, one per member).
+    if (item[idField] && String(item[idField]).trim() !== '') {
       items.push(item as T);
     }
   }
@@ -396,6 +424,8 @@ export async function pullDataFromSpreadsheet(
   usages: any[];
   revenues: any[];
   auditLogs: any[];
+  settlementClearances: any[];
+  notificationPreferences: any[];
 } | null> {
   // Gracefully ensure all relevant sheet tabs exist beforehand
   await ensureSheetsExist(accessToken, spreadsheetId);
@@ -414,6 +444,8 @@ export async function pullDataFromSpreadsheet(
     'AuditLogs',
     'CreditAccounts',
     'CreditRepayments',
+    'SettlementClearances',
+    'NotificationPreferences',
   ];
 
   const ranges = tabNames.map(name => `${name}!A1:Z5000`).join('&ranges=');
@@ -455,9 +487,13 @@ export async function pullDataFromSpreadsheet(
           ? 'creditAccounts'
           : name === 'CreditRepayments'
           ? 'creditRepayments'
+          : name === 'SettlementClearances'
+          ? 'settlementClearances'
+          : name === 'NotificationPreferences'
+          ? 'notificationPreferences'
           : name.toLowerCase();
 
-      data[collectionName] = parseSheetRows(rows);
+      data[collectionName] = parseSheetRows(rows, SHEET_ID_FIELDS[collectionName] || 'id');
     });
 
     return data;

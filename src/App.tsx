@@ -13,7 +13,10 @@ import {
   LocalDatabase,
   PLACEHOLDER_SPREADSHEET_ID,
   isPlaceholderSpreadsheetId,
-  safeStorageRemove
+  safeStorageRemove,
+  stripAutoActivities,
+  LEGACY_CLEARANCE_KEYS,
+  normalizeClearanceKeys
 } from './utils/database';
 import { classifySync, getLastSyncedFingerprint, setLastSyncedFingerprint } from './utils/syncConflict';
 import {
@@ -40,7 +43,8 @@ import {
   AuditLog,
   CreditAccount,
   CreditRepayment,
-  NotificationPreferences
+  NotificationPreferences,
+  SettlementClearance
 } from './types';
 // Lazy-load tabs for better initial load performance
 const DashboardTab = lazy(() => import('./components/DashboardTab').then(m => ({ default: m.DashboardTab })));
@@ -175,7 +179,7 @@ function normalizeCloudDb(sheetData: any, base: LocalDatabase, targetSheetId: st
     members: sheetData.members ?? base.members ?? [],
     fields: sheetData.fields ?? base.fields ?? [],
     seasons: sheetData.seasons ?? base.seasons ?? [],
-    activities: sheetData.activities ?? base.activities ?? [],
+    activities: stripAutoActivities(sheetData.activities ?? base.activities ?? []),
     expenses: sheetData.expenses ?? base.expenses ?? [],
     labours: sheetData.labours ?? base.labours ?? [],
     stockItems: sheetData.stockItems ?? base.stockItems ?? [],
@@ -186,6 +190,7 @@ function normalizeCloudDb(sheetData: any, base: LocalDatabase, targetSheetId: st
     creditAccounts: sheetData.creditAccounts ?? base.creditAccounts ?? [],
     creditRepayments: sheetData.creditRepayments ?? base.creditRepayments ?? [],
     notificationPreferences: sheetData.notificationPreferences ?? base.notificationPreferences,
+    settlementClearances: normalizeClearanceKeys(sheetData.settlementClearances ?? base.settlementClearances ?? []),
     settings: {
       ...base.settings,
       ...(sheetData.settings || {}),
@@ -248,7 +253,7 @@ function AppShell() {
     }
 
     const targetSheetId = dbToSync.settings?.linkedSpreadsheetId;
-    if (isPlaceholderSpreadsheetId(targetSheetId)) {
+    if (!targetSheetId || isPlaceholderSpreadsheetId(targetSheetId)) {
       console.log('Postponing cloud sync because spreadsheet ID is absent or placeholder. Auto-fetch will resolve this.');
       return;
     }
@@ -393,6 +398,7 @@ function AppShell() {
           if (prevUser && prevUser.uid !== currentUser.uid) {
             console.log("Detected Google profile switch. Purging old database local cache...");
             safeStorageRemove('farm_ledger_database');
+            LEGACY_CLEARANCE_KEYS.forEach(safeStorageRemove);
             setDb(getInitialDatabase());
           }
           return currentUser;
@@ -416,7 +422,9 @@ function AppShell() {
         try {
           let targetSheetId = db?.settings?.linkedSpreadsheetId;
           const isPlaceholder = isPlaceholderSpreadsheetId(targetSheetId);
-          let sheetData = null;
+          // Either a raw Sheets pull or a copy of the local db, depending on
+          // which recovery branch below runs.
+          let sheetData: any = null;
 
           if (!isPlaceholder) {
             try {
@@ -713,7 +721,8 @@ function AppShell() {
     settings = { currency: '₹', areaUnit: 'acres', googleDriveLinked: false },
     auditLogs = [],
     creditAccounts = [],
-    creditRepayments = []
+    creditRepayments = [],
+    settlementClearances = []
   } = db || {};
 
   // Persist helper
@@ -721,18 +730,6 @@ function AppShell() {
     const updatedDb = { ...db, ...updatedFields };
     setDb(updatedDb);
     saveDatabase(updatedDb);
-  };
-
-  const getAutoCategoryType = (category: string): Activity['type'] => {
-    const cat = category.toLowerCase();
-    if (cat.includes('seed') || cat.includes('sowing')) return 'Sowing';
-    if (cat.includes('irrigation') || cat.includes('fuel') || cat.includes('water')) return 'Irrigation';
-    if (cat.includes('fertilizer')) return 'Fertilizing';
-    if (cat.includes('pesticide') || cat.includes('spray')) return 'Spraying';
-    if (cat.includes('harvest') || cat.includes('selling')) return 'Harvesting';
-    if (cat.includes('repair') || cat.includes('motor') || cat.includes('equipment')) return 'Equipment/Motor repair';
-    if (cat.includes('transport')) return 'Transport';
-    return 'Other';
   };
 
   // ACTIONS: Expenses
@@ -753,42 +750,7 @@ function AppShell() {
     }
 
     const nextList = [...expenses, exp];
-    
-    // Auto-generate Activity logs if no linkedActivityId
-    let nextActivities = [...activities];
-    if (!exp.linkedActivityId) {
-      const payer = members.find(m => m.id === exp.paidByMemberId);
-      const payerName = payer ? payer.name : 'Unknown';
-      const type = getAutoCategoryType(exp.category);
-      const suffix = exp.targetType === 'common' ? ' (Allocated across multiple seasons)' : '';
-      const notes = `Logged cash expense: ${settings.currency}${exp.amount} spent on '${exp.category}'. Paid by ${payerName}.${suffix}`;
-
-      if (exp.targetType === 'single' && exp.targetSeasonId && exp.targetFieldId) {
-        const autoAct: Activity = {
-          id: `act_auto_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          date: exp.date,
-          fieldId: exp.targetFieldId,
-          seasonId: exp.targetSeasonId,
-          type,
-          notes
-        };
-        nextActivities.push(autoAct);
-      } else if (exp.targetType === 'common' && exp.allocations && exp.allocations.length > 0) {
-        exp.allocations.forEach((alloc, idx) => {
-          const autoAct: Activity = {
-            id: `act_auto_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
-            date: exp.date,
-            fieldId: alloc.fieldId,
-            seasonId: alloc.seasonId,
-            type,
-            notes
-          };
-          nextActivities.push(autoAct);
-        });
-      }
-    }
-
-    const newDb = { ...db, expenses: nextList, activities: nextActivities };
+    const newDb = { ...db, expenses: nextList };
     const finalDb = addAuditLog(
       newDb,
       'create',
@@ -866,39 +828,7 @@ function AppShell() {
     }
 
     const nextList = [...labours, lab];
-
-    // Auto-generate Activity logs if no linkedActivityId
-    let nextActivities = [...activities];
-    if (!lab.linkedActivityId) {
-      const payer = members.find(m => m.id === lab.paidByMemberId);
-      const payerName = payer ? payer.name : 'Unknown';
-      const suffix = lab.targetType === 'common' ? ' (Shared across multiple fields)' : '';
-      const notes = `Registered daily wage labor shift: ${lab.workersCount} worker(s) at ${settings.currency}${lab.wageRate}/worker. Total shift cost: ${settings.currency}${lab.totalCost} paid by ${payerName}.${suffix}`;
-
-      if (lab.targetType === 'common' && lab.allocations && lab.allocations.length > 0) {
-        lab.allocations.forEach((alloc, idx) => {
-          nextActivities.push({
-            id: `act_auto_${Date.now()}_${idx}_${Math.random().toString(36).slice(2, 7)}`,
-            date: lab.date,
-            fieldId: alloc.fieldId,
-            seasonId: alloc.seasonId,
-            type: 'Other',
-            notes
-          });
-        });
-      } else if (lab.fieldId && lab.seasonId) {
-        nextActivities.push({
-          id: `act_auto_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-          date: lab.date,
-          fieldId: lab.fieldId,
-          seasonId: lab.seasonId,
-          type: 'Other',
-          notes
-        });
-      }
-    }
-
-    const newDb = { ...db, labours: nextList, activities: nextActivities };
+    const newDb = { ...db, labours: nextList };
     const finalDb = addAuditLog(
       newDb,
       'create',
@@ -975,26 +905,7 @@ function AppShell() {
     }
 
     const nextList = [...revenues, rev];
-    
-    // Auto-generate Activity logs if no linkedActivityId
-    let nextActivities = [...activities];
-    if (!rev.linkedActivityId) {
-      const receiver = members.find(m => m.id === rev.receivedByMemberId);
-      const receiverName = receiver ? receiver.name : 'Unknown';
-      const notes = `Concluded harvest sale receipt: Sold crop "${rev.crop}" of quantity ${rev.quantity} to ${rev.buyerName || 'Local Buyer'} for gross revenue of ${settings.currency}${rev.saleAmount}. Consolidated payout received by ${receiverName}.`;
-      
-      const autoAct: Activity = {
-        id: `act_auto_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        date: rev.date,
-        fieldId: rev.fieldId,
-        seasonId: rev.seasonId,
-        type: 'Harvesting',
-        notes
-      };
-      nextActivities.push(autoAct);
-    }
-
-    const newDb = { ...db, revenues: nextList, activities: nextActivities };
+    const newDb = { ...db, revenues: nextList };
     const finalDb = addAuditLog(
       newDb,
       'create',
@@ -1220,23 +1131,7 @@ function AppShell() {
   const handleAddUsage = (use: StockUsage) => {
     const nextList = [...usages, use];
     const item = stockItems.find(i => i.id === use.stockItemId);
-    
-    // Auto sow an activity log for tracking timeline!
-    const cropSeason = seasons.find(s => s.id === use.targetSeasonId);
-    let autoActivity: Activity | null = null;
-    if (use.targetType === 'single' && cropSeason) {
-      autoActivity = {
-        id: `act_auto_${Date.now()}`,
-        fieldId: use.targetFieldId!,
-        seasonId: use.targetSeasonId!,
-        date: use.date,
-        type: item?.type === 'Seed' ? 'Sowing' : item?.type === 'Pesticide' ? 'Spraying' : 'Fertilizing',
-        notes: `System-generated Activity Log: Applied ${use.quantityUsed} ${item?.unit} of ${item?.name} onto plot details.`
-      };
-    }
-
-    const nextActivities = autoActivity ? [...activities, autoActivity] : activities;
-    const newDb = { ...db, usages: nextList, activities: nextActivities };
+    const newDb = { ...db, usages: nextList };
     const finalDb = addAuditLog(
       newDb,
       'create',
@@ -1595,6 +1490,13 @@ function AppShell() {
     });
   };
 
+  // ACTIONS: Settlement clearances ("Mark Transferred" in the Settle tab)
+  const handleUpdateClearances = (next: SettlementClearance[], description: string) => {
+    const newDb = { ...db, settlementClearances: next };
+    const finalDb = addAuditLog(newDb, 'edit', 'Settlement', '', description);
+    setDb(finalDb);
+  };
+
   const handleAddActivity = (act: Activity) => {
     const nextList = [...activities, act];
     const newDb = { ...db, activities: nextList };
@@ -1699,7 +1601,9 @@ function AppShell() {
 
   // ACTIONS: Import Backups JSON
   const handleImportDatabase = (nextData: any) => {
-    handleUpdateDatabase(nextData);
+    // A backup taken before auto-generated timeline rows were dropped would
+    // otherwise restore them.
+    handleUpdateDatabase({ ...nextData, activities: stripAutoActivities(nextData.activities || []) });
     handleAudit('edit', 'Database', `Database full restoration performed via custom JSON backup file`);
   };
 
@@ -1712,13 +1616,21 @@ function AppShell() {
   const handleTriggerPull = async (accessToken: string, spreadsheetId: string) => {
     const sheetData = await pullDataFromSpreadsheet(accessToken, spreadsheetId);
     if (sheetData) {
+      // Go through the same normalizer as the login pull and the background
+      // reconciler so a manual pull can't leave the three paths disagreeing
+      // about what the cloud holds.
+      const pulledDb = normalizeCloudDb(sheetData, db || getInitialDatabase(), spreadsheetId);
       const finalDb = addAuditLog(
-        { ...db, ...sheetData },
+        pulledDb,
         'edit',
         'Database',
         spreadsheetId,
         `Overrode local state storage by pulling data from linked Google Sheet: "${spreadsheetId}"`
       );
+      // Without this the next background reconcile compares the freshly
+      // pulled data against a pre-pull fingerprint and reports a false
+      // conflict.
+      setLastSyncedFingerprint(finalDb);
       setDb(finalDb);
     }
   };
@@ -2000,9 +1912,6 @@ function AppShell() {
               areaUnit={settings.areaUnit}
               creditAccounts={creditAccounts}
               creditRepayments={creditRepayments}
-              farmLocationName={settings.farmLocationName}
-              farmLatitude={settings.farmLatitude}
-              farmLongitude={settings.farmLongitude}
               onSelectTab={(tab) => setActiveTab(tab as any)}
             />
           )}
@@ -2078,6 +1987,8 @@ function AppShell() {
               currency={settings.currency}
               creditAccounts={creditAccounts}
               creditRepayments={creditRepayments}
+              settlementClearances={settlementClearances}
+              onUpdateClearances={handleUpdateClearances}
             />
           )}
 
@@ -2096,6 +2007,7 @@ function AppShell() {
               currency={settings.currency}
               creditAccounts={creditAccounts}
               creditRepayments={creditRepayments}
+              settlementClearances={settlementClearances}
               onAddMember={handleAddMember}
               onUpdateMember={handleUpdateMember}
               onAddField={handleAddField}
