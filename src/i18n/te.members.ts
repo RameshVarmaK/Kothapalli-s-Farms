@@ -99,6 +99,8 @@ export const teMembers: Record<string, string> = {
   'Section 2: Cash Outlays & Direct Expenses': 'విభాగం 2: నగదు ఖర్చులు & ప్రత్యక్ష వ్యయాలు',
   'No cash expenses associated with this cycle.': 'ఈ చక్రానికి నగదు ఖర్చులు ఏవీ లేవు.',
   'Common Allocated split': 'పంచుకున్న కేటాయింపు విభజన',
+  'Funded by:': 'నిధులు సమకూర్చినవారు:',
+  'on credit': 'అరువుపై',
   'Section 3: Stock Materials Consumed': 'విభాగం 3: ఉపయోగించిన నిల్వ సామాగ్రి',
   'No material seed/input inventory usage recorded.': 'విత్తనాలు/ఎరువుల నిల్వ ఉపయోగం ఏదీ నమోదు కాలేదు.',
   'Unknown Item': 'తెలియని వస్తువు',

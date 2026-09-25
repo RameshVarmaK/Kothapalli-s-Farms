@@ -16,7 +16,7 @@ import {
   StockPurchase,
   Activity,
 } from '../../types';
-import { computeStockLevels } from '../../utils/calculations';
+import { computeStockLevels, splitStockCostByFunder } from '../../utils/calculations';
 import { X, Copy, Check, Calendar, DollarSign, Package, Users, CheckCircle } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
 
@@ -66,6 +66,25 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   const sLabours = labours.filter(l => l.targetType !== 'common' && l.seasonId === season.id);
   const sLabourAllocations = labours.filter(l => l.targetType === 'common' && l.allocations?.some(al => al.seasonId === season.id));
   const computedSt = computeStockLevels(stockItems, purchases, usages);
+
+  // Stock is drawn from a shared pool, so a usage has no single payer. Show
+  // whose money paid for what was consumed, the way labour shows its payer.
+  const describeFunders = (item: StockItem | undefined, consumedCost: number): string => {
+    const { shares, onCredit } = splitStockCostByFunder(item, consumedCost);
+    const parts = shares
+      .filter(share => Math.round(share.amount) > 0)
+      .sort((a, b) => b.amount - a.amount)
+      .map(share => {
+        const name = members.find(mem => mem.id === share.memberId)?.name || t('Unknown');
+        return `${name} ${currency}${Math.round(share.amount).toLocaleString('en-IN')}`;
+      });
+
+    if (onCredit > 0) {
+      parts.push(`${t('on credit')} ${currency}${Math.round(onCredit).toLocaleString('en-IN')}`);
+    }
+
+    return parts.join(' · ');
+  };
 
   const sUsagesDirect = usages.filter(u => u.targetType === 'single' && u.targetSeasonId === season.id);
   const sUsagesCommon = usages.filter(u => u.targetType === 'common' && u.allocations?.some(al => al.seasonId === season.id));
@@ -155,7 +174,8 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
         const isCommon = u.targetType === 'common';
         const qty = isCommon ? (u.allocations?.find(al => al.seasonId === season.id)?.quantity || 0) : u.quantityUsed;
         const rRate = item ? item.weightedAverageCost : 0;
-        text += `${i + 1}. [${u.date}] ${stName}: ${qty} ${stUnit} at ${currency}${Math.round(rRate)}/unit. Cost: ${currency}${Math.round(qty * rRate).toLocaleString('en-IN')}${isCommon ? ' [Allocated split]' : ''}\n`;
+        const funders = describeFunders(item, qty * rRate);
+        text += `${i + 1}. [${u.date}] ${stName}: ${qty} ${stUnit} at ${currency}${Math.round(rRate)}/unit. Cost: ${currency}${Math.round(qty * rRate).toLocaleString('en-IN')}${isCommon ? ' [Allocated split]' : ''}${funders ? ` | Funded by: ${funders}` : ''}\n`;
       });
     }
 
@@ -201,6 +221,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
   const combinedExps = [...sExpenses, ...sAllocations];
   const combinedUsages = [...sUsagesDirect, ...sUsagesCommon];
+
   const combinedLabours = [...sLabours, ...sLabourAllocations];
 
   return (
@@ -359,16 +380,24 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                   const rate = item ? item.weightedAverageCost : 0;
                   const isCommon = u.targetType === 'common';
                   const qty = isCommon ? (u.allocations?.find(al => al.seasonId === season.id)?.quantity || 0) : u.quantityUsed;
+                  const funders = describeFunders(item, qty * rate);
                   return (
-                    <div key={u.id} className="flex justify-between items-center text-xs">
-                      <div className="flex gap-2">
+                    <div key={u.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
+                      <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{u.date}]</span>
                         <span className="font-bold text-slate-705">{item ? item.name : t('Unknown Item')}</span>
                         {isCommon && <span className="text-[9px] bg-purple-50 text-purple-750 border border-purple-150 font-bold px-1.5 rounded uppercase">{t('Split')}</span>}
                       </div>
-                      <span className="font-mono font-bold text-slate-800">
-                        {qty} {item ? item.unit : ''} @ {currency}{Math.round(rate)} = {currency}{Math.round(qty * rate).toLocaleString('en-IN')}
-                      </span>
+                      <div className="sm:text-right">
+                        <span className="font-mono font-bold text-slate-800 block">
+                          {qty} {item ? item.unit : ''} @ {currency}{Math.round(rate)} = {currency}{Math.round(qty * rate).toLocaleString('en-IN')}
+                        </span>
+                        {funders && (
+                          <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+                            {t('Funded by:')} {funders}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   );
                 })}

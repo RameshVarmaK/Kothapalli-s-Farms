@@ -73,7 +73,15 @@ export function computeStockLevels(
         }
         quantity += purchaseQty;
         totalInvested += purchaseCost;
-        funding[memberId] = (funding[memberId] || 0) + purchaseCost;
+
+        // A purchase made on credit was financed by the creditor, not by the
+        // member who placed the order, so it must not count as that member's
+        // contribution — the same rule expenses and labour already follow.
+        // Crediting it here would pay the member twice: once as funding, and
+        // again when their repayment to the creditor is attributed.
+        if (!p.isCredit) {
+          funding[memberId] = (funding[memberId] || 0) + purchaseCost;
+        }
       } else {
         const u = event.data as StockUsage;
         const qtyUsed = u.quantityUsed;
@@ -91,6 +99,53 @@ export function computeStockLevels(
       fundingByMember: funding
     };
   });
+}
+
+/**
+ * Who funded a given slice of stock consumption, and how much of it.
+ *
+ * A stock item is a shared pool: members pay into it through purchases, and
+ * seasons draw from it through usages. A usage therefore has no single payer.
+ * Each member's share of a consumed cost follows their share of everything
+ * paid for that item, so a member who funded a third of the urea is credited
+ * with a third of every bag of it consumed.
+ *
+ * Note this is pooled, not lot-by-lot: the split follows each member's share
+ * of the item's total spend, not which physical units were drawn.
+ *
+ * `onCredit` is the remainder financed by a creditor rather than by any
+ * member. It is normally zero.
+ */
+export interface StockFunderShare {
+  memberId: string;
+  amount: number;
+}
+
+export function splitStockCostByFunder(
+  item: StockItem | undefined,
+  consumedCost: number
+): { shares: StockFunderShare[]; onCredit: number } {
+  if (!item || consumedCost === 0) return { shares: [], onCredit: 0 };
+
+  const totalInvested = item.totalCostSpent;
+  if (!totalInvested || totalInvested <= 0) return { shares: [], onCredit: 0 };
+
+  const funding = item.fundingByMember || {};
+  const shares = Object.keys(funding)
+    .filter(memberId => funding[memberId] > 0)
+    .map(memberId => ({
+      memberId,
+      amount: consumedCost * (funding[memberId] / totalInvested)
+    }));
+
+  const fundedByMembers = shares.reduce((sum, share) => sum + share.amount, 0);
+
+  return {
+    shares,
+    // Whatever members did not fund was bought on credit; `fundingByMember`
+    // deliberately omits those purchases.
+    onCredit: Math.max(0, Number((consumedCost - fundedByMembers).toFixed(2)))
+  };
 }
 
 /**
@@ -290,26 +345,18 @@ export function buildSettlementLedger(
       // Stock funding consumption:
       // For each direct usage on this field, how much did m spend on this stock item?
       // Pro rata based on total investments.
+      const mStockShare = (item: StockItem | undefined, consumedCost: number) =>
+        splitStockCostByFunder(item, consumedCost).shares.find(share => share.memberId === m.id)?.amount || 0;
+
       const mDirectStockFunding = directUsages.reduce((sum, u) => {
         const info = resolvedStockItemsMap.get(u.stockItemId);
-        if (!info) return sum;
-        const totalStockInvested = info.totalCostSpent;
-        if (totalStockInvested === 0) return sum;
-        const mInvested = info.fundingByMember[m.id] || 0;
-        const totalUsedCost = u.quantityUsed * info.weightedAverageCost;
-        return sum + (totalUsedCost * (mInvested / totalStockInvested));
+        return sum + mStockShare(info, u.quantityUsed * (info ? info.weightedAverageCost : 0));
       }, 0);
 
       const mCommonStockFunding = commonUsages.reduce((sum, u) => {
         const info = resolvedStockItemsMap.get(u.stockItemId);
-        if (!info) return sum;
-        const totalStockInvested = info.totalCostSpent;
-        if (totalStockInvested === 0) return sum;
-        const mInvested = info.fundingByMember[m.id] || 0;
-        const alloc = u.allocations?.find(al => al.seasonId === season.id);
-        const allocatedQty = alloc ? alloc.quantity : 0;
-        const totalUsedCost = allocatedQty * info.weightedAverageCost;
-        return sum + (totalUsedCost * (mInvested / totalStockInvested));
+        const allocatedQty = u.allocations?.find(al => al.seasonId === season.id)?.quantity || 0;
+        return sum + mStockShare(info, allocatedQty * (info ? info.weightedAverageCost : 0));
       }, 0);
 
       // Distribute credit repayments from member m to this season proportionally
