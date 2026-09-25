@@ -14,6 +14,8 @@ import {
   StockUsage,
   StockItem,
   StockPurchase,
+  CreditAccount,
+  CreditRepayment,
   Activity,
 } from '../../types';
 import { computeStockLevels, splitStockCostByFunder } from '../../utils/calculations';
@@ -33,6 +35,8 @@ interface SeasonReportModalProps {
   purchases: StockPurchase[];
   activities: Activity[];
   members: Member[];
+  creditAccounts?: CreditAccount[];
+  creditRepayments?: CreditRepayment[];
   currency: string;
   copiedReportText: boolean;
   setCopiedReportText: (v: boolean) => void;
@@ -51,6 +55,8 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   purchases,
   activities,
   members,
+  creditAccounts = [],
+  creditRepayments = [],
   currency,
   copiedReportText,
   setCopiedReportText,
@@ -66,6 +72,42 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   const sLabours = labours.filter(l => l.targetType !== 'common' && l.seasonId === season.id);
   const sLabourAllocations = labours.filter(l => l.targetType === 'common' && l.allocations?.some(al => al.seasonId === season.id));
   const computedSt = computeStockLevels(stockItems, purchases, usages);
+
+  // A credit bill is not funded by any partner: the creditor financed it, and
+  // partners are credited only as they repay. So name the creditor rather than
+  // leaving the blank paidByMemberId to resolve as "Unknown".
+  //
+  // Repayments are made against a creditor account, not against a particular
+  // bill, so the status shown alongside a line is that ACCOUNT's balance — it
+  // cannot say what proportion of this one bill has been settled.
+  const creditorStatus = (creditAccountId: string | undefined) => {
+    const account = creditAccounts.find(c => c.id === creditAccountId);
+    if (!account) return { name: t('Creditor'), outstanding: 0, known: false };
+
+    const incurred =
+      expenses.filter(e => e.isCredit && e.creditAccountId === account.id).reduce((sum, e) => sum + e.amount, 0) +
+      labours.filter(l => l.isCredit && l.creditAccountId === account.id).reduce((sum, l) => sum + l.totalCost, 0);
+    const repaid = creditRepayments
+      .filter(r => r.creditAccountId === account.id)
+      .reduce((sum, r) => sum + r.amount, 0);
+
+    return { name: account.name, outstanding: Number((incurred - repaid).toFixed(2)), known: true };
+  };
+
+  // Who a cost line should be attributed to, and how it stands.
+  const describePayer = (record: { isCredit?: boolean; creditAccountId?: string; paidByMemberId?: string }) => {
+    if (!record.isCredit) {
+      return { label: members.find(m => m.id === record.paidByMemberId)?.name || t('Unknown'), note: '' };
+    }
+
+    const { name, outstanding } = creditorStatus(record.creditAccountId);
+    const note =
+      outstanding > 0.005
+        ? `${t('account still owes')} ${currency}${Math.round(outstanding).toLocaleString('en-IN')}`
+        : t('account fully repaid');
+
+    return { label: `${t('Credit:')} ${name}`, note };
+  };
 
   // Stock is drawn from a shared pool, so a usage has no single payer. Show
   // whose money paid for what was consumed, the way labour shows its payer.
@@ -155,10 +197,11 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       text  += `No cash outlays registered.\n`;
     } else {
       combinedExps.forEach((e, i) => {
-        const payer = members.find(m => m.id === e.paidByMemberId)?.name || 'Unknown';
+        const { label, note } = describePayer(e);
         const isCommon = e.targetType === 'common';
         const actualAmt = isCommon ? (e.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : e.amount;
-        text += `${i + 1}. [${e.date}] ${e.category}: ${currency}${Math.round(actualAmt).toLocaleString('en-IN')} (Paid by ${payer})${isCommon ? ' [Allocated split]' : ''}\n`;
+        const attribution = e.isCredit ? `${label}${note ? `, ${note}` : ''}` : `Paid by ${label}`;
+        text += `${i + 1}. [${e.date}] ${e.category}: ${currency}${Math.round(actualAmt).toLocaleString('en-IN')} (${attribution})${isCommon ? ' [Allocated split]' : ''}\n`;
       });
     }
 
@@ -185,10 +228,11 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       text  += `No hired labor shifts registered.\n`;
     } else {
       combinedLabours.forEach((l, i) => {
-        const payer = members.find(m => m.id === l.paidByMemberId)?.name || 'Unknown';
+        const { label, note } = describePayer(l);
         const isCommon = l.targetType === 'common';
         const actualCost = isCommon ? (l.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : l.totalCost;
-        text += `${i + 1}. [${l.date}] ${l.workersCount} workers at ${currency}${l.wageRate}/worker. Total Cost: ${currency}${Math.round(actualCost).toLocaleString('en-IN')} (Paid by ${payer})${isCommon ? ' [Allocated split]' : ''}\n`;
+        const attribution = l.isCredit ? `${label}${note ? `, ${note}` : ''}` : `Paid by ${label}`;
+        text += `${i + 1}. [${l.date}] ${l.workersCount} workers at ${currency}${l.wageRate}/worker. Total Cost: ${currency}${Math.round(actualCost).toLocaleString('en-IN')} (${attribution})${isCommon ? ' [Allocated split]' : ''}\n`;
       });
     }
 
@@ -345,19 +389,22 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             ) : (
               <div className="space-y-2.5">
                 {combinedExps.map(e => {
-                  const payer = members.find(m => m.id === e.paidByMemberId)?.name || t('Unknown');
+                  const { label, note } = describePayer(e);
                   const isCommon = e.targetType === 'common';
                   const actualAmt = isCommon ? (e.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : e.amount;
                   return (
-                    <div key={e.id} className="flex justify-between items-center text-xs">
-                      <div className="flex gap-2">
+                    <div key={e.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
+                      <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{e.date}]</span>
                         <span className="font-bold text-slate-705">{e.category}</span>
                         {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
-                      <span className="font-bold font-mono text-slate-800">
-                        {currency}{Math.round(actualAmt).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">by {payer}</span>
-                      </span>
+                      <div className="sm:text-right">
+                        <span className="font-bold font-mono text-slate-800 block">
+                          {currency}{Math.round(actualAmt).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">{e.isCredit ? '' : 'by '}{label}</span>
+                        </span>
+                        {note && <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{note}</span>}
+                      </div>
                     </div>
                   );
                 })}
@@ -416,19 +463,22 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             ) : (
               <div className="space-y-2.5">
                 {combinedLabours.map(l => {
-                  const payer = members.find(m => m.id === l.paidByMemberId)?.name || t('Unknown');
+                  const { label, note } = describePayer(l);
                   const isCommon = l.targetType === 'common';
                   const actualCost = isCommon ? (l.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : l.totalCost;
                   return (
-                    <div key={l.id} className="flex justify-between items-center text-xs">
-                      <div className="flex gap-2">
+                    <div key={l.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
+                      <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{l.date}]</span>
                         <span className="font-bold text-slate-705">{l.workersCount} {t('worker(s) at')} {currency}{l.wageRate}/{t('worker')}</span>
                         {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
-                      <span className="font-mono font-bold text-slate-800">
-                        {currency}{Math.round(actualCost).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">paid by {payer}</span>
-                      </span>
+                      <div className="sm:text-right">
+                        <span className="font-mono font-bold text-slate-800 block">
+                          {currency}{Math.round(actualCost).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">{l.isCredit ? '' : 'paid by '}{label}</span>
+                        </span>
+                        {note && <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{note}</span>}
+                      </div>
                     </div>
                   );
                 })}
