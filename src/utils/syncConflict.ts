@@ -5,30 +5,97 @@
 
 import { LocalDatabase, safeStorageGet, safeStorageSet } from './database';
 
-// Only these collections are compared — matches the original count-diff
-// conflict heuristic. A lightweight fingerprint (record counts only) is
-// enough to tell "did this collection change since the baseline" without
-// persisting a full duplicate snapshot of the database.
-const DIFF_KEYS = ['members', 'fields', 'seasons', 'expenses'] as const;
+// Every collection that holds user-entered records. All of them must be
+// tracked: a fingerprint that ignores a collection makes edits to it
+// invisible to the reconciler, which then silently adopts cloud data and
+// discards them. `auditLogs` is deliberately excluded — it is derived,
+// append-only and trimmed to 500, so it is never the thing being protected.
+const DIFF_KEYS = [
+  'members',
+  'fields',
+  'seasons',
+  'activities',
+  'expenses',
+  'labours',
+  'revenues',
+  'stockItems',
+  'purchases',
+  'usages',
+  'creditAccounts',
+  'creditRepayments',
+] as const;
 
-export type SyncFingerprint = Record<(typeof DIFF_KEYS)[number], number>;
+type DiffKey = (typeof DIFF_KEYS)[number];
+
+// The four collections the original count-diff heuristic watched. Only the
+// no-baseline fallback still uses them, to keep that path's behavior
+// unchanged.
+const LEGACY_DIFF_KEYS: DiffKey[] = ['members', 'fields', 'seasons', 'expenses'];
+
+/**
+ * Record identity per collection, not just a count. Counts alone cannot tell
+ * "I added one record" apart from "someone else added one record", which is
+ * exactly the ambiguity that used to cost users their entry.
+ */
+export interface SyncFingerprint {
+  counts: Record<DiffKey, number>;
+  ids: Record<DiffKey, string[]>;
+}
+
+function idsOf(list: any[] | undefined): string[] {
+  if (!Array.isArray(list)) return [];
+  return list
+    .map((r, i) => (r && r.id != null ? String(r.id) : `__noid_${i}`))
+    .sort();
+}
 
 export function makeSyncFingerprint(db: LocalDatabase): SyncFingerprint {
-  const fp = {} as SyncFingerprint;
+  const counts = {} as Record<DiffKey, number>;
+  const ids = {} as Record<DiffKey, string[]>;
   DIFF_KEYS.forEach(key => {
-    fp[key] = db[key]?.length || 0;
+    const list = (db as any)[key] as any[] | undefined;
+    counts[key] = list?.length || 0;
+    ids[key] = idsOf(list);
   });
-  return fp;
+  return { counts, ids };
 }
 
-function countsDiverged(a: SyncFingerprint, b: SyncFingerprint): boolean {
-  return DIFF_KEYS.some(key => Math.abs(a[key] - b[key]) > 1);
+function sameIds(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
-/** Same threshold used everywhere else: a difference of more than 1 record
- * in any tracked collection between two full database snapshots. */
+/** True when `fp` holds any record the baseline did not, or has dropped one. */
+function changedSince(fp: SyncFingerprint, baseline: SyncFingerprint): boolean {
+  return DIFF_KEYS.some(key => !sameIds(fp.ids[key] || [], baseline.ids[key] || []));
+}
+
+/** True when every record in `subset` also appears in `superset`. */
+function isSubsetOf(subset: SyncFingerprint, superset: SyncFingerprint): boolean {
+  return DIFF_KEYS.every(key => {
+    const outer = new Set(superset.ids[key] || []);
+    return (subset.ids[key] || []).every(id => outer.has(id));
+  });
+}
+
+/** Same threshold the original heuristic used: a difference of more than 1
+ * record in any of the four core collections. Only the no-baseline fallback
+ * relies on this now. */
 export function hasDataDiverged(a: LocalDatabase, b: LocalDatabase): boolean {
-  return countsDiverged(makeSyncFingerprint(a), makeSyncFingerprint(b));
+  const fa = makeSyncFingerprint(a);
+  const fb = makeSyncFingerprint(b);
+  return LEGACY_DIFF_KEYS.some(key => Math.abs(fa.counts[key] - fb.counts[key]) > 1);
+}
+
+/** True when both snapshots hold exactly the same records, by id, in every
+ * tracked collection. Lets a caller skip a no-op adoption instead of
+ * replacing state with an equal-but-new object and re-triggering its own
+ * effects forever. */
+export function holdsSameRecords(a: LocalDatabase, b: LocalDatabase): boolean {
+  return !changedSince(makeSyncFingerprint(a), makeSyncFingerprint(b));
 }
 
 export type SyncDecision = 'adopt-cloud' | 'keep-local' | 'conflict';
@@ -44,10 +111,14 @@ export type SyncDecision = 'adopt-cloud' | 'keep-local' | 'conflict';
  * genuinely disagree" — the local cache going stale over time is not itself
  * a conflict, and should just silently adopt the cloud data.
  *
+ * Comparison is by record id, and any difference at all counts as a change.
+ * A tolerance here is not a nicety, it is data loss: a user who has just
+ * added a single record has local state the cloud does not have yet, and
+ * treating that as "unchanged" lets the background reconciler overwrite it.
+ *
  * Without a baseline (first sync ever in this browser, or storage was
  * cleared) there's no way to make that distinction, so this falls back to
- * the original conservative behavior: any large enough difference between
- * cloud and local is treated as a conflict.
+ * the original conservative behavior.
  */
 export function classifySync(
   cloudData: LocalDatabase,
@@ -58,23 +129,38 @@ export function classifySync(
     return hasDataDiverged(cloudData, currentDb) ? 'conflict' : 'adopt-cloud';
   }
 
-  const localChanged = countsDiverged(makeSyncFingerprint(currentDb), baseline);
-  const cloudChanged = countsDiverged(makeSyncFingerprint(cloudData), baseline);
+  const localFp = makeSyncFingerprint(currentDb);
+  const cloudFp = makeSyncFingerprint(cloudData);
+
+  const localChanged = changedSince(localFp, baseline);
+  const cloudChanged = changedSince(cloudFp, baseline);
 
   if (!localChanged) return 'adopt-cloud';
   if (!cloudChanged) return 'keep-local';
+
+  // Both moved. Ids let us check whether that is a real disagreement or just
+  // this browser seeing its own push come back (or a teammate's work that
+  // already contains ours).
+  if (isSubsetOf(localFp, cloudFp)) return 'adopt-cloud';
+  if (isSubsetOf(cloudFp, localFp)) return 'keep-local';
   return 'conflict';
 }
 
 const SYNC_FINGERPRINT_KEY = 'farm_ledger_last_synced_fingerprint';
 
 /** Reads the fingerprint of the database state this browser last confirmed
- * matches the cloud (set after a successful push or cloud adoption). */
+ * matches the cloud (set after a successful push or cloud adoption).
+ * Fingerprints written by the older count-only format are discarded: they
+ * carry no record ids, so they cannot answer "is this record mine?" and the
+ * conservative no-baseline path is the safe reading. The next successful
+ * sync rewrites it in the current format. */
 export function getLastSyncedFingerprint(): SyncFingerprint | null {
   const raw = safeStorageGet(SYNC_FINGERPRINT_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.ids || !parsed.counts) return null;
+    return parsed as SyncFingerprint;
   } catch {
     return null;
   }

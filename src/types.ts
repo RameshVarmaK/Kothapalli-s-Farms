@@ -186,6 +186,16 @@ export interface SettlementClearance {
 }
 
 // Settlement result definitions
+/** What a member's `paidAmount` is made of, for the season report's
+ * per-partner breakdown. Components are stored unrounded so that rounding
+ * their sum reproduces `paidAmount` exactly rather than drifting a paisa. */
+export interface PaidBreakdown {
+  expenses: number;         // direct + allocated share of common expenses
+  labour: number;           // direct + allocated share of common labour
+  stock: number;            // this member's funding of the stock consumed here
+  creditRepayments: number; // repayments attributed to this season pro-rata
+}
+
 export interface MemberStatement {
   memberId: string;
   memberName: string;
@@ -194,6 +204,8 @@ export interface MemberStatement {
   receivedAmount: number;
   netPosition: number; // positive = should receive, negative = should pay
   sharePercentage?: number;
+  /** Optional: absent on callers that predate the season-report breakdown. */
+  paidBreakdown?: PaidBreakdown;
 }
 
 export interface FieldSeasonLedger {

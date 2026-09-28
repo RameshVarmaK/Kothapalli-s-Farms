@@ -117,6 +117,26 @@ export const teMembers: Record<string, string> = {
   'No crops sales transactions registered for this cycle.': 'ఈ చక్రానికి పంట అమ్మకాల లావాదేవీలు ఏవీ నమోదు కాలేదు.',
   'Close View': 'వీక్షణ మూసివేయండి',
   'Copied Full Report!': 'పూర్తి నివేదిక కాపీ చేయబడింది!',
+  // Section 6: per-partner contributions. 'Labour', 'Receives' and 'Pays'
+  // are deliberately not redefined here — they already resolve from
+  // te.credits, and te.members is spread last, so adding them would silently
+  // change the wording on the Credits and Settle screens too.
+  'Section 6: Partner Contributions & Settlement': 'విభాగం 6: భాగస్వాముల వాటాలు & పరిష్కారం',
+  'share': 'వాటా',
+  'Paid in': 'చెల్లించినది',
+  'General expenses': 'సాధారణ ఖర్చులు',
+  'Stock purchases': 'సరుకు కొనుగోళ్లు',
+  'Credit repaid': 'అప్పు తీర్చినది',
+  'Share of cost': 'ఖర్చులో వాటా',
+  'Cost difference': 'ఖర్చు వ్యత్యాసం',
+  'Revenue taken': 'తీసుకున్న ఆదాయం',
+  'Share of revenue': 'ఆదాయంలో వాటా',
+  'Revenue difference': 'ఆదాయ వ్యత్యాసం',
+  'All partners': 'భాగస్వాములందరూ',
+  'A partner is owed when they funded more than their share, or collected less revenue than their share. These two gaps add up to the net figure above, which is the same balance shown on the Settle screen.':
+    'ఒక భాగస్వామి తన వాటా కంటే ఎక్కువ డబ్బు పెట్టినా, లేదా తన వాటా కంటే తక్కువ ఆదాయం తీసుకున్నా వారికి రావలసి ఉంటుంది. ఈ రెండు వ్యత్యాసాలు కలిపి పైన చూపిన నికర మొత్తం అవుతుంది — ఇది పరిష్కార స్క్రీన్‌లో చూపే బ్యాలెన్స్ ఒకటే.',
+
+  'Save as PDF': 'PDFగా సేవ్ చేయండి',
   'Export & Copy Report': 'నివేదికను ఎగుమతి చేసి కాపీ చేయండి',
 
   // CloseSeasonModal.tsx

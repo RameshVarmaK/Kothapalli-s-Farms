@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MoneyTab } from '../src/components/MoneyTab';
 import { LanguageProvider } from '../src/hooks/useLanguage';
-import { Field, Season, Member } from '../src/types';
+import { Field, Season, Member, Expense } from '../src/types';
 
 const fields: Field[] = [
   { id: 'f1', name: 'North Field', area: 5, shares: [{ memberId: 'm1', percentage: 100 }] },
@@ -16,7 +16,11 @@ const members: Member[] = [{ id: 'm1', name: 'Ramesh' }];
 // `.value` off the DOM node can't tell a real selection apart from the
 // desynced-state bug this suite exists to catch. Only submitting the form and
 // checking what the component's own state actually produced is a valid check.
-function renderMoneyTab(seasons: Season[], onAddExpense = vi.fn()) {
+// The save handlers return whether the parent accepted the record; the
+// components gate their success toast on it. `vi.fn()` alone returns
+// undefined, which correctly reads as a rejection — so mocks here must say
+// they accepted.
+function renderMoneyTab(seasons: Season[], onAddExpense = vi.fn((_expense: Expense) => true)) {
   render(
     <LanguageProvider>
       <MoneyTab
@@ -30,13 +34,13 @@ function renderMoneyTab(seasons: Season[], onAddExpense = vi.fn()) {
         currency="₹"
         creditAccounts={[]}
         onAddExpense={onAddExpense}
-        onEditExpense={vi.fn()}
+        onEditExpense={vi.fn(() => true)}
         onDeleteExpense={vi.fn()}
-        onAddLabour={vi.fn()}
-        onEditLabour={vi.fn()}
+        onAddLabour={vi.fn(() => true)}
+        onEditLabour={vi.fn(() => true)}
         onDeleteLabour={vi.fn()}
-        onAddRevenue={vi.fn()}
-        onEditRevenue={vi.fn()}
+        onAddRevenue={vi.fn(() => true)}
+        onEditRevenue={vi.fn(() => true)}
         onDeleteRevenue={vi.fn()}
       />
     </LanguageProvider>
@@ -97,5 +101,62 @@ describe('MoneyTab - Add Expense crop-cycle default', () => {
     expect(screen.queryByText(/Pick a crop cycle/i)).toBeNull();
     expect(onAddExpense).toHaveBeenCalledTimes(1);
     expect(onAddExpense.mock.calls[0][0].targetSeasonId).toBe('s2');
+  });
+});
+
+describe('MoneyTab - a rejected entry must not look saved', () => {
+  // Regression: the form called the parent's save handler, then announced
+  // success and closed itself without ever looking at the result. The parent
+  // rejects entries the form can't catch — allocations that don't sum to the
+  // amount, for one — so "Expense saved" appeared over an entry that was
+  // never stored, and the form threw away what the user had typed.
+
+  const openSeason: Season[] = [
+    { id: 's1', fieldId: 'f1', cropName: 'Rice', startDate: '2024-01-01', isClosed: false },
+  ];
+
+  it('shows no success toast when the parent rejects the expense', () => {
+    renderMoneyTab(openSeason, vi.fn(() => false));
+
+    submitNewExpense('500', 'Seeds');
+
+    expect(screen.queryByText('Expense saved')).toBeNull();
+  });
+
+  it('keeps the form open so the entry can be corrected and retried', () => {
+    renderMoneyTab(openSeason, vi.fn(() => false));
+
+    submitNewExpense('500', 'Seeds');
+
+    // The amount field still exists, and still holds what was typed.
+    const amountField = screen.getByPlaceholderText('e.g. 5000') as HTMLInputElement;
+    expect(amountField).toBeTruthy();
+    expect(amountField.value).toBe('500');
+  });
+
+  it('still announces success and closes when the parent accepts', () => {
+    renderMoneyTab(openSeason, vi.fn(() => true));
+
+    submitNewExpense('500', 'Seeds');
+
+    expect(screen.getByText('Expense saved')).toBeTruthy();
+    expect(screen.queryByPlaceholderText('e.g. 5000')).toBeNull();
+  });
+
+  it('lets a retry succeed after the first attempt was rejected', () => {
+    const onAddExpense = vi.fn()
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    renderMoneyTab(openSeason, onAddExpense);
+
+    submitNewExpense('500', 'Seeds');
+    expect(screen.queryByText('Expense saved')).toBeNull();
+
+    // The form is still open holding the data, so resubmitting is all it takes.
+    const form = screen.getByPlaceholderText('e.g. 5000').closest('form')!;
+    fireEvent.submit(form);
+
+    expect(onAddExpense).toHaveBeenCalledTimes(2);
+    expect(screen.getByText('Expense saved')).toBeTruthy();
   });
 });

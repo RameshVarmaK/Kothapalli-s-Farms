@@ -3,11 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { User } from 'firebase/auth';
 import { Settings } from '../../types';
-import { safeStorageSet, safeStorageRemove } from '../../utils/database';
-import { Cloud, CheckCircle, ExternalLink, RefreshCw, Download, Eye } from 'lucide-react';
+import { safeStorageSet, safeStorageRemove, isPlaceholderSpreadsheetId } from '../../utils/database';
+import { spreadsheetUrl } from '../../utils/googleSheets';
+import { Cloud, CheckCircle, ExternalLink, RefreshCw, Download, Eye, Link2, Copy, Check, FolderOpen } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
 
 const formatErrorTextWithLinks = (text: string) => {
@@ -32,14 +33,78 @@ const formatErrorTextWithLinks = (text: string) => {
   });
 };
 
+/** The currently linked sheet, with the two things a farm partner actually
+ * needs: a way to open it, and a link to hand to someone else so they can
+ * join the same ledger. */
+const LinkedSheetActions: React.FC<{ sheetId: string }> = ({ sheetId }) => {
+  const { t } = useLanguage();
+  const [copied, setCopied] = useState(false);
+  const url = spreadsheetUrl(sheetId);
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (_) {
+      // Clipboard is unavailable over plain http and in some mobile
+      // webviews. Selecting the text is the fallback that always works.
+      const field = document.getElementById('linked-sheet-url') as HTMLInputElement | null;
+      field?.select();
+    }
+  };
+
+  return (
+    <div className="mt-3 p-3 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+        {t('Currently linked')}
+      </span>
+      <input
+        id="linked-sheet-url"
+        type="text"
+        readOnly
+        value={url}
+        onFocus={e => e.currentTarget.select()}
+        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-2 text-[10px] text-slate-500 font-mono select-all focus:outline-none"
+      />
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={copy}
+          className="flex-1 min-w-[8rem] inline-flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 font-bold text-[11px] px-3 py-2 rounded-lg transition-colors cursor-pointer"
+        >
+          {copied ? <Check size={13} className="text-emerald-600 shrink-0" /> : <Copy size={13} className="shrink-0" />}
+          {copied ? t('Copied') : t('Copy link to share')}
+        </button>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex-1 min-w-[8rem] inline-flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:border-emerald-500 text-slate-700 font-bold text-[11px] px-3 py-2 rounded-lg transition-colors"
+        >
+          <ExternalLink size={13} className="shrink-0" />
+          {t('Open in Sheets')}
+        </a>
+      </div>
+      <p className="text-[10px] text-slate-400 font-medium leading-normal">
+        {t('Share this link from Google Sheets (give Editor access), then have your partner paste it above.')}
+      </p>
+    </div>
+  );
+};
+
 interface GoogleSheetsSyncPanelProps {
   settings: Settings;
-  onSaveSettings: (settings: Settings) => void;
   user: User | null;
   onLogin: (mode?: 'popup' | 'redirect') => Promise<string | null>;
   onLogout: () => Promise<void>;
   linkedSheetId: string;
   onLinkedSheetIdChange: (value: string) => void;
+  /** Parses, verifies access to, and switches this device over to the given
+   * sheet link or id. */
+  onLinkSheet: (rawInput: string) => void;
+  /** Choose the ledger from Drive. Absent when Picker isn't configured. */
+  onBrowseDrive?: () => void;
   customAccessToken: string;
   onCustomAccessTokenChange: (value: string) => void;
   customFirebaseConfig: string;
@@ -52,12 +117,13 @@ interface GoogleSheetsSyncPanelProps {
 
 export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
   settings,
-  onSaveSettings,
   user,
   onLogin,
   onLogout,
   linkedSheetId,
   onLinkedSheetIdChange,
+  onLinkSheet,
+  onBrowseDrive,
   customAccessToken,
   onCustomAccessTokenChange,
   customFirebaseConfig,
@@ -101,24 +167,50 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
 
           <div className="space-y-4">
             <div id="spreadsheet-id-panel">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t('Spreadsheet ID')}</label>
+              <label htmlFor="spreadsheet-id-input" className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                {t('Spreadsheet link or ID')}
+              </label>
               <input
                 id="spreadsheet-id-input"
                 type="text"
+                inputMode="url"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 value={linkedSheetId}
-                onChange={e => {
-                  const nextId = e.target.value.trim();
-                  onLinkedSheetIdChange(nextId);
-                  onSaveSettings({
-                    ...settings,
-                    linkedSpreadsheetId: nextId
-                  });
-                }}
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+                onChange={e => onLinkedSheetIdChange(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-700 font-semibold focus:outline-none select-all focus:border-emerald-500"
               />
-              <p className="mt-1 text-[10px] text-slate-400 font-medium leading-normal">
-                {t('Enter your custom Google Sheet ID to sync with your private Google Drive database.')}
+              {onBrowseDrive && (
+                <button
+                  type="button"
+                  id="browse-drive-button"
+                  onClick={onBrowseDrive}
+                  disabled={syncStatus === 'syncing'}
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-white border border-slate-300 hover:border-emerald-500 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <FolderOpen size={14} className="shrink-0" />
+                  {t('Browse my Google Drive')}
+                </button>
+              )}
+              <button
+                type="button"
+                id="link-sheet-button"
+                onClick={() => onLinkSheet(linkedSheetId)}
+                className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                disabled={syncStatus === 'syncing' || !linkedSheetId.trim()}
+              >
+                <Link2 size={14} className="shrink-0" />
+                {t('Link this sheet')}
+              </button>
+              <p className="mt-2 text-[10px] text-slate-400 font-medium leading-normal">
+                {t('Joining a ledger someone else set up? Paste the link they shared with you and tap Link. This device will switch to their sheet — nothing on it is overwritten.')}
               </p>
+
+              {!isPlaceholderSpreadsheetId(settings.linkedSpreadsheetId) && (
+                <LinkedSheetActions sheetId={settings.linkedSpreadsheetId!} />
+              )}
             </div>
 
             {/* Google Sign-In Active State */}

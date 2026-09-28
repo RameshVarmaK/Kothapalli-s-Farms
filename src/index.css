@@ -36,3 +36,89 @@ input, select, textarea {
 .mono-num {
   font-family: var(--font-mono);
 }
+
+/* ---------------------------------------------------------------------
+   Printing / Save as PDF
+   ---------------------------------------------------------------------
+   The season report lives in a full-screen modal: a fixed overlay with a
+   dark backdrop wrapping a 90vh card that scrolls internally. Printed
+   as-is that yields one clipped page with a grey wash over it, so print
+   has to undo all three: drop the backdrop, unpin the overlay, and let
+   the card grow to its full height so the content can paginate.
+
+   The report is rendered through a portal to <body>, which is what makes
+   "hide everything except the report" a single rule rather than a fight
+   with every ancestor in the tree.
+--------------------------------------------------------------------- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Print only the report when one is open. Sibling-level, because the
+     overlay is portalled straight to <body>. The class is set by the modal
+     while it is mounted rather than using :has(), so that a browser
+     without :has() support degrades to printing the page normally instead
+     of printing a blank sheet. */
+  body.report-print-open > *:not([data-print-root]) {
+    display: none !important;
+  }
+
+  [data-print-root] {
+    position: static !important;
+    display: block !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    inset: auto !important;
+  }
+
+  /* The card itself: no chrome, no height cap, no inner scroller. */
+  [data-print-card] {
+    max-width: none !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    animation: none !important;
+  }
+
+  [data-print-scroll] {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  /* Buttons, the close X, anything only useful on screen. */
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  /* Don't split a section or a partner's card across a page break. */
+  [data-print-keep] {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Tailwind's tinted tiles carry meaning here (cost buckets, owed vs
+     owing), so keep the colour rather than letting the browser drop
+     backgrounds. */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

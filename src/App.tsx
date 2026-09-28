@@ -18,7 +18,7 @@ import {
   LEGACY_CLEARANCE_KEYS,
   normalizeClearanceKeys
 } from './utils/database';
-import { classifySync, getLastSyncedFingerprint, setLastSyncedFingerprint } from './utils/syncConflict';
+import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint } from './utils/syncConflict';
 import {
   validateExpense,
   validateLabour,
@@ -56,9 +56,11 @@ const MembersTab = lazy(() => import('./components/MembersTab').then(m => ({ def
 const SettingsTab = lazy(() => import('./components/SettingsTab').then(m => ({ default: m.SettingsTab })));
 const CreditsTab = lazy(() => import('./components/CreditsTab').then(m => ({ default: m.CreditsTab })));
 const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
-import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet } from './utils/googleSheets';
+import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet, extractSpreadsheetId, fetchSpreadsheetTitle, describeSheetLinkError } from './utils/googleSheets';
 import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard, Menu, BarChart3 } from 'lucide-react';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
+import { SheetSetupModal } from './components/SheetSetupModal';
+import { isPickerAvailable, pickSpreadsheet } from './utils/googlePicker';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewModeProvider, useViewMode } from './hooks/useViewMode';
 import { LanguageProvider, useLanguage } from './hooks/useLanguage';
@@ -155,21 +157,6 @@ const TabLoadingFallback = () => (
   </div>
 );
 
-function detectAndHandleConflict(cloudData: LocalDatabase, currentDb: LocalDatabase, onShowConflict: (cloud: LocalDatabase) => void): boolean {
-  const memberDiff = Math.abs((cloudData.members?.length || 0) - (currentDb.members?.length || 0));
-  const fieldDiff = Math.abs((cloudData.fields?.length || 0) - (currentDb.fields?.length || 0));
-  const seasonDiff = Math.abs((cloudData.seasons?.length || 0) - (currentDb.seasons?.length || 0));
-  const expenseDiff = Math.abs((cloudData.expenses?.length || 0) - (currentDb.expenses?.length || 0));
-
-  const hasConflict = memberDiff > 1 || fieldDiff > 1 || seasonDiff > 1 || expenseDiff > 1;
-
-  if (hasConflict) {
-    onShowConflict(cloudData);
-    return true;
-  }
-  return false;
-}
-
 // Merges a raw Sheets pull with a fallback base, filling in the shape
 // LocalDatabase expects. Shared by the login pull, the background
 // reconciler, and the pre-push conflict check so all three compare data
@@ -230,6 +217,10 @@ function AppShell() {
     isOpen: boolean;
     cloudData: LocalDatabase | null;
   }>({ isOpen: false, cloudData: null });
+  // Signed in, but no ledger found in Drive — ask whether they are joining
+  // one they were invited to or starting a fresh one, rather than silently
+  // creating a blank spreadsheet on their behalf.
+  const [needsSheetSetup, setNeedsSheetSetup] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences[]>(
     db?.notificationPreferences || []
@@ -279,21 +270,44 @@ function AppShell() {
           // overwritten by our full-state push. A failed check here doesn't
           // block the push (fails open) so a transient network hiccup on the
           // check itself can't stall normal saving.
+          let shouldPush = true;
           try {
             const cloudSnapshot = await pullDataFromSpreadsheet(accessToken, targetSheetId);
             if (cloudSnapshot) {
               const normalizedCloud = normalizeCloudDb(cloudSnapshot, nextDb, targetSheetId);
-              const hasConflict = detectAndHandleConflict(normalizedCloud, nextDb, (cloudData) => {
-                setConflictData({ isOpen: true, cloudData });
-              });
-              if (hasConflict) {
+              const decision = classifySync(normalizedCloud, nextDb, getLastSyncedFingerprint());
+
+              if (decision === 'conflict') {
+                setConflictData({ isOpen: true, cloudData: normalizedCloud });
                 logWarning('sync_push_paused_for_conflict', 'Paused push to Sheets: cloud data changed since last sync', { sheetId: targetSheetId });
                 setSyncingState('idle');
                 break;
               }
+
+              if (decision === 'adopt-cloud') {
+                // The sheet already holds everything this browser has, so a
+                // push could only overwrite it with staler data. That is what
+                // made linking someone else's shared sheet destructive: a
+                // partner who had just joined had nothing pending, and their
+                // near-empty database was pushed straight over the shared
+                // ledger. Take the cloud state instead of writing.
+                if (!holdsSameRecords(normalizedCloud, nextDb)) {
+                  saveDatabase(normalizedCloud);
+                  setDb(normalizedCloud);
+                }
+                setLastSyncedFingerprint(normalizedCloud);
+                setSyncingState('idle');
+                shouldPush = false;
+              }
             }
           } catch (checkErr) {
+            // A failed check fails open: a transient network hiccup here
+            // must not stall ordinary saving.
             logWarning('pre_push_conflict_check_failed', checkErr instanceof Error ? checkErr.message : String(checkErr), { sheetId: targetSheetId });
+          }
+
+          if (!shouldPush) {
+            continue;
           }
 
           await pushDataToSpreadsheet(accessToken, targetSheetId, nextDb);
@@ -426,40 +440,42 @@ function AppShell() {
           // which recovery branch below runs.
           let sheetData: any = null;
 
+          // Find the user's existing 'FarmLedger Database' on Drive, and only
+          // create one when Drive has definitively said there isn't one. A
+          // search that *failed* throws out of here to the outer catch, so a
+          // transient Drive error surfaces as an error instead of quietly
+          // forking the ledger into a second spreadsheet.
+          // Returns null when Drive has no ledger of ours — the caller then
+          // stops and the setup prompt takes over. Creating one unasked is
+          // what used to strand an invited partner in an empty app, and what
+          // left the blank sheet their next device would later "find".
+          const resolveSheet = async (): Promise<{ sheetId: string; data: any } | null> => {
+            const foundId = await findExistingSpreadsheet(accessToken);
+            if (foundId) {
+              console.log(`Found existing spreadsheet: ${foundId}`);
+              return { sheetId: foundId, data: await pullDataFromSpreadsheet(accessToken, foundId) };
+            }
+            console.log('No ledger found on Drive. Asking how to set one up...');
+            setNeedsSheetSetup(true);
+            return null;
+          };
+
           if (!isPlaceholder) {
             try {
               sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId!);
             } catch (pullError) {
               logWarning('pull_from_sheets_failed', `Could not pull from spreadsheet ${targetSheetId}`, { sheetId: targetSheetId });
               console.warn(`Could not pull from spreadsheet ${targetSheetId}. Searching for 'FarmLedger Database'...`, pullError);
-              const foundId = await findExistingSpreadsheet(accessToken);
-              if (foundId) {
-                console.log(`Found existing spreadsheet: ${foundId}`);
-                targetSheetId = foundId;
-                sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
-              } else {
-                console.log("No existing spreadsheet found on Drive. Creating a new one...");
-                const newId = await createSpreadsheet(accessToken);
-                targetSheetId = newId;
-                const localDb = db || getInitialDatabase();
-                await pushDataToSpreadsheet(accessToken, targetSheetId, localDb);
-                sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
-              }
+              const resolved = await resolveSheet();
+              if (!resolved) return;
+              targetSheetId = resolved.sheetId;
+              sheetData = resolved.data;
             }
           } else {
-            const foundId = await findExistingSpreadsheet(accessToken);
-            if (foundId) {
-              console.log(`Found existing spreadsheet: ${foundId}`);
-              targetSheetId = foundId;
-              sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
-            } else {
-              console.log("No existing spreadsheet found on Drive. Creating a new one...");
-              const newId = await createSpreadsheet(accessToken);
-              targetSheetId = newId;
-              const localDb = db || getInitialDatabase();
-              await pushDataToSpreadsheet(accessToken, targetSheetId, localDb);
-              sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
-            }
+            const resolved = await resolveSheet();
+            if (!resolved) return;
+            targetSheetId = resolved.sheetId;
+            sheetData = resolved.data;
           }
 
           if (sheetData) {
@@ -733,7 +749,7 @@ function AppShell() {
   };
 
   // ACTIONS: Expenses
-  const handleAddExpense = (exp: Expense) => {
+  const handleAddExpense = (exp: Expense): boolean => {
     // Validate expense before saving
     const validation = validateExpense(exp);
     if (!validation.valid) {
@@ -746,7 +762,7 @@ function AppShell() {
         onConfirm: () => setConfirmDialog(null)
       });
       logWarning('expense_validation_failed', errorMsg, { expense: exp });
-      return;
+      return false;
     }
 
     const nextList = [...expenses, exp];
@@ -775,9 +791,10 @@ function AppShell() {
         }
       }).catch(err => logWarning('notification_send_failed', err.message || ''));
     }
+    return true;
   };
 
-  const handleEditExpense = (updatedExp: Expense) => {
+  const handleEditExpense = (updatedExp: Expense): boolean => {
     const nextList = expenses.map(e => e.id === updatedExp.id ? updatedExp : e);
     const newDb = { ...db, expenses: nextList };
     const finalDb = addAuditLog(
@@ -789,6 +806,7 @@ function AppShell() {
       updatedExp.paidByMemberId
     );
     setDb(finalDb);
+    return true;
   };
 
   const handleDeleteExpense = (id: string) => {
@@ -811,7 +829,7 @@ function AppShell() {
   };
 
   // ACTIONS: Labour
-  const handleAddLabour = (lab: Labour) => {
+  const handleAddLabour = (lab: Labour): boolean => {
     // Validate labour before saving
     const validation = validateLabour(lab);
     if (!validation.valid) {
@@ -824,7 +842,7 @@ function AppShell() {
         onConfirm: () => setConfirmDialog(null)
       });
       logWarning('labour_validation_failed', errorMsg, { labour: lab });
-      return;
+      return false;
     }
 
     const nextList = [...labours, lab];
@@ -852,9 +870,10 @@ function AppShell() {
         }
       }).catch(err => logWarning('notification_send_failed', err.message || ''));
     }
+    return true;
   };
 
-  const handleEditLabour = (updatedLab: Labour) => {
+  const handleEditLabour = (updatedLab: Labour): boolean => {
     const nextList = labours.map(l => l.id === updatedLab.id ? updatedLab : l);
     const newDb = { ...db, labours: nextList };
     const finalDb = addAuditLog(
@@ -866,6 +885,7 @@ function AppShell() {
       updatedLab.paidByMemberId
     );
     setDb(finalDb);
+    return true;
   };
 
   const handleDeleteLabour = (id: string) => {
@@ -888,7 +908,7 @@ function AppShell() {
   };
 
   // ACTIONS: Harvest Sales
-  const handleAddRevenue = (rev: HarvestRevenue) => {
+  const handleAddRevenue = (rev: HarvestRevenue): boolean => {
     // Validate revenue before saving
     const validation = validateRevenue(rev);
     if (!validation.valid) {
@@ -901,7 +921,7 @@ function AppShell() {
         onConfirm: () => setConfirmDialog(null)
       });
       logWarning('revenue_validation_failed', errorMsg, { revenue: rev });
-      return;
+      return false;
     }
 
     const nextList = [...revenues, rev];
@@ -930,9 +950,10 @@ function AppShell() {
         }
       }).catch(err => logWarning('notification_send_failed', err.message || ''));
     }
+    return true;
   };
 
-  const handleEditRevenue = (updatedRev: HarvestRevenue) => {
+  const handleEditRevenue = (updatedRev: HarvestRevenue): boolean => {
     const nextList = revenues.map(r => r.id === updatedRev.id ? updatedRev : r);
     const newDb = { ...db, revenues: nextList };
     const finalDb = addAuditLog(
@@ -944,6 +965,7 @@ function AppShell() {
       updatedRev.receivedByMemberId
     );
     setDb(finalDb);
+    return true;
   };
 
   const handleDeleteRevenue = (id: string) => {
@@ -1157,7 +1179,7 @@ function AppShell() {
   };
 
   // ACTIONS: Field Plots
-  const handleAddField = (field: Field) => {
+  const handleAddField = (field: Field): boolean => {
     // Validate field shares sum to 100%
     const validation = validateFieldShares(field);
     if (!validation.valid) {
@@ -1169,7 +1191,7 @@ function AppShell() {
         onConfirm: () => setConfirmDialog(null)
       });
       logWarning('field_validation_failed', validation.error || 'Invalid field shares', { field });
-      return;
+      return false;
     }
 
     const nextList = [...fields, field];
@@ -1182,9 +1204,10 @@ function AppShell() {
       `Registered land tract: "${field.name}" size ${field.area} ${settings.areaUnit}`
     );
     setDb(finalDb);
+    return true;
   };
 
-  const handleUpdateField = (updatedField: Field) => {
+  const handleUpdateField = (updatedField: Field): boolean => {
     const validation = validateFieldShares(updatedField);
     if (!validation.valid) {
       setConfirmDialog({
@@ -1195,7 +1218,7 @@ function AppShell() {
         onConfirm: () => setConfirmDialog(null)
       });
       logWarning('field_validation_failed', validation.error || 'Invalid field shares', { field: updatedField });
-      return;
+      return false;
     }
 
     const nextList = fields.map(f => f.id === updatedField.id ? updatedField : f);
@@ -1208,6 +1231,7 @@ function AppShell() {
       `Updated land tract ownership/details: "${updatedField.name}"`
     );
     setDb(finalDb);
+    return true;
   };
 
   const handleDeleteField = (id: string) => {
@@ -1322,7 +1346,7 @@ function AppShell() {
   };
 
   // ACTIONS: Season Crop Cycles
-  const handleAddSeason = (season: Season) => {
+  const handleAddSeason = (season: Season): boolean => {
     // Validate season shares sum to 100% if season-specific
     const validation = validateSeasonShares(season);
     if (!validation.valid) {
@@ -1334,7 +1358,7 @@ function AppShell() {
         onConfirm: () => setConfirmDialog(null)
       });
       logWarning('season_validation_failed', validation.error || 'Invalid season shares', { season });
-      return;
+      return false;
     }
 
     const nextList = [...seasons, season];
@@ -1356,9 +1380,10 @@ function AppShell() {
       `Created and sowed cropping cycle: "${season.cropName}"`
     );
     setDb(finalDb);
+    return true;
   };
 
-  const handleUpdateSeason = (updatedSeason: Season) => {
+  const handleUpdateSeason = (updatedSeason: Season): boolean => {
     const validation = validateSeasonShares(updatedSeason);
     if (!validation.valid) {
       setConfirmDialog({
@@ -1369,7 +1394,7 @@ function AppShell() {
         onConfirm: () => setConfirmDialog(null)
       });
       logWarning('season_validation_failed', validation.error || 'Invalid season shares', { season: updatedSeason });
-      return;
+      return false;
     }
 
     const nextList = seasons.map(s => s.id === updatedSeason.id ? updatedSeason : s);
@@ -1382,12 +1407,13 @@ function AppShell() {
       `Updated cropping cycle ownership/details: "${updatedSeason.cropName}"`
     );
     setDb(finalDb);
+    return true;
   };
 
-  const handleCloseSeason = (id: string, endDate: string) => {
+  const handleCloseSeason = (id: string, endDate: string): boolean => {
     const nextList = seasons.map(s => s.id === id ? { ...s, isClosed: true, endDate } : s);
     const target = seasons.find(s => s.id === id);
-    if (!target) return;
+    if (!target) return false;
 
     const harvestAct: Activity = {
       id: `act_harvest_${Date.now()}`,
@@ -1407,6 +1433,7 @@ function AppShell() {
       `Closed cropping cycle crop season: "${target.cropName}" marked harvested`
     );
     setDb(finalDb);
+    return true;
   };
 
   const handleDeleteSeason = (id: string) => {
@@ -1511,7 +1538,7 @@ function AppShell() {
   };
 
   // ACTIONS: Partners
-  const handleAddMember = (m: Member) => {
+  const handleAddMember = (m: Member): boolean => {
     const nextList = [...members, m];
     const newDb = { ...db, members: nextList };
     const finalDb = addAuditLog(
@@ -1522,9 +1549,10 @@ function AppShell() {
       `Registered partner stakeholder: "${m.name}"`
     );
     setDb(finalDb);
+    return true;
   };
 
-  const handleUpdateMember = (updatedMember: Member) => {
+  const handleUpdateMember = (updatedMember: Member): boolean => {
     const nextList = members.map(m => m.id === updatedMember.id ? updatedMember : m);
     const newDb = { ...db, members: nextList };
     const finalDb = addAuditLog(
@@ -1535,6 +1563,7 @@ function AppShell() {
       `Updated partner stakeholder details: "${updatedMember.name}"`
     );
     setDb(finalDb);
+    return true;
   };
 
   const handleDeleteMember = (id: string) => {
@@ -1610,6 +1639,65 @@ function AppShell() {
   const handleAudit = (action: AuditLog['actionType'], type: string, desc: string) => {
     const finalDb = addAuditLog(db, action, type, '', desc);
     setDb(finalDb);
+  };
+
+  /** Makes `sheetId` this device's ledger: loads its records, records the
+   * sync baseline so the next push can't overwrite it, and clears the setup
+   * prompt. Shared by both setup choices and by Settings. */
+  const adoptSpreadsheet = async (token: string, sheetId: string) => {
+    const sheetData = await pullDataFromSpreadsheet(token, sheetId);
+    if (!sheetData) {
+      throw new Error('That spreadsheet could not be read. Check the link and try again.');
+    }
+    const finalDb = normalizeCloudDb(sheetData, db || getInitialDatabase(), sheetId);
+    saveDatabase(finalDb);
+    setLastSyncedFingerprint(finalDb);
+    setDb(finalDb);
+    setNeedsSheetSetup(false);
+  };
+
+  const handleLinkExistingSheet = async (rawInput: string) => {
+    if (!accessToken) throw new Error('Sign in with Google first, then link the ledger.');
+
+    const sheetId = extractSpreadsheetId(rawInput);
+    if (!sheetId) {
+      throw new Error("That doesn't look like a Google Sheet. Paste the sheet's link, or just its ID.");
+    }
+
+    try {
+      // Confirms this account can actually open it, so a share that was
+      // never granted fails here with a clear reason instead of halfway
+      // through a pull.
+      await fetchSpreadsheetTitle(accessToken, sheetId);
+      await adoptSpreadsheet(accessToken, sheetId);
+    } catch (err) {
+      logWarning('link_existing_sheet_failed', describeSheetLinkError(err), { sheetId });
+      throw new Error(describeSheetLinkError(err));
+    }
+  };
+
+  /** Opens Drive's chooser. Picking there also grants this app durable
+   * access to that file, so later devices find it by search alone. */
+  const handleBrowseDrive = async (): Promise<string | null> => {
+    if (!accessToken) throw new Error('Sign in with Google first, then browse your Drive.');
+    try {
+      return await pickSpreadsheet(accessToken);
+    } catch (err) {
+      logWarning('drive_picker_failed', err instanceof Error ? err.message : String(err));
+      throw err;
+    }
+  };
+
+  const handleCreateNewSheet = async () => {
+    if (!accessToken) throw new Error('Sign in with Google first, then create the ledger.');
+    try {
+      const newId = await createSpreadsheet(accessToken);
+      await pushDataToSpreadsheet(accessToken, newId, db || getInitialDatabase());
+      await adoptSpreadsheet(accessToken, newId);
+    } catch (err) {
+      logError('create_new_sheet_failed', err instanceof Error ? err : new Error(String(err)));
+      throw new Error(describeSheetLinkError(err));
+    }
   };
 
   // ACTIONS: Google Sheets pull Trigger
@@ -2049,6 +2137,7 @@ function AppShell() {
               onImportDatabase={handleImportDatabase}
               onTriggerSync={handleTriggerSync}
               onTriggerPull={handleTriggerPull}
+              onRequestSheetSetup={() => setNeedsSheetSetup(true)}
               localData={db}
               user={user}
               accessToken={accessToken}
@@ -2068,6 +2157,15 @@ function AppShell() {
           </Suspense>
         </div>
       </main>
+
+      {needsSheetSetup && (
+        <SheetSetupModal
+          onLinkExisting={handleLinkExistingSheet}
+          onCreateNew={handleCreateNewSheet}
+          onSkip={() => setNeedsSheetSetup(false)}
+          onBrowseDrive={isPickerAvailable() ? handleBrowseDrive : undefined}
+        />
+      )}
 
       {confirmDialog && confirmDialog.isOpen && (
         <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">

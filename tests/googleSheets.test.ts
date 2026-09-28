@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest';
-import { parseSheetRows, toSheetRows } from '../src/utils/googleSheets';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import {
+  parseSheetRows,
+  toSheetRows,
+  findExistingSpreadsheet,
+  DriveSearchError,
+  extractSpreadsheetId,
+  spreadsheetUrl,
+  fetchSpreadsheetTitle,
+} from '../src/utils/googleSheets';
 
 describe('parseSheetRows', () => {
   it('parses lowercase true/false into booleans', () => {
@@ -175,5 +183,152 @@ describe('arrays of primitives', () => {
     ];
 
     expect(parseSheetRows<any>(rows)).toHaveLength(1);
+  });
+});
+
+
+describe('findExistingSpreadsheet', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function stubFetch(impl: any) {
+    const spy = vi.fn(impl);
+    vi.stubGlobal('fetch', spy);
+    return spy;
+  }
+
+  it('returns the spreadsheet id when Drive finds one', async () => {
+    stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ files: [{ id: 'sheet-abc', name: 'FarmLedger Database' }] }),
+    }));
+    await expect(findExistingSpreadsheet('tok')).resolves.toBe('sheet-abc');
+  });
+
+  it('returns null when Drive answers successfully with no matches', async () => {
+    // The only case where creating a new spreadsheet is the right move.
+    stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ files: [] }) }));
+    await expect(findExistingSpreadsheet('tok')).resolves.toBeNull();
+  });
+
+  it('asks Drive for the oldest match first so duplicates resolve consistently', async () => {
+    const spy = stubFetch(async () => ({ ok: true, status: 200, json: async () => ({ files: [] }) }));
+    await findExistingSpreadsheet('tok');
+    expect(spy.mock.calls[0][0]).toContain('orderBy=createdTime');
+  });
+
+  it.each([
+    [401, 'expired token'],
+    [403, 'insufficient permissions'],
+    [500, 'drive outage'],
+  ])('throws on HTTP %i rather than reporting "not found"', async (status, body) => {
+    // Regression: this used to return null, and the caller then created a
+    // second 'FarmLedger Database', orphaning the real one.
+    stubFetch(async () => ({
+      ok: false,
+      status,
+      statusText: 'Error',
+      text: async () => body,
+    }));
+    await expect(findExistingSpreadsheet('tok')).rejects.toBeInstanceOf(DriveSearchError);
+  });
+
+  it('carries the HTTP status on the thrown error', async () => {
+    stubFetch(async () => ({ ok: false, status: 403, statusText: 'Forbidden', text: async () => 'nope' }));
+    await expect(findExistingSpreadsheet('tok')).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('throws when the network request itself fails', async () => {
+    stubFetch(async () => { throw new TypeError('Failed to fetch'); });
+    await expect(findExistingSpreadsheet('tok')).rejects.toBeInstanceOf(DriveSearchError);
+  });
+
+  it('throws when Drive returns an unreadable body', async () => {
+    stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => { throw new SyntaxError('Unexpected token'); },
+    }));
+    await expect(findExistingSpreadsheet('tok')).rejects.toBeInstanceOf(DriveSearchError);
+  });
+});
+
+describe('extractSpreadsheetId', () => {
+  const ID = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789';
+
+  it.each([
+    [`https://docs.google.com/spreadsheets/d/${ID}/edit#gid=0`, 'full url with fragment'],
+    [`https://docs.google.com/spreadsheets/d/${ID}/edit`, 'url without fragment'],
+    [`https://docs.google.com/spreadsheets/d/${ID}`, 'bare url'],
+    [`https://docs.google.com/spreadsheets/d/${ID}/edit?usp=sharing`, 'share url'],
+    [ID, 'bare id'],
+    [`  ${ID}  `, 'id with whitespace'],
+  ])('accepts %s (%s)', input => {
+    expect(extractSpreadsheetId(input as string)).toBe(ID);
+  });
+
+  it('pulls the id out of a mobile-shared link', () => {
+    // What tapping "Share" in the Sheets Android app puts on the clipboard.
+    expect(
+      extractSpreadsheetId(`https://docs.google.com/spreadsheets/d/${ID}/edit?usp=drivesdk`)
+    ).toBe(ID);
+  });
+
+  it.each([
+    ['', 'empty'],
+    ['   ', 'whitespace'],
+    ['not a sheet', 'prose'],
+    ['short', 'too short to be an id'],
+    ['https://docs.google.com/document/d/1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789/edit', 'a Doc, not a Sheet'],
+  ])('rejects %s (%s)', input => {
+    expect(extractSpreadsheetId(input as string)).toBeNull();
+  });
+});
+
+describe('spreadsheetUrl', () => {
+  it('builds a link that can be shared', () => {
+    expect(spreadsheetUrl('abc123')).toBe('https://docs.google.com/spreadsheets/d/abc123/edit');
+  });
+
+  it('round-trips with extractSpreadsheetId', () => {
+    const id = '1AbCdEfGhIjKlMnOpQrStUvWxYz0123456789';
+    expect(extractSpreadsheetId(spreadsheetUrl(id))).toBe(id);
+  });
+});
+
+describe('fetchSpreadsheetTitle', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('returns the title when the user can open the sheet', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ properties: { title: 'Kothapalli Farms Ledger' } }),
+    })));
+    await expect(fetchSpreadsheetTitle('tok', 'id')).resolves.toBe('Kothapalli Farms Ledger');
+  });
+
+  it('reports a 403 as forbidden so the user is told to ask for access', async () => {
+    // The shared-sheet case: the id is right, the account just isn't on the
+    // share list yet.
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false, status: 403, statusText: 'Forbidden', text: async () => 'caller lacks permission',
+    })));
+    await expect(fetchSpreadsheetTitle('tok', 'id')).rejects.toMatchObject({
+      name: 'SpreadsheetAccessError',
+      reason: 'forbidden',
+    });
+  });
+
+  it('reports a 404 as not-found', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false, status: 404, statusText: 'Not Found', text: async () => 'no such spreadsheet',
+    })));
+    await expect(fetchSpreadsheetTitle('tok', 'id')).rejects.toMatchObject({ reason: 'not-found' });
+  });
+
+  it('reports a network failure as unknown rather than a permission problem', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    await expect(fetchSpreadsheetTitle('tok', 'id')).rejects.toMatchObject({ reason: 'unknown' });
   });
 });

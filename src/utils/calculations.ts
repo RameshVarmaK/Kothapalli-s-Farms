@@ -405,6 +405,16 @@ export function buildSettlementLedger(
         });
       }
 
+      // Kept unrounded so that rounding their sum below reproduces
+      // paidAmount exactly — the season report shows these as the four lines
+      // that must add up to what the partner put in.
+      const paidBreakdown = {
+        expenses: mDirectExp + mCommonAllocExp,
+        labour: mLabour,
+        stock: mDirectStockFunding + mCommonStockFunding,
+        creditRepayments: mCreditRepaymentsAttributed,
+      };
+
       const paidAmount = Number((mDirectExp + mCommonAllocExp + mLabour + mDirectStockFunding + mCommonStockFunding + mCreditRepaymentsAttributed).toFixed(2));
 
       // Received_m = revenue actually received by m
@@ -420,7 +430,8 @@ export function buildSettlementLedger(
         paidAmount,
         receivedAmount,
         netPosition,
-        sharePercentage: shareObj ? shareObj.percentage : 0
+        sharePercentage: shareObj ? shareObj.percentage : 0,
+        paidBreakdown
       };
     });
 
@@ -449,7 +460,8 @@ export function buildSettlementLedger(
       entitledAmount: 0,
       paidAmount: 0,
       receivedAmount: 0,
-      netPosition: 0
+      netPosition: 0,
+      paidBreakdown: { expenses: 0, labour: 0, stock: 0, creditRepayments: 0 }
     };
   }
 
@@ -461,6 +473,12 @@ export function buildSettlementLedger(
         total.paidAmount = Number((total.paidAmount + stmt.paidAmount).toFixed(2));
         total.receivedAmount = Number((total.receivedAmount + stmt.receivedAmount).toFixed(2));
         total.netPosition = Number((total.netPosition + stmt.netPosition).toFixed(2));
+        if (total.paidBreakdown && stmt.paidBreakdown) {
+          total.paidBreakdown.expenses += stmt.paidBreakdown.expenses;
+          total.paidBreakdown.labour += stmt.paidBreakdown.labour;
+          total.paidBreakdown.stock += stmt.paidBreakdown.stock;
+          total.paidBreakdown.creditRepayments += stmt.paidBreakdown.creditRepayments;
+        }
       }
     }
   }

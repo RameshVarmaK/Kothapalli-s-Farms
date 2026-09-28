@@ -11,38 +11,173 @@ interface SheetsBatchUpdatePayload {
   }[];
 }
 
+/** A bare spreadsheet id: Google's are long opaque url-safe strings. The
+ * length floor keeps a stray word from being mistaken for an id. */
+const BARE_SPREADSHEET_ID = /^[a-zA-Z0-9-_]{20,}$/;
+
 /**
- * Searches the user's Google Drive for an existing spreadsheet named 'FarmLedger Database'.
- * Returns the spreadsheet ID if found, otherwise null.
+ * Accepts whatever the user pasted and returns the spreadsheet id, or null
+ * if it isn't one.
+ *
+ * People share sheets by copying the address bar, so a full
+ * `https://docs.google.com/spreadsheets/d/<id>/edit#gid=0` has to work just
+ * as well as the bare id — asking someone to surgically extract the id from
+ * a URL on a phone is how a shared ledger doesn't get linked.
+ */
+export function extractSpreadsheetId(input: string): string | null {
+  const trimmed = (input || '').trim();
+  if (!trimmed) return null;
+
+  const fromUrl = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  if (fromUrl) return fromUrl[1];
+
+  if (BARE_SPREADSHEET_ID.test(trimmed)) return trimmed;
+  return null;
+}
+
+/** The address to hand someone so they can open or share the sheet. */
+export function spreadsheetUrl(spreadsheetId: string): string {
+  return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+}
+
+/** Why a spreadsheet couldn't be opened — drives the message the user sees. */
+export type SpreadsheetAccessFailure = 'forbidden' | 'not-found' | 'unknown';
+
+export class SpreadsheetAccessError extends Error {
+  readonly reason: SpreadsheetAccessFailure;
+  readonly status?: number;
+  constructor(message: string, reason: SpreadsheetAccessFailure, status?: number) {
+    super(message);
+    this.name = 'SpreadsheetAccessError';
+    this.reason = reason;
+    this.status = status;
+  }
+}
+
+/**
+ * Confirms the signed-in user can actually open this spreadsheet, and
+ * returns its title.
+ *
+ * Note this goes through the Sheets API, not Drive. The `spreadsheets` scope
+ * covers every sheet the user can open — including one another person shared
+ * with them — whereas Drive's `drive.file` scope only ever sees files this
+ * app created. That asymmetry is the whole reason a shared sheet can be
+ * used but not found by name: linking it by id works, searching for it does
+ * not.
+ */
+export async function fetchSpreadsheetTitle(accessToken: string, spreadsheetId: string): Promise<string> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=properties.title`;
+
+  let res: Response;
+  try {
+    res = await fetch(url, { method: 'GET', headers: { Authorization: `Bearer ${accessToken}` } });
+  } catch (err) {
+    throw new SpreadsheetAccessError(
+      `Could not reach Google Sheets: ${err instanceof Error ? err.message : String(err)}`,
+      'unknown'
+    );
+  }
+
+  if (!res.ok) {
+    let body = '';
+    try {
+      body = await res.text();
+    } catch (_) {}
+    const reason: SpreadsheetAccessFailure =
+      res.status === 403 ? 'forbidden' : res.status === 404 ? 'not-found' : 'unknown';
+    throw new SpreadsheetAccessError(
+      `Could not open spreadsheet ${spreadsheetId}: ${res.status} ${res.statusText || ''} ${body}`.trim(),
+      reason,
+      res.status
+    );
+  }
+
+  const result = await res.json();
+  return result?.properties?.title || 'Untitled spreadsheet';
+}
+
+/** Turns a linking failure into something a farm partner can act on. Shared
+ * by every place that links a sheet so they can't drift apart. */
+export function describeSheetLinkError(err: unknown): string {
+  if (err instanceof SpreadsheetAccessError) {
+    if (err.reason === 'forbidden') {
+      return 'Your Google account cannot open that sheet. Ask its owner to share it with you as an Editor, then try again.';
+    }
+    if (err.reason === 'not-found') {
+      return 'No spreadsheet exists with that link or ID. Check it and try again.';
+    }
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** Raised when Drive could not be asked whether the spreadsheet exists.
+ * Distinct from a successful search that found nothing — see below. */
+export class DriveSearchError extends Error {
+  readonly status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'DriveSearchError';
+    this.status = status;
+  }
+}
+
+/**
+ * Searches the user's Google Drive for an existing spreadsheet named
+ * 'FarmLedger Database'.
+ *
+ * Returns the spreadsheet ID if found, or `null` *only* when Drive answered
+ * successfully and had no such file. Any failure to ask the question — an
+ * expired token, a 403, a network blip — throws instead.
+ *
+ * That distinction matters: callers create a brand new spreadsheet when this
+ * returns null. Reporting a failed search as "not found" made a transient
+ * Drive error silently fork the user's ledger into a second 'FarmLedger
+ * Database', leaving the real one orphaned.
+ *
+ * Results are ordered by creation time so that if duplicates do already
+ * exist, every session picks the same (oldest) one rather than whichever
+ * Drive happened to list first.
  */
 export async function findExistingSpreadsheet(accessToken: string): Promise<string | null> {
   const query = encodeURIComponent("name = 'FarmLedger Database' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false");
-  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`;
+  const url = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,createdTime)&orderBy=createdTime`;
 
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
     });
-
-    if (!res.ok) {
-      let errBody = '';
-      try {
-        errBody = await res.text();
-      } catch (_) {}
-      console.warn(`findExistingSpreadsheet check failed with status ${res.status}. Falling back to Sheets creation. Details:`, errBody);
-      return null;
-    }
-
-    const result = await res.json();
-    if (result.files && result.files.length > 0) {
-      return result.files[0].id;
-    }
   } catch (err) {
-    console.warn('findExistingSpreadsheet check threw exception, falling back to Sheets creation:', err);
-    return null;
+    throw new DriveSearchError(
+      `Could not reach Google Drive to check for an existing 'FarmLedger Database': ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
+  if (!res.ok) {
+    let errBody = '';
+    try {
+      errBody = await res.text();
+    } catch (_) {}
+    throw new DriveSearchError(
+      `Drive search for an existing 'FarmLedger Database' failed: ${res.status} ${res.statusText || ''} ${errBody}`.trim(),
+      res.status
+    );
+  }
+
+  let result: any;
+  try {
+    result = await res.json();
+  } catch (err) {
+    throw new DriveSearchError(
+      `Drive returned an unreadable response while searching for 'FarmLedger Database': ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
+  if (result?.files?.length > 0) {
+    return result.files[0].id;
   }
   return null;
 }

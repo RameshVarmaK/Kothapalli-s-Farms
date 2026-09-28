@@ -46,13 +46,13 @@ interface MembersTabProps {
   creditAccounts?: CreditAccount[];
   creditRepayments?: CreditRepayment[];
   settlementClearances?: SettlementClearance[];
-  onAddMember: (item: Member) => void;
-  onUpdateMember: (item: Member) => void;
-  onAddField: (item: Field) => void;
-  onUpdateField: (item: Field) => void;
-  onAddSeason: (item: Season) => void;
-  onUpdateSeason: (item: Season) => void;
-  onCloseSeason: (id: string, endDate: string) => void;
+  onAddMember: (item: Member) => boolean;
+  onUpdateMember: (item: Member) => boolean;
+  onAddField: (item: Field) => boolean;
+  onUpdateField: (item: Field) => boolean;
+  onAddSeason: (item: Season) => boolean;
+  onUpdateSeason: (item: Season) => boolean;
+  onCloseSeason: (id: string, endDate: string) => boolean;
   onDeleteMember: (id: string) => void;
   onDeleteField: (id: string) => void;
   onDeleteSeason: (id: string) => void;
@@ -163,6 +163,14 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     ],
   );
 
+  // The per-season ledger behind the report that's currently open. Reusing
+  // the memoised summary means the report's per-partner numbers are the same
+  // ones the Settle tab settles on, rather than a second opinion.
+  const reportLedger = useMemo(
+    () => summary.ledgers.find(l => l.seasonId === selectedReportSeasonId) ?? null,
+    [summary, selectedReportSeasonId]
+  );
+
   // The Settle tab's "Mark Transferred" ticks, which this badge reflects. They
   // live in the database so the badge agrees across partners and devices.
   const clearedSubKeys = useMemo(
@@ -226,7 +234,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         name: memberName,
         phone: memberPhone || undefined
       };
-      onUpdateMember(updatedMember);
+      if (!onUpdateMember(updatedMember)) return;
       setToastMessage(t('Partner updated'));
     } else {
       const newMember: Member = {
@@ -234,7 +242,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         name: memberName,
         phone: memberPhone || undefined
       };
-      onAddMember(newMember);
+      if (!onAddMember(newMember)) return;
       setToastMessage(t('Partner added'));
     }
     closeAndReset();
@@ -273,7 +281,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         locationNote: fieldLocation || undefined,
         shares: validatedShares
       };
-      onUpdateField(updatedField);
+      if (!onUpdateField(updatedField)) return;
       setToastMessage(t('Field updated'));
     } else {
       const newField: Field = {
@@ -283,7 +291,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         locationNote: fieldLocation || undefined,
         shares: validatedShares
       };
-      onAddField(newField);
+      if (!onAddField(newField)) return;
       setToastMessage(t('Field added'));
     }
     closeAndReset();
@@ -328,7 +336,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         startDate: seasonStartDate,
         shares: validatedShares
       };
-      onUpdateSeason(updatedSeason);
+      if (!onUpdateSeason(updatedSeason)) return;
       setToastMessage(t('Crop cycle updated'));
     } else {
       const newSeason: Season = {
@@ -339,7 +347,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         isClosed: false,
         shares: validatedShares
       };
-      onAddSeason(newSeason);
+      if (!onAddSeason(newSeason)) return;
       setToastMessage(t('Crop cycle sown'));
     }
     closeAndReset();
@@ -519,6 +527,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
 
       <SeasonReportModal
         seasonId={selectedReportSeasonId}
+        ledger={reportLedger}
         onClose={() => setSelectedReportSeasonId(null)}
         seasons={seasons}
         fields={fields}
@@ -544,7 +553,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         setDate={setClosingSeasonDate}
         onClose={() => setClosingSeasonId(null)}
         onConfirm={(id, date) => {
-          onCloseSeason(id, date);
+          if (!onCloseSeason(id, date)) return;
           setClosingSeasonId(null);
           setToastMessage(t('Crop cycle marked harvested'));
         }}

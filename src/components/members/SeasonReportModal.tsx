@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Member,
   Field,
@@ -17,13 +17,19 @@ import {
   CreditAccount,
   CreditRepayment,
   Activity,
+  FieldSeasonLedger,
 } from '../../types';
 import { computeStockLevels, splitStockCostByFunder } from '../../utils/calculations';
-import { X, Copy, Check, Calendar, DollarSign, Package, Users, CheckCircle } from 'lucide-react';
+import { X, Copy, Check, Calendar, DollarSign, Package, Users, CheckCircle, Scale, Printer } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { useLanguage } from '../../hooks/useLanguage';
 
 interface SeasonReportModalProps {
   seasonId: string | null;
+  /** This season's settlement ledger, from the same engine the Settle tab
+   * uses, so the report can't offer a second opinion on who owes what.
+   * Optional — the section is simply omitted when it isn't supplied. */
+  ledger?: FieldSeasonLedger | null;
   onClose: () => void;
   seasons: Season[];
   fields: Field[];
@@ -44,6 +50,7 @@ interface SeasonReportModalProps {
 
 export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   seasonId,
+  ledger,
   onClose,
   seasons,
   fields,
@@ -62,6 +69,19 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   setCopiedReportText,
 }) => {
   const { t } = useLanguage();
+
+  // Flags the document while a report is open so the print stylesheet can
+  // hide everything else on the page. Declared above the early returns to
+  // keep the hook order stable, and set explicitly rather than matched with
+  // :has() so an unsupporting browser prints the page normally instead of a
+  // blank sheet.
+  const isOpen = Boolean(seasonId && seasons.some(s => s.id === seasonId));
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.classList.add('report-print-open');
+    return () => document.body.classList.remove('report-print-open');
+  }, [isOpen]);
+
   if (!seasonId) return null;
   const season = seasons.find(s => s.id === seasonId);
   if (!season) return null;
@@ -162,6 +182,40 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
   const sAct = activities.filter(a => a.seasonId === season.id).sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
+  /**
+   * Per-partner contribution rows.
+   *
+   * The settlement engine's own identity is what makes this safe to show:
+   *   netPosition = (paid - share of cost) + (share of revenue - received)
+   * so the two "difference" figures below are the halves of the very number
+   * the Settle tab settles on, not a competing calculation.
+   *
+   * Partners with no stake and no activity in this cycle are dropped, so a
+   * report doesn't list every partner on the farm.
+   */
+  const partnerRows = (ledger?.statements || [])
+    .map(stmt => {
+      const shareRatio = (stmt.sharePercentage || 0) / 100;
+      const costShare = shareRatio * ledger!.totalExpense;
+      const revenueShare = shareRatio * ledger!.totalRevenue;
+      return {
+        ...stmt,
+        costShare,
+        costDifference: stmt.paidAmount - costShare,
+        revenueShare,
+        revenueDifference: revenueShare - stmt.receivedAmount,
+      };
+    })
+    .filter(r => (r.sharePercentage || 0) > 0 || r.paidAmount !== 0 || r.receivedAmount !== 0)
+    .sort((a, b) => b.paidAmount - a.paidAmount);
+
+  const totalPaidByPartners = partnerRows.reduce((sum, r) => sum + r.paidAmount, 0);
+  const totalCostShares = partnerRows.reduce((sum, r) => sum + r.costShare, 0);
+
+  const money = (v: number) => `${currency}${Math.round(v).toLocaleString('en-IN')}`;
+  const signedMoney = (v: number) =>
+    `${v >= 0 ? '+' : '-'}${currency}${Math.round(Math.abs(v)).toLocaleString('en-IN')}`;
+
   // Dynamic Text layout report builder
   const generateTextReport = () => {
     let text = `==================================================\n`;
@@ -246,6 +300,30 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       });
     }
 
+    if (partnerRows.length > 0) {
+      text  += `\nSECTION 6: PARTNER CONTRIBUTIONS & SETTLEMENT\n`;
+      partnerRows.forEach((r, i) => {
+        const b = r.paidBreakdown;
+        text += `${i + 1}. ${r.memberName} (${r.sharePercentage || 0}% share)\n`;
+        text += `     Paid in            : ${money(r.paidAmount)}\n`;
+        if (b) {
+          text += `       General expenses : ${money(b.expenses)}\n`;
+          text += `       Labour           : ${money(b.labour)}\n`;
+          text += `       Stock purchases  : ${money(b.stock)}\n`;
+          text += `       Credit repaid    : ${money(b.creditRepayments)}\n`;
+        }
+        text += `     Share of cost      : ${money(r.costShare)}\n`;
+        text += `     Cost difference    : ${signedMoney(r.costDifference)}\n`;
+        text += `     Revenue taken      : ${money(r.receivedAmount)}\n`;
+        text += `     Share of revenue   : ${money(r.revenueShare)}\n`;
+        text += `     Revenue difference : ${signedMoney(r.revenueDifference)}\n`;
+        text += `     NET POSITION       : ${signedMoney(r.netPosition)} (${r.netPosition >= 0 ? 'Receives' : 'Pays'})\n`;
+      });
+      text  += `   ----------------------------------------------\n`;
+      text  += `   ALL PARTNERS PAID IN : ${money(totalPaidByPartners)}\n`;
+      text  += `   TOTAL SHARE OF COST  : ${money(totalCostShares)}\n`;
+    }
+
     text    += `\n==================================================\n`;
     text    += `REPORT PREPARED SECURELY ON FARMLEDGER PORTAL`;
     return text;
@@ -268,9 +346,11 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
   const combinedLabours = [...sLabours, ...sLabourAllocations];
 
-  return (
-    <div className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] animate-in fade-in zoom-in-95 duration-150 border border-slate-100">
+  // Portalled to <body> so the print stylesheet can hide every sibling in
+  // one rule, instead of unwinding the overlay's ancestors one by one.
+  return createPortal(
+    <div data-print-root className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
+      <div data-print-card className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] animate-in fade-in zoom-in-95 duration-150 border border-slate-100">
         {/* Modal Header */}
         <div className="p-6 border-b border-slate-150 flex justify-between items-center bg-slate-50/50">
           <div>
@@ -285,6 +365,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            data-print-hide
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer transition-colors"
           >
             <X size={20} />
@@ -292,7 +373,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
         </div>
 
         {/* Modal Body - Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div data-print-scroll className="flex-1 overflow-y-auto p-6 space-y-6">
 
           {/* Financial Reconciliation Summary Dashboard */}
           <div>
@@ -353,7 +434,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           </div>
 
           {/* Section 1: Timelines Activity Logs */}
-          <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
+          <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <Calendar size={13} className="text-slate-500" />
               <span>{t('Section 1: Timelines Activity Logs')}</span>
@@ -379,7 +460,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           </div>
 
           {/* Section 2: Cash Outlays & Direct Expenses */}
-          <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
+          <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <DollarSign size={13} className="text-slate-500" />
               <span>{t('Section 2: Cash Outlays & Direct Expenses')}</span>
@@ -413,7 +494,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           </div>
 
           {/* Section 3: Constituent Stock Inventory Consumed */}
-          <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
+          <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <Package size={13} className="text-slate-500" />
               <span>{t('Section 3: Stock Materials Consumed')}</span>
@@ -453,7 +534,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           </div>
 
           {/* Section 4: Hired Labor Manpower Utilized */}
-          <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
+          <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <Users size={13} className="text-slate-500" />
               <span>{t('Section 4: Hired Labor Manpower Utilized')}</span>
@@ -487,7 +568,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           </div>
 
           {/* Section 5: Harvest Yield Earnings */}
-          <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
+          <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
               <CheckCircle size={13} className="text-slate-500" />
               <span>{t('Section 5: Harvest Yield Earnings')}</span>
@@ -514,16 +595,138 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             )}
           </div>
 
+
+          {/* Section 6: Partner Contributions & Settlement */}
+          {partnerRows.length > 0 && (
+            <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
+              <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
+                <Scale size={13} className="text-slate-500" />
+                <span>{t('Section 6: Partner Contributions & Settlement')}</span>
+              </h4>
+
+              <div className="space-y-3">
+                {partnerRows.map(r => {
+                  const isCreditor = r.netPosition >= 0;
+                  const b = r.paidBreakdown;
+                  return (
+                    <div key={r.memberId} data-print-keep className="p-4 rounded-2xl bg-white border border-slate-200">
+                      {/* Partner name + the one number that matters */}
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pb-3 border-b border-slate-150">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-800 text-xs">{r.memberName}</span>
+                          <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-200 font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                            {r.sharePercentage || 0}% {t('share')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-mono font-extrabold text-sm ${isCreditor ? 'text-emerald-700' : 'text-rose-600'}`}>
+                            {signedMoney(r.netPosition)}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase border ${isCreditor ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
+                            {isCreditor ? t('Receives') : t('Pays')}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 pt-3 text-xs">
+                        {/* Cost side */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between">
+                            <span className="font-bold text-slate-705">{t('Paid in')}</span>
+                            <span className="font-mono font-bold text-slate-800">{money(r.paidAmount)}</span>
+                          </div>
+                          {b && (
+                            <>
+                              <div className="flex justify-between text-[10px] text-slate-450">
+                                <span className="pl-2">{t('General expenses')}</span>
+                                <span className="font-mono">{money(b.expenses)}</span>
+                              </div>
+                              <div className="flex justify-between text-[10px] text-slate-450">
+                                <span className="pl-2">{t('Labour')}</span>
+                                <span className="font-mono">{money(b.labour)}</span>
+                              </div>
+                              <div className="flex justify-between text-[10px] text-slate-450">
+                                <span className="pl-2">{t('Stock purchases')}</span>
+                                <span className="font-mono">{money(b.stock)}</span>
+                              </div>
+                              <div className="flex justify-between text-[10px] text-slate-450">
+                                <span className="pl-2">{t('Credit repaid')}</span>
+                                <span className="font-mono">{money(b.creditRepayments)}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Fair share, and the two gaps that make up the net */}
+                        <div className="space-y-1 sm:border-l sm:border-slate-150 sm:pl-6 pt-2 sm:pt-0">
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">{t('Share of cost')}</span>
+                            <span className="font-mono text-slate-700">{money(r.costShare)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-bold text-slate-705">{t('Cost difference')}</span>
+                            <span className={`font-mono font-bold ${r.costDifference >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              {signedMoney(r.costDifference)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between pt-1.5 mt-1.5 border-t border-slate-100">
+                            <span className="text-slate-500">{t('Revenue taken')}</span>
+                            <span className="font-mono text-slate-700">{money(r.receivedAmount)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-500">{t('Share of revenue')}</span>
+                            <span className="font-mono text-slate-700">{money(r.revenueShare)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="font-bold text-slate-705">{t('Revenue difference')}</span>
+                            <span className={`font-mono font-bold ${r.revenueDifference >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                              {signedMoney(r.revenueDifference)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Proof the table balances: what partners put in equals what the cycle cost. */}
+              <div className="mt-3 p-3.5 rounded-2xl bg-slate-100/70 border border-slate-200 flex flex-col sm:flex-row sm:justify-between gap-1 text-xs">
+                <span className="font-bold text-slate-600 uppercase text-[10px] tracking-widest self-center">{t('All partners')}</span>
+                <div className="flex gap-5">
+                  <span className="text-slate-500">
+                    {t('Paid in')} <span className="font-mono font-bold text-slate-800">{money(totalPaidByPartners)}</span>
+                  </span>
+                  <span className="text-slate-500">
+                    {t('Share of cost')} <span className="font-mono font-bold text-slate-800">{money(totalCostShares)}</span>
+                  </span>
+                </div>
+              </div>
+
+              <p className="mt-2 text-[10px] text-slate-400 font-medium leading-normal">
+                {t('A partner is owed when they funded more than their share, or collected less revenue than their share. These two gaps add up to the net figure above, which is the same balance shown on the Settle screen.')}
+              </p>
+            </div>
+          )}
+
         </div>
 
         {/* Modal Footer */}
-        <div className="p-6 border-t border-slate-150 bg-slate-50/60 flex items-center justify-end gap-3.5">
+        <div data-print-hide className="p-6 border-t border-slate-150 bg-slate-50/60 flex flex-wrap items-center justify-end gap-3.5">
           <button
             type="button"
             onClick={onClose}
             className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-650 rounded-xl cursor-pointer"
           >
             {t('Close View')}
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-650 rounded-xl cursor-pointer flex items-center gap-2 active:scale-95 transition-all"
+          >
+            <Printer size={14} />
+            <span>{t('Save as PDF')}</span>
           </button>
           <button
             type="button"
@@ -536,6 +739,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

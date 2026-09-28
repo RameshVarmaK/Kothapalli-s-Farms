@@ -558,6 +558,128 @@ test('buildSettlementLedger: isBalanced tolerance catches sub-rupee floating noi
   assert(summary.isBalanced, 'sub-rupee imbalance should still register as balanced');
 });
 
+// ---------- Per-member paid breakdown (season report) ---------------------
+
+test('paidBreakdown: the four categories sum to paidAmount', () => {
+  // The season report shows these as the four lines that must add up to what
+  // a partner put in. If they drift, the report contradicts its own total.
+  const members: Member[] = [{ id: 'm1', name: 'Ramesh' }, { id: 'm2', name: 'Shyam' }];
+  const fields: Field[] = [
+    { id: 'f1', name: 'North', area: 4, shares: [{ memberId: 'm1', percentage: 50 }, { memberId: 'm2', percentage: 50 }] },
+    { id: 'f2', name: 'South', area: 4, shares: [{ memberId: 'm1', percentage: 50 }, { memberId: 'm2', percentage: 50 }] },
+  ];
+  const seasons: Season[] = [
+    { id: 's1', fieldId: 'f1', cropName: 'Rice', startDate: '2024-01-01', isClosed: false },
+    { id: 's2', fieldId: 'f2', cropName: 'Dal', startDate: '2024-01-01', isClosed: false },
+  ];
+  const creditAccounts: CreditAccount[] = [{ id: 'c1', name: 'Vendor', type: 'Vendor' }];
+
+  const expenses: Expense[] = [
+    // direct, common-allocated, and a credit bill that only counts once repaid
+    { id: 'e1', date: '2024-02-01', amount: 1000, paidByMemberId: 'm1', category: 'Seeds', targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1' },
+    { id: 'e2', date: '2024-02-02', amount: 800, paidByMemberId: 'm1', category: 'Diesel', targetType: 'common',
+      allocations: [{ fieldId: 'f1', seasonId: 's1', amount: 400 }, { fieldId: 'f2', seasonId: 's2', amount: 400 }] },
+    { id: 'e3', date: '2024-02-03', amount: 600, paidByMemberId: '', category: 'Urea', targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1', isCredit: true, creditAccountId: 'c1' },
+  ];
+  const labours: Labour[] = [
+    { id: 'l1', date: '2024-03-01', workersCount: 3, wageRate: 100, totalCost: 300, paidByMemberId: 'm1', targetType: 'single', fieldId: 'f1', seasonId: 's1' },
+  ];
+  const stockItems: StockItem[] = [
+    { id: 'st1', name: 'Fertilizer', type: 'Fertilizer', unit: 'kg', quantityOnHand: 0, weightedAverageCost: 0, totalCostSpent: 0, fundingByMember: {} },
+  ];
+  const purchases: StockPurchase[] = [
+    { id: 'p1', stockItemId: 'st1', quantity: 100, totalCost: 2000, date: '2024-01-15', paidByMemberId: 'm1' },
+  ];
+  const usages: StockUsage[] = [
+    { id: 'u1', stockItemId: 'st1', quantityUsed: 10, date: '2024-03-05', targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1' },
+  ];
+  const creditRepayments: CreditRepayment[] = [
+    { id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 600, date: '2024-04-01' },
+  ];
+
+  const summary = buildSettlementLedger(
+    fields, seasons, members, expenses, labours, [], usages, stockItems, purchases,
+    ['s1', 's2'], creditAccounts, creditRepayments
+  );
+
+  const ledger = summary.ledgers.find(l => l.seasonId === 's1')!;
+  const stmt = ledger.statements.find(st => st.memberId === 'm1')!;
+  const b = stmt.paidBreakdown!;
+  assert(b, 'paidBreakdown must be present');
+
+  approxEqual(b.expenses, 1400, 0.01, 'expenses = 1000 direct + 400 allocated');
+  approxEqual(b.labour, 300, 0.01, 'labour');
+  approxEqual(b.stock, 200, 0.01, 'stock = 10kg at the ₹20 weighted average, all funded by m1');
+  approxEqual(b.creditRepayments, 600, 0.01, 'the whole credit bill sat in s1, so the whole repayment lands here');
+
+  const sum = Number((b.expenses + b.labour + b.stock + b.creditRepayments).toFixed(2));
+  assert(sum === stmt.paidAmount, `breakdown ${sum} must equal paidAmount ${stmt.paidAmount} exactly`);
+});
+
+test('paidBreakdown: a partner who funded nothing gets four zeros, not undefined', () => {
+  const members: Member[] = [{ id: 'm1', name: 'Ramesh' }, { id: 'm2', name: 'Shyam' }];
+  const fields: Field[] = [{ id: 'f1', name: 'North', area: 4, shares: [{ memberId: 'm1', percentage: 50 }, { memberId: 'm2', percentage: 50 }] }];
+  const seasons: Season[] = [{ id: 's1', fieldId: 'f1', cropName: 'Rice', startDate: '2024-01-01', isClosed: false }];
+  const expenses: Expense[] = [
+    { id: 'e1', date: '2024-02-01', amount: 1000, paidByMemberId: 'm1', category: 'Seeds', targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1' },
+  ];
+
+  const summary = buildSettlementLedger(fields, seasons, members, expenses, [], [], [], [], [], ['s1'], [], []);
+  const shyam = summary.ledgers[0].statements.find(st => st.memberId === 'm2')!;
+
+  assert(shyam.paidBreakdown !== undefined, 'breakdown must exist even at zero');
+  approxEqual(shyam.paidBreakdown!.expenses, 0, 0.001, 'expenses');
+  approxEqual(shyam.paidAmount, 0, 0.001, 'paidAmount');
+});
+
+test('season report identity: net = (paid - cost share) + (revenue share - received)', () => {
+  // This is what lets the report show "paid vs fair share" without offering a
+  // second opinion on who owes what — the two gaps it displays are exactly
+  // the halves of the Settle screen's net position.
+  const members: Member[] = [{ id: 'm1', name: 'Ramesh' }, { id: 'm2', name: 'Shyam' }];
+  const fields: Field[] = [{ id: 'f1', name: 'North', area: 5, shares: [{ memberId: 'm1', percentage: 70 }, { memberId: 'm2', percentage: 30 }] }];
+  const seasons: Season[] = [{ id: 's1', fieldId: 'f1', cropName: 'Rice', startDate: '2024-01-01', isClosed: false }];
+  const expenses: Expense[] = [
+    { id: 'e1', date: '2024-02-01', amount: 5000, paidByMemberId: 'm1', category: 'Seeds', targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1' },
+    { id: 'e2', date: '2024-02-02', amount: 1500, paidByMemberId: 'm2', category: 'Spray', targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1' },
+  ];
+  const revenues: HarvestRevenue[] = [
+    { id: 'rv1', date: '2024-06-01', fieldId: 'f1', seasonId: 's1', crop: 'Rice', quantity: 40, saleAmount: 12000, receivedByMemberId: 'm2' },
+  ];
+
+  const summary = buildSettlementLedger(fields, seasons, members, expenses, [], revenues, [], [], [], ['s1'], [], []);
+  const ledger = summary.ledgers[0];
+
+  ledger.statements.forEach(stmt => {
+    const ratio = (stmt.sharePercentage || 0) / 100;
+    const costGap = stmt.paidAmount - ratio * ledger.totalExpense;
+    const revenueGap = ratio * ledger.totalRevenue - stmt.receivedAmount;
+    approxEqual(costGap + revenueGap, stmt.netPosition, 0.01, `identity holds for ${stmt.memberName}`);
+  });
+});
+
+test('paidBreakdown: rolled-up totals across seasons match the per-season parts', () => {
+  const members: Member[] = [{ id: 'm1', name: 'Ramesh' }];
+  const fields: Field[] = [
+    { id: 'f1', name: 'North', area: 4, shares: [{ memberId: 'm1', percentage: 100 }] },
+    { id: 'f2', name: 'South', area: 4, shares: [{ memberId: 'm1', percentage: 100 }] },
+  ];
+  const seasons: Season[] = [
+    { id: 's1', fieldId: 'f1', cropName: 'Rice', startDate: '2024-01-01', isClosed: false },
+    { id: 's2', fieldId: 'f2', cropName: 'Dal', startDate: '2024-01-01', isClosed: false },
+  ];
+  const expenses: Expense[] = [
+    { id: 'e1', date: '2024-02-01', amount: 1000, paidByMemberId: 'm1', category: 'Seeds', targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1' },
+    { id: 'e2', date: '2024-02-02', amount: 700, paidByMemberId: 'm1', category: 'Seeds', targetType: 'single', targetFieldId: 'f2', targetSeasonId: 's2' },
+  ];
+
+  const summary = buildSettlementLedger(fields, seasons, members, expenses, [], [], [], [], [], ['s1', 's2'], [], []);
+  const total = summary.membersTotalStatements['m1'];
+
+  approxEqual(total.paidBreakdown!.expenses, 1700, 0.01, 'rolled-up expenses across both seasons');
+  approxEqual(total.paidAmount, 1700, 0.01, 'rolled-up paidAmount');
+});
+
 // ---------- Runner -------------------------------------------------------
 
 (async function main() {

@@ -44,6 +44,36 @@ export const teSettings: Record<string, string> = {
     'Google Sheets‌లో పూర్తి లెక్కల వరుసలను నిర్వహిస్తుంది. బహుళ-భాగస్వాముల ఆడిట్ ట్రాకింగ్ కోసం స్ప్రెడ్‌షీట్‌ను షేర్ చేయండి.',
   'GCP OAuth Configuration': 'GCP అనుమతి సెట్టింగులు',
   'Spreadsheet ID': 'స్ప్రెడ్‌షీట్ ID',
+
+  // --- Linking a shared sheet ---
+  'Spreadsheet link or ID': 'స్ప్రెడ్‌షీట్ లింక్ లేదా ID',
+  'Link this sheet': 'ఈ షీట్‌ను లింక్ చేయండి',
+  'Joining a ledger someone else set up? Paste the link they shared with you and tap Link. This device will switch to their sheet — nothing on it is overwritten.':
+    'వేరొకరు ఏర్పాటు చేసిన ఖాతాలో చేరుతున్నారా? వారు పంచుకున్న లింక్‌ను ఇక్కడ అతికించి, లింక్ నొక్కండి. ఈ పరికరం వారి షీట్‌కు మారుతుంది — అందులోని సమాచారం ఏదీ చెరిగిపోదు.',
+  'Currently linked': 'ప్రస్తుతం లింక్ అయినది',
+
+  // --- First-run ledger setup ---
+  'Set up your farm ledger': 'మీ వ్యవసాయ ఖాతాను ఏర్పాటు చేయండి',
+  'We could not find a ledger in your Google Drive.': 'మీ Google Driveలో ఖాతా కనిపించలేదు.',
+  'Were you invited to a ledger?': 'మిమ్మల్ని ఎవరైనా ఖాతాకు ఆహ్వానించారా?',
+  'Browse my Google Drive': 'నా Google Driveను చూడండి',
+  'Opening Drive...': 'Drive తెరుస్తోంది...',
+  'or paste the link': 'లేదా లింక్‌ను అతికించండి',
+  'Link that ledger': 'ఆ ఖాతాను లింక్ చేయండి',
+  'Linking...': 'లింక్ చేస్తోంది...',
+  'Pick the ledger from Drive, or paste the link a partner shared. Your device loads their records — nothing on their sheet is overwritten.':
+    'Drive నుండి ఖాతాను ఎంచుకోండి, లేదా భాగస్వామి పంచుకున్న లింక్‌ను అతికించండి. మీ పరికరం వారి రికార్డులను లోడ్ చేస్తుంది — వారి షీట్‌లోని సమాచారం ఏదీ చెరిగిపోదు.',
+  'or': 'లేదా',
+  'Start a new ledger': 'కొత్త ఖాతాను ప్రారంభించండి',
+  'Creating...': 'సృష్టిస్తోంది...',
+  'Creates a fresh spreadsheet in your own Google Drive. Choose this only if you are the first person setting up this farm.':
+    'మీ సొంత Google Driveలో కొత్త స్ప్రెడ్‌షీట్‌ను సృష్టిస్తుంది. ఈ పొలాన్ని మొదటిసారి ఏర్పాటు చేస్తున్నది మీరే అయితే మాత్రమే దీన్ని ఎంచుకోండి.',
+  'Decide later — keep this device offline': 'తరువాత నిర్ణయించండి — ఈ పరికరాన్ని ఆఫ్‌లైన్‌లో ఉంచండి',
+  'Copy link to share': 'పంచుకోవడానికి లింక్‌ను కాపీ చేయండి',
+  'Copied': 'కాపీ అయ్యింది',
+  'Open in Sheets': 'Sheets‌లో తెరవండి',
+  'Share this link from Google Sheets (give Editor access), then have your partner paste it above.':
+    'ఈ లింక్‌ను Google Sheets నుండి పంచుకోండి (ఎడిటర్ అనుమతి ఇవ్వండి), తరువాత మీ భాగస్వామిని పైన అతికించమని చెప్పండి.',
   'Enter your custom Google Sheet ID to sync with your private Google Drive database.':
     'మీ ప్రైవేట్ Google Drive డేటాబేస్‌తో సింక్ చేయడానికి మీ కస్టమ్ Google Sheet ID‌ను నమోదు చేయండి.',
   'Google Authorization State': 'Google అనుమతి స్థితి',

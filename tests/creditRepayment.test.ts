@@ -58,6 +58,15 @@ const repay = (amount: number): CreditRepayment => ({
   date: '2026-07-01'
 });
 
+const paidBy = (memberId: string, expenses: Expense[], repayments: CreditRepayment[], seasons = [seasonA]) => {
+  const summary = buildSettlementLedger(
+    [fieldA, fieldB], seasons, members, expenses, [], [], [], [], [],
+    seasons.map(s => s.id), [creditor], repayments
+  );
+  const ledgerA = summary.ledgers.find(l => l.seasonId === 'season_a')!;
+  return ledgerA.statements.find(s => s.memberId === memberId)!.paidAmount;
+};
+
 const paidByX = (expenses: Expense[], repayments: CreditRepayment[], seasons = [seasonA]) => {
   const summary = buildSettlementLedger(
     [fieldA, fieldB], seasons, members, expenses, [], [], [], [], [],
@@ -97,5 +106,26 @@ describe('credit purchase then repayment', () => {
     };
 
     expect(paidByX([manureOnCredit, dieselOnCredit], [repay(300)], [seasonA, seasonB])).toBe(120);
+  });
+});
+
+describe('who repays is who gets credited', () => {
+  it('credits the repayer, not the member who ordered the goods', () => {
+    // X placed the order on the vendor's account, but Y is the one who pays
+    // the vendor. The funding belongs to Y.
+    const paidByY: CreditRepayment = { ...repay(300), id: 'rep_y', memberId: 'mem_y' };
+
+    expect(paidBy('mem_y', [manureOnCredit], [paidByY])).toBe(300);
+    expect(paidBy('mem_x', [manureOnCredit], [paidByY])).toBe(0);
+  });
+
+  it('splits the credit when both partners chip in', () => {
+    const repayments: CreditRepayment[] = [
+      { ...repay(100), id: 'rep_x', memberId: 'mem_x' },
+      { ...repay(300), id: 'rep_y', memberId: 'mem_y' }
+    ];
+
+    expect(paidBy('mem_x', [manureOnCredit], repayments)).toBe(100);
+    expect(paidBy('mem_y', [manureOnCredit], repayments)).toBe(300);
   });
 });

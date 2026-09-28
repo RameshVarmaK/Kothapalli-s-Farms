@@ -2,7 +2,7 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const getFirebaseConfig = () => {
+export const getFirebaseConfig = () => {
   const custom = localStorage.getItem('farmledger_custom_firebase_config');
   let config = firebaseConfig;
   if (custom) {

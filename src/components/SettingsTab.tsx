@@ -8,12 +8,13 @@ import { User } from 'firebase/auth';
 import { Settings, AuditLog, Member, NotificationPreferences, NotificationDelivery } from '../types';
 import {
   exportDatabaseJSON,
-  PLACEHOLDER_SPREADSHEET_ID,
+  isPlaceholderSpreadsheetId,
   safeStorageGet,
   safeStorageSet,
   DATABASE_COLLECTIONS,
 } from '../utils/database';
-import { findExistingSpreadsheet, createSpreadsheet, pushDataToSpreadsheet, pullDataFromSpreadsheet } from '../utils/googleSheets';
+import { isPickerAvailable, pickSpreadsheet } from '../utils/googlePicker';
+import { findExistingSpreadsheet, pushDataToSpreadsheet, pullDataFromSpreadsheet, extractSpreadsheetId, fetchSpreadsheetTitle, describeSheetLinkError } from '../utils/googleSheets';
 import { NotificationPreferencesPanel } from './NotificationPreferencesPanel';
 import { NotificationDeliveryLog } from './NotificationDeliveryLog';
 import { getNotificationDeliveries, clearNotificationDeliveries } from '../utils/notifications';
@@ -32,6 +33,8 @@ interface SettingsTabProps {
   onImportDatabase: (data: any) => void;
   onTriggerSync: (accessToken: string, spreadsheetId: string) => Promise<void>;
   onTriggerPull: (accessToken: string, spreadsheetId: string) => Promise<void>;
+  /** Ask how to set up a ledger, when there is none to sync with yet. */
+  onRequestSheetSetup: () => void;
   localData: any;
   user: User | null;
   accessToken: string | null;
@@ -49,6 +52,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   onImportDatabase,
   onTriggerSync,
   onTriggerPull,
+  onRequestSheetSetup,
   localData,
   user,
   accessToken,
@@ -177,7 +181,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [areaUnit, setAreaUnit] = useState(settings.areaUnit);
   const [customClientId, setCustomClientId] = useState('');
   const [customAccessToken, setCustomAccessToken] = useState('');
-  const [linkedSheetId, setLinkedSheetId] = useState(settings.linkedSpreadsheetId || PLACEHOLDER_SPREADSHEET_ID);
+  // Starts blank rather than showing the legacy placeholder id, which reads
+  // as "you are already linked to something" when nothing is linked yet.
+  const [linkedSheetId, setLinkedSheetId] = useState(
+    isPlaceholderSpreadsheetId(settings.linkedSpreadsheetId) ? '' : settings.linkedSpreadsheetId!
+  );
   const [customFirebaseConfig, setCustomFirebaseConfig] = useState('');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'authorizing' | 'syncing' | 'success' | 'failed'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -202,8 +210,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   }, []);
 
   useEffect(() => {
-    if (settings.linkedSpreadsheetId) {
-      setLinkedSheetId(settings.linkedSpreadsheetId);
+    if (!isPlaceholderSpreadsheetId(settings.linkedSpreadsheetId)) {
+      setLinkedSheetId(settings.linkedSpreadsheetId!);
     }
   }, [settings.linkedSpreadsheetId]);
 
@@ -268,10 +276,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           setLinkedSheetId(found);
           setStatusMessage('Found existing FarmLedger Database Sheet on Drive.');
         } else {
-          setStatusMessage('No Sheet found. Instantiating new FarmLedger Spreadsheet on Drive...');
-          sheetId = await createSpreadsheet(activeToken);
-          setLinkedSheetId(sheetId);
-          setStatusMessage('New FarmLedger Database Spreadsheet instantiated on Drive.');
+          // Nothing to sync with, and guessing is what strands an invited
+          // partner on a blank sheet of their own. Let them choose.
+          setSyncStatus('idle');
+          setStatusMessage('');
+          onRequestSheetSetup();
+          return;
         }
 
         onSaveSettings({
@@ -289,6 +299,83 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
       console.error(err);
       setSyncStatus('failed');
       setStatusMessage(`Synchronization failed: ${err.message || String(err)}`);
+    }
+  };
+
+  /** Choose the ledger from Drive instead of pasting a link. Picking here
+   * also earns this app durable access to that file, so future devices find
+   * it without the user doing anything. */
+  const handleBrowseDrive = async () => {
+    const activeToken = accessToken || customAccessToken;
+    if (!activeToken) {
+      setSyncStatus('failed');
+      setStatusMessage('Sign in with Google first, then browse your Drive.');
+      return;
+    }
+
+    setSyncStatus('syncing');
+    setStatusMessage('Opening your Google Drive...');
+
+    try {
+      const picked = await pickSpreadsheet(activeToken);
+      if (!picked) {
+        // Chooser dismissed without a selection — not a failure.
+        setSyncStatus('idle');
+        setStatusMessage('');
+        return;
+      }
+      await handleLinkSheet(picked);
+    } catch (err: any) {
+      setSyncStatus('failed');
+      setStatusMessage(describeSheetLinkError(err));
+    }
+  };
+
+  /**
+   * Switches this device onto a specific spreadsheet — typically one another
+   * partner shared, which the Drive search can never find on its own because
+   * the app only holds `drive.file` scope (it sees files it created, not
+   * files shared with the user). Reading and writing such a sheet works
+   * fine via the Sheets API, so linking by id is the supported route in.
+   *
+   * Pulls before anything else so the shared ledger's records become this
+   * device's state, rather than this device's state being pushed over them.
+   */
+  const handleLinkSheet = async (rawInput: string) => {
+    const activeToken = accessToken || customAccessToken;
+    const sheetId = extractSpreadsheetId(rawInput);
+
+    if (!sheetId) {
+      setSyncStatus('failed');
+      setStatusMessage("That doesn't look like a Google Sheet. Paste the sheet's link, or just its ID.");
+      return;
+    }
+
+    if (!activeToken) {
+      setSyncStatus('failed');
+      setStatusMessage('Sign in with Google first, then link the sheet.');
+      return;
+    }
+
+    setSyncStatus('syncing');
+    setStatusMessage('Checking that you can open that sheet...');
+
+    try {
+      const title = await fetchSpreadsheetTitle(activeToken, sheetId);
+
+      setStatusMessage(`Opened "${title}". Loading its records...`);
+
+      // onTriggerPull adopts the sheet's data, points settings at it, and
+      // records the sync baseline in one step — so the next background push
+      // sees "nothing pending locally" and leaves the shared sheet alone.
+      await onTriggerPull(activeToken, sheetId);
+      setLinkedSheetId(sheetId);
+
+      setSyncStatus('success');
+      setStatusMessage(`✓ Linked to "${title}". This device now shares that ledger.`);
+    } catch (err: any) {
+      setSyncStatus('failed');
+      setStatusMessage(describeSheetLinkError(err));
     }
   };
 
@@ -451,12 +538,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
       <GoogleSheetsSyncPanel
         settings={settings}
-        onSaveSettings={onSaveSettings}
         user={user}
         onLogin={onLogin}
         onLogout={onLogout}
         linkedSheetId={linkedSheetId}
         onLinkedSheetIdChange={setLinkedSheetId}
+        onLinkSheet={handleLinkSheet}
+        onBrowseDrive={isPickerAvailable() ? handleBrowseDrive : undefined}
         customAccessToken={customAccessToken}
         onCustomAccessTokenChange={setCustomAccessToken}
         customFirebaseConfig={customFirebaseConfig}

@@ -32,14 +32,14 @@ interface MoneyTabProps {
   activities: Activity[];
   currency: string;
   creditAccounts?: CreditAccount[];
-  onAddExpense: (expense: Expense) => void;
-  onEditExpense: (expense: Expense) => void;
+  onAddExpense: (expense: Expense) => boolean;
+  onEditExpense: (expense: Expense) => boolean;
   onDeleteExpense: (id: string) => void;
-  onAddLabour: (labour: Labour) => void;
-  onEditLabour: (labour: Labour) => void;
+  onAddLabour: (labour: Labour) => boolean;
+  onEditLabour: (labour: Labour) => boolean;
   onDeleteLabour: (id: string) => void;
-  onAddRevenue: (revenue: HarvestRevenue) => void;
-  onEditRevenue: (revenue: HarvestRevenue) => void;
+  onAddRevenue: (revenue: HarvestRevenue) => boolean;
+  onEditRevenue: (revenue: HarvestRevenue) => boolean;
   onDeleteRevenue: (id: string) => void;
 }
 
@@ -396,11 +396,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       } as Expense;
     }
 
+    // The parent validates as well, and refuses entries this form cannot
+    // catch on its own. Waiting for its answer before announcing success is
+    // what stops a rejected entry from looking saved.
     if (editingRecordId) {
-      onEditExpense(expensePost);
+      if (!onEditExpense(expensePost)) return;
       setToastMessage(t('Expense updated'));
     } else {
-      onAddExpense(expensePost);
+      if (!onAddExpense(expensePost)) return;
       setToastMessage(t('Expense saved'));
     }
     closeAndReset();
@@ -501,11 +504,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       } as Labour;
     }
 
+    // The parent validates as well, and refuses entries this form cannot
+    // catch on its own. Waiting for its answer before announcing success is
+    // what stops a rejected entry from looking saved.
     if (editingRecordId) {
-      onEditLabour(labourPost);
+      if (!onEditLabour(labourPost)) return;
       setToastMessage(t('Labour cost updated'));
     } else {
-      onAddLabour(labourPost);
+      if (!onAddLabour(labourPost)) return;
       setToastMessage(t('Labour cost saved'));
     }
     closeAndReset();
@@ -541,11 +547,14 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       receivedByMemberId: paidBy
     } as HarvestRevenue;
 
+    // The parent validates as well, and refuses entries this form cannot
+    // catch on its own. Waiting for its answer before announcing success is
+    // what stops a rejected entry from looking saved.
     if (editingRecordId) {
-      onEditRevenue(revenuePost);
+      if (!onEditRevenue(revenuePost)) return;
       setToastMessage(t('Harvest sale updated'));
     } else {
-      onAddRevenue(revenuePost);
+      if (!onAddRevenue(revenuePost)) return;
       setToastMessage(t('Harvest sale saved'));
     }
     closeAndReset();
