@@ -1,5 +1,5 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SheetSetupModal } from '../src/components/SheetSetupModal';
 import { LanguageProvider } from '../src/hooks/useLanguage';
@@ -147,5 +147,55 @@ describe('SheetSetupModal - browse Drive', () => {
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toMatch(/Could not load Google Picker/);
+  });
+});
+
+describe('empty-ledger recovery', () => {
+  // A partner who opened the app before it learned to ask has a blank
+  // "FarmLedger Database" sitting in their Drive. The Drive search finds it
+  // (the app created it, so drive.file can see it), loads it, and they land
+  // in an empty app — no prompt, because the search did not come back empty.
+  // The condition below is what catches that case.
+  const LEDGER_CHOICE_KEY = 'farmledger_ledger_choice_made';
+
+  beforeEach(() => localStorage.clear());
+
+  /** Mirrors the condition in App.tsx's auto-fetch. */
+  function shouldPromptSetup(sheet: any, local: any, choiceMade: boolean) {
+    const sheetEmpty =
+      (!sheet.members || sheet.members.length === 0) &&
+      (!sheet.fields || sheet.fields.length === 0) &&
+      (!sheet.seasons || sheet.seasons.length === 0) &&
+      (!sheet.expenses || sheet.expenses.length === 0);
+    const localHasData =
+      (local.members && local.members.length > 0) ||
+      (local.fields && local.fields.length > 0) ||
+      (local.seasons && local.seasons.length > 0);
+    return sheetEmpty && !localHasData && !choiceMade;
+  }
+
+  const empty = { members: [], fields: [], seasons: [], expenses: [] };
+  const populated = { members: [{ id: 'm1' }], fields: [{ id: 'f1' }], seasons: [{ id: 's1' }], expenses: [] };
+
+  it('asks when the found ledger is blank and so is the device', () => {
+    expect(shouldPromptSetup(empty, empty, false)).toBe(true);
+  });
+
+  it('stays quiet once the ledger actually holds records', () => {
+    expect(shouldPromptSetup(populated, empty, false)).toBe(false);
+  });
+
+  it('stays quiet when the device has offline records to push up', () => {
+    // That case already has its own branch: push local state to the sheet.
+    expect(shouldPromptSetup(empty, populated, false)).toBe(false);
+  });
+
+  it('never nags someone who deliberately started a fresh, still-empty ledger', () => {
+    expect(shouldPromptSetup(empty, empty, true)).toBe(false);
+  });
+
+  it('treats an absent flag as "not yet chosen"', () => {
+    expect(localStorage.getItem(LEDGER_CHOICE_KEY)).toBeNull();
+    expect(shouldPromptSetup(empty, empty, localStorage.getItem(LEDGER_CHOICE_KEY) === 'true')).toBe(true);
   });
 });

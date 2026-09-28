@@ -14,6 +14,8 @@ import {
   PLACEHOLDER_SPREADSHEET_ID,
   isPlaceholderSpreadsheetId,
   safeStorageRemove,
+  safeStorageGet,
+  safeStorageSet,
   stripAutoActivities,
   LEGACY_CLEARANCE_KEYS,
   normalizeClearanceKeys
@@ -186,6 +188,14 @@ function normalizeCloudDb(sheetData: any, base: LocalDatabase, targetSheetId: st
     }
   };
 }
+
+/** Records that this device's owner has deliberately settled which ledger
+ * to use — by linking one, creating one, or choosing to stay offline.
+ * Without it the "this ledger is empty" prompt below would nag someone who
+ * genuinely did just start a fresh, still-empty ledger. */
+const LEDGER_CHOICE_KEY = 'farmledger_ledger_choice_made';
+const hasChosenLedger = () => safeStorageGet(LEDGER_CHOICE_KEY) === 'true';
+const rememberLedgerChoice = () => safeStorageSet(LEDGER_CHOICE_KEY, 'true');
 
 function AppShell() {
   const { mode, setMode } = useViewMode();
@@ -490,6 +500,19 @@ function AppShell() {
               (currentLocalDb.members && currentLocalDb.members.length > 0) ||
               (currentLocalDb.fields && currentLocalDb.fields.length > 0) ||
               (currentLocalDb.seasons && currentLocalDb.seasons.length > 0);
+
+            if (isSheetDataEmpty && !isLocalDataNotEmpty && !hasChosenLedger()) {
+              // A ledger was found, but there is nothing in it and nothing on
+              // this device either — so it tells the user nothing. The usual
+              // cause is a blank sheet the app created for this account back
+              // when it created one unasked; an invited partner would
+              // otherwise sit in an empty app with no hint that their farm's
+              // records are one link away. Ask, rather than show them
+              // nothing. Anyone who has already settled the question (linked,
+              // created, or chose to stay offline) is never asked again.
+              logWarning('empty_ledger_prompting_setup', 'Linked ledger is empty and so is this device', { sheetId: targetSheetId });
+              setNeedsSheetSetup(true);
+            }
 
             if (isSheetDataEmpty && isLocalDataNotEmpty) {
               console.log("Newly linked Google Sheet is empty, but local database has valuable offline records. Pushing local state to Sheets to prevent data clearing...");
@@ -1653,6 +1676,7 @@ function AppShell() {
     saveDatabase(finalDb);
     setLastSyncedFingerprint(finalDb);
     setDb(finalDb);
+    rememberLedgerChoice();
     setNeedsSheetSetup(false);
   };
 
@@ -1965,9 +1989,15 @@ function AppShell() {
         <div className="flex-1 overflow-y-auto px-6 py-6 md:p-8 md:h-full pb-24 md:pb-8">
 
           {/* Basic mode + multi-tool hub: progressive-disclosure pills to reach
-              siblings without leaving the simplified nav or opening the drawer */}
+              siblings without leaving the simplified nav or opening the drawer.
+              These matter most on a phone: the bottom bar navigates by group
+              and lands on group.tabs[0], so without them the second tab in a
+              group (Audit & Config, Fields & Directory, Inventory) is
+              reachable only through the drawer. They were `hidden md:flex`,
+              i.e. shown only where the full sidebar already lists every tab
+              and hidden exactly where they were needed. */}
           {mode === 'basic' && activeGroup.tabs.length > 1 && (
-            <div className="hidden md:flex gap-2 mb-5">
+            <div data-testid="group-tab-switcher" className="flex flex-wrap gap-2 mb-5">
               {activeGroup.tabs.map(tab => (
                 <button
                   key={tab.id}
@@ -2162,7 +2192,10 @@ function AppShell() {
         <SheetSetupModal
           onLinkExisting={handleLinkExistingSheet}
           onCreateNew={handleCreateNewSheet}
-          onSkip={() => setNeedsSheetSetup(false)}
+          onSkip={() => {
+            rememberLedgerChoice();
+            setNeedsSheetSetup(false);
+          }}
           onBrowseDrive={isPickerAvailable() ? handleBrowseDrive : undefined}
         />
       )}
