@@ -4,8 +4,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
-import { User } from 'firebase/auth';
-import { initAuth, googleSignIn, googleSignInRedirect, logout, clearGoogleAccessToken } from './utils/auth';
+import { clearGoogleAccessToken } from './utils/auth';
 import {
   getInitialDatabase,
   saveDatabase,
@@ -13,9 +12,7 @@ import {
   LocalDatabase,
   PLACEHOLDER_SPREADSHEET_ID,
   isPlaceholderSpreadsheetId,
-  safeStorageRemove,
-  stripAutoActivities,
-  LEGACY_CLEARANCE_KEYS
+  stripAutoActivities
 } from './utils/database';
 import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges, collectionsToPush } from './utils/syncConflict';
 import { classifySyncError, isRetryable, retryDelayMs, SyncErrorKind } from './utils/syncErrors';
@@ -66,6 +63,7 @@ import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewModeProvider, useViewMode } from './hooks/useViewMode';
 import { LanguageProvider, useLanguage } from './hooks/useLanguage';
 import { useReceiptUploads } from './hooks/useReceiptUploads';
+import { useGoogleAuth } from './hooks/useGoogleAuth';
 import { TabId, TAB_GROUPS, groupForTab } from './app/navigation';
 import { normalizeCloudDb } from './app/normalizeCloudDb';
 import { hasChosenLedger, rememberLedgerChoice } from './app/ledgerChoice';
@@ -128,17 +126,19 @@ function AppShell() {
   const [activeTab, setActiveTab] = useState<TabId>('dashboard');
   const activeGroup = groupForTab(activeTab);
 
-  // Unified Google Firebase Authentication state
-  const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const {
+    user,
+    accessToken,
+    setAccessToken,
+    authError,
+    setAuthError,
+    fetchError,
+    setFetchError,
+    handleLogin,
+    handleLogout
+  } = useGoogleAuth(setDb);
   useReceiptUploads(db, setDb, accessToken);
-  const [authError, setAuthError] = useState<{
-    code: string;
-    message: string;
-    domain: string;
-  } | null>(null);
   const [loadingData, setLoadingData] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
   const [syncingState, setSyncingState] = useState<'idle' | 'syncing' | 'success' | 'failed'>('idle');
   const [syncMessage, setSyncMessage] = useState('');
   // Why the last push failed, in terms of what the user must do; null while
@@ -350,34 +350,6 @@ function AppShell() {
       setNotificationPreferences(db.notificationPreferences);
     }
   }, [db?.notificationPreferences]);
-
-  useEffect(() => {
-    // Synchronous bootstrap local database
-    const loadedDb = getInitialDatabase();
-    setDb(loadedDb);
-
-    // Bootstrap continuous Firebase auth flow state listener
-    const unsubscribe = initAuth(
-      (currentUser, token) => {
-        setUser(prevUser => {
-          if (prevUser && prevUser.uid !== currentUser.uid) {
-            console.log("Detected Google profile switch. Purging old database local cache...");
-            safeStorageRemove('farm_ledger_database');
-            LEGACY_CLEARANCE_KEYS.forEach(safeStorageRemove);
-            setDb(getInitialDatabase());
-          }
-          return currentUser;
-        });
-        setAccessToken(token);
-      },
-      () => {
-        setUser(null);
-        setAccessToken(null);
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (accessToken) {
@@ -602,49 +574,6 @@ function AppShell() {
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [accessToken]);
-
-  const handleLogin = async (mode: 'popup' | 'redirect' = 'popup'): Promise<string | null> => {
-    try {
-      setAuthError(null);
-      setFetchError(null);
-      if (mode === 'redirect') {
-        await googleSignInRedirect();
-        return null; // Will trigger redirect, so page will unload
-      }
-      const result = await googleSignIn();
-      if (result) {
-        if (user && user.uid !== result.user.uid) {
-          console.log("Logged in different user. Cleaning stale local state cache...");
-          safeStorageRemove('farm_ledger_database');
-          setDb(getInitialDatabase());
-        }
-        setUser(result.user);
-        setAccessToken(result.accessToken);
-        return result.accessToken;
-      }
-    } catch (error: any) {
-      console.error('Unified Google Auth Login error:', error);
-      setAuthError({
-        code: error?.code || 'auth/unknown',
-        message: error?.message || String(error),
-        domain: window.location.origin
-      });
-    }
-    return null;
-  };
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      setUser(null);
-      setAccessToken(null);
-      console.log("Logged out active slot. Removing local storage cache cleanly...");
-      safeStorageRemove('farm_ledger_database');
-      setDb(getInitialDatabase());
-    } catch (error) {
-      console.error('Unified Google Auth Disconnect error:', error);
-    }
-  };
 
   if (!db) {
     return (
