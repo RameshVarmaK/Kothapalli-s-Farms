@@ -21,6 +21,8 @@ import { calculateAllocations, allocationDiscrepancy } from '../utils/calculatio
 import { AttachmentUploader } from './AttachmentUploader';
 import { AttachmentGallery } from './AttachmentGallery';
 import { expenseAttachments, receiptCount } from '../utils/attachments';
+import { removedDriveFileIds } from '../utils/driveReceipts';
+import { trashDriveFiles } from '../utils/receiptsFolder';
 import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -118,6 +120,13 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   const [galleryExpenseId, setGalleryExpenseId] = useState<string | null>(null);
   const galleryExpense = galleryExpenseId ? expenses.find(e => e.id === galleryExpenseId) : undefined;
   const galleryAttachments = galleryExpense ? expenseAttachments(galleryExpense) : [];
+  // Receipts taken off an expense (or on a deleted one) go to the Drive
+  // trash in the background; saving never waits on it, and a file this
+  // account can't trash (a partner's) is left alone.
+  const trashRemovedReceipts = (before: Expense | null | undefined, after: Attachment[] | undefined) => {
+    const ids = removedDriveFileIds(before, after);
+    if (accessToken && ids.length > 0) void trashDriveFiles(accessToken, ids);
+  };
 
   // Compiling transactional ledger timeline
   const ledgerItems: {
@@ -424,6 +433,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     // what stops a rejected entry from looking saved.
     if (editingRecordId) {
       if (!onEditExpense(expensePost)) return;
+      trashRemovedReceipts(baseExpense, expensePost.attachments);
       setToastMessage(t('Expense updated'));
     } else {
       if (!onAddExpense(expensePost)) return;
@@ -1154,7 +1164,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Receipt / Photo (Optional)')}</label>
-                  <AttachmentUploader attachments={attachments} onAttachmentsChange={setAttachments} />
+                  <AttachmentUploader attachments={attachments} onAttachmentsChange={setAttachments} accessToken={accessToken} />
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-gray-50">
@@ -1627,6 +1637,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 onClick={() => {
                   const { id, type } = deleteConfirmInfo;
                   if (type === 'expense') {
+                    trashRemovedReceipts(expenses.find(e => e.id === id), undefined);
                     onDeleteExpense(id);
                   } else if (type === 'labour') {
                     onDeleteLabour(id);

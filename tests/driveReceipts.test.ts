@@ -1,19 +1,28 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
-  findOrCreateReceiptsFolder,
-  uploadPendingAttachment,
   uploadPendingReceipts,
-  shareWithSheetPartners,
   collectPendingReceipts,
   applyUploadedReceipts,
   migrateLegacyReceipts,
-  resetReceiptFolderCache,
-  RECEIPTS_FOLDER_NAME,
   stashInlineReceipts,
   stripInlineReceiptData,
   cleanupStoredReceipts,
+  removedDriveFileIds,
   ORPHAN_RECEIPT_TTL_MS,
 } from '../src/utils/driveReceipts';
+import {
+  readLedgerFolderId,
+  writeLedgerFolderId,
+  resolveLedgerFolder,
+  checkReceiptsFolderOnSignIn,
+  connectReceiptsFolder,
+  shareFolderWithSheet,
+  trashDriveFiles,
+  getReceiptsFolderStatus,
+  resetReceiptsFolderState,
+  FOLDER_METADATA_KEY,
+  RECEIPTS_FOLDER_NAME,
+} from '../src/utils/receiptsFolder';
 import { keepPendingReceiptData, normalizeAttachment, receiptCount } from '../src/utils/attachments';
 import { SHEET_COLUMNS, toSheetRows, parseSheetRows, pushDataToSpreadsheet, ensureSheetsExist } from '../src/utils/googleSheets';
 import { Attachment, Expense } from '../src/types';
@@ -53,14 +62,22 @@ function expense(attachments?: Attachment[], extra: Partial<Expense> = {}): Expe
 }
 
 interface DriveStubOptions {
-  existingFolder?: string | null;
-  permissionsStatus?: number;
-  permissions?: { emailAddress?: string; role: string; type: string }[];
+  /** Folder id already recorded in the ledger (developer metadata). */
+  ledgerFolder?: string | null;
+  /** Another partner's folder that shows up first after we record ours. */
+  raceWinner?: string;
+  /** Status of files.get on the folder (200 = this app can use it). */
+  folderAccess?: number;
+  ownedByMe?: boolean;
+  sheetPermissionsStatus?: number;
+  sheetPermissions?: { emailAddress?: string; role: string; type: string }[];
+  folderPermissions?: { emailAddress?: string; role: string; type: string }[];
   uploadFails?: boolean;
 }
 
 function stubDrive(opts: DriveStubOptions = {}) {
   const calls: Call[] = [];
+  let recorded: string[] = opts.ledgerFolder ? [opts.ledgerFolder] : [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: any) => {
     const method = init?.method || 'GET';
     let body: any = init?.body;
@@ -77,21 +94,38 @@ function stubDrive(opts: DriveStubOptions = {}) {
       text: async () => JSON.stringify(payload),
     }) as any;
 
+    if (url.startsWith('https://sheets.googleapis.com/v4/spreadsheets/sheet_1?fields=developerMetadata')) {
+      return json(200, {
+        developerMetadata: recorded.map((v, i) => ({ metadataId: i + 1, metadataKey: FOLDER_METADATA_KEY, metadataValue: v })),
+      });
+    }
+    if (url === 'https://sheets.googleapis.com/v4/spreadsheets/sheet_1:batchUpdate') {
+      const value = body.requests[0].createDeveloperMetadata.developerMetadata.metadataValue;
+      recorded = opts.raceWinner ? [opts.raceWinner, value] : [...recorded, value];
+      return json(200, {});
+    }
     if (url.startsWith('https://www.googleapis.com/upload/drive/v3/files')) {
       if (opts.uploadFails) throw new TypeError('Failed to fetch');
       return json(200, { id: 'file_1', webViewLink: 'https://drive.google.com/file/d/file_1/view' });
     }
-    if (url.includes('/drive/v3/files?q=')) {
-      return json(200, { files: opts.existingFolder ? [{ id: opts.existingFolder }] : [] });
-    }
-    if (url.startsWith('https://www.googleapis.com/drive/v3/files?fields=id') && method === 'POST') {
+    if (url === 'https://www.googleapis.com/drive/v3/files?fields=id' && method === 'POST') {
       return json(200, { id: 'folder_new' });
     }
-    if (url.includes('/files/sheet_1/permissions')) {
-      return json(opts.permissionsStatus ?? 200, { permissions: opts.permissions ?? [] });
+    if (/\/files\/sheet_1\/permissions/.test(url)) {
+      return json(opts.sheetPermissionsStatus ?? 200, { permissions: opts.sheetPermissions ?? [] });
     }
-    if (url.includes('/files/file_1/permissions') && method === 'POST') {
+    if (/\/files\/folder_[a-z]+\/permissions\?fields/.test(url)) {
+      return json(200, { permissions: opts.folderPermissions ?? [] });
+    }
+    if (/\/files\/folder_[a-z]+\/permissions\?sendNotificationEmail=false/.test(url) && method === 'POST') {
       return json(200, { id: 'perm' });
+    }
+    if (/\/files\/folder_[a-z]+\?fields=id,ownedByMe/.test(url)) {
+      const status = opts.folderAccess ?? 200;
+      return json(status, { id: 'folder', ownedByMe: opts.ownedByMe ?? true });
+    }
+    if (method === 'PATCH') {
+      return json(url.includes('/files/theirs') ? 403 : 200, {});
     }
     return json(404, {});
   }));
@@ -100,51 +134,82 @@ function stubDrive(opts: DriveStubOptions = {}) {
 
 let store: ReturnType<typeof createMemoryReceiptStore>;
 beforeEach(() => {
-  resetReceiptFolderCache();
+  resetReceiptsFolderState();
   store = createMemoryReceiptStore();
   setReceiptStoreBackend(store);
 });
 afterEach(() => setReceiptStoreBackend(undefined));
 afterEach(() => vi.unstubAllGlobals());
 
-describe('receipts folder', () => {
-  it('reuses the folder found by name and folder mime type', async () => {
-    const calls = stubDrive({ existingFolder: 'folder_old' });
-    expect(await findOrCreateReceiptsFolder('tok')).toBe('folder_old');
-    const q = decodeURIComponent(calls[0].url.split('q=')[1].split('&')[0]);
-    expect(q).toContain(`name = '${RECEIPTS_FOLDER_NAME}'`);
-    expect(q).toContain("mimeType = 'application/vnd.google-apps.folder'");
-    expect(q).toContain('trashed = false');
-    expect(calls.some(c => c.method === 'POST')).toBe(false);
+const grantsOn = (calls: Call[], folder: string) =>
+  calls.filter(c => c.method === 'POST' && c.url.includes(`/files/${folder}/permissions?sendNotificationEmail=false`));
+
+describe('the ledger records its receipts folder', () => {
+  it('reads the folder id from the spreadsheet developer metadata', async () => {
+    const calls = stubDrive({ ledgerFolder: 'folder_shared' });
+    expect(await readLedgerFolderId('tok', 'sheet_1')).toBe('folder_shared');
+    expect(calls[0].url).toContain('fields=developerMetadata(metadataId,metadataKey,metadataValue)');
   });
 
-  it('creates the folder once when none exists, then remembers it', async () => {
-    const calls = stubDrive({ existingFolder: null });
-    expect(await findOrCreateReceiptsFolder('tok')).toBe('folder_new');
-    expect(await findOrCreateReceiptsFolder('tok')).toBe('folder_new');
-    const creates = calls.filter(c => c.method === 'POST');
-    expect(creates).toHaveLength(1);
-    expect(creates[0].body).toEqual({ name: RECEIPTS_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' });
-    expect(calls.filter(c => c.url.includes('q='))).toHaveLength(1);
+  it('returns null when the ledger has no folder yet', async () => {
+    stubDrive({ ledgerFolder: null });
+    expect(await readLedgerFolderId('tok', 'sheet_1')).toBeNull();
+  });
+
+  it('writes the folder id as document-visible spreadsheet metadata', async () => {
+    const calls = stubDrive();
+    await writeLedgerFolderId('tok', 'sheet_1', 'folder_new');
+    expect(calls[0].body).toEqual({
+      requests: [{
+        createDeveloperMetadata: {
+          developerMetadata: {
+            metadataKey: FOLDER_METADATA_KEY,
+            metadataValue: 'folder_new',
+            location: { spreadsheet: true },
+            visibility: 'DOCUMENT',
+          },
+        },
+      }],
+    });
   });
 });
 
-describe('uploadPendingAttachment', () => {
-  it('sends a multipart upload into the folder and returns metadata only', async () => {
-    const calls = stubDrive({ existingFolder: 'folder_old' });
-    const done = await uploadPendingAttachment('tok', null, pending());
+describe('creating the shared folder', () => {
+  it('creates, records and shares it with the sheet people (editors as writers, no email, never public)', async () => {
+    const calls = stubDrive({
+      ledgerFolder: null,
+      sheetPermissions: [
+        { emailAddress: 'owner@x.com', role: 'owner', type: 'user' },
+        { emailAddress: 'partner@x.com', role: 'writer', type: 'user' },
+        { emailAddress: 'family@x.com', role: 'reader', type: 'group' },
+        { role: 'reader', type: 'anyone' },
+        { role: 'reader', type: 'domain' },
+      ],
+      folderPermissions: [{ emailAddress: 'owner@x.com', role: 'owner', type: 'user' }],
+    });
+    expect(await resolveLedgerFolder('tok', 'sheet_1')).toBe('folder_new');
 
-    const upload = calls.find(c => c.url.includes('/upload/drive/v3/files'))!;
-    expect(upload.url).toContain('uploadType=multipart');
-    expect(upload.method).toBe('POST');
-    expect(upload.headers['Content-Type']).toMatch(/^multipart\/related; boundary=/);
-    expect(upload.headers.Authorization).toBe('Bearer tok');
-    expect(upload.body).toContain('"parents":["folder_old"]');
-    expect(upload.body).toContain('"name":"bill.jpg"');
-    expect(upload.body).toContain('Content-Type: image/jpeg');
-    expect(upload.body).toContain('hello'); // the decoded file bytes
+    const create = calls.find(c => c.url.endsWith('/drive/v3/files?fields=id'))!;
+    expect(create.body).toEqual({ name: RECEIPTS_FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' });
+    expect(calls.some(c => c.url.endsWith(':batchUpdate'))).toBe(true);
+    expect(grantsOn(calls, 'folder_new').map(g => g.body)).toEqual([
+      { role: 'writer', type: 'user', emailAddress: 'partner@x.com' },
+      { role: 'reader', type: 'group', emailAddress: 'family@x.com' },
+    ]);
+    expect(getReceiptsFolderStatus()).toEqual({ state: 'ready', folderId: 'folder_new' });
+  });
 
-    expect(done).toEqual({
+  it('defers to a folder another partner recorded first, trashing its own empty one', async () => {
+    const calls = stubDrive({ ledgerFolder: null, raceWinner: 'folder_theirs' });
+    expect(await resolveLedgerFolder('tok', 'sheet_1')).toBe('folder_theirs');
+    expect(calls.some(c => c.method === 'PATCH' && c.url.includes('/files/folder_new'))).toBe(true);
+    expect(grantsOn(calls, 'folder_new')).toHaveLength(0);
+  });
+
+  it('uploads into the ledger folder with no per-file sharing', async () => {
+    const calls = stubDrive({ ledgerFolder: 'folder_shared' });
+    const { uploaded } = await uploadPendingReceipts('tok', 'sheet_1', await collectPendingReceipts([expense([pending()])]));
+    expect(uploaded.get('att_1')).toEqual({
       id: 'att_1',
       fileName: 'bill.jpg',
       mimeType: 'image/jpeg',
@@ -153,51 +218,112 @@ describe('uploadPendingAttachment', () => {
       driveFileId: 'file_1',
       webViewLink: 'https://drive.google.com/file/d/file_1/view',
     });
+    const upload = calls.find(c => c.url.includes('/upload/drive/v3/files'))!;
+    expect(upload.url).toContain('uploadType=multipart');
+    expect(upload.headers['Content-Type']).toMatch(/^multipart\/related; boundary=/);
+    expect(upload.headers.Authorization).toBe('Bearer tok');
+    expect(upload.body).toContain('"parents":["folder_shared"]');
+    expect(upload.body).toContain('Content-Type: image/jpeg');
+    expect(upload.body).toContain('hello');
+    expect(calls.some(c => c.url.includes('/files/file_1/permissions'))).toBe(false);
+    expect(calls.some(c => c.url.endsWith('/drive/v3/files?fields=id'))).toBe(false);
+  });
+});
+
+describe('a partner who has not connected the folder', () => {
+  it('keeps receipts pending and asks to connect when the folder is not reachable', async () => {
+    const calls = stubDrive({ ledgerFolder: 'folder_shared', folderAccess: 404 });
+    const expenses = [expense([pending()])];
+    const { uploaded, failed } = await uploadPendingReceipts('tok', 'sheet_1', await collectPendingReceipts(expenses));
+    expect(uploaded.size).toBe(0);
+    expect(failed).toBe(1);
+    expect(calls.some(c => c.url.includes('/upload/'))).toBe(false);
+    expect(getReceiptsFolderStatus()).toEqual({ state: 'needs-connect', folderId: 'folder_shared' });
   });
 
-  it('shares the file (reader, no email) with every user and group on the ledger', async () => {
+  it('shows the connect prompt on sign-in, and connects through the picker', async () => {
+    stubDrive({ ledgerFolder: 'folder_shared', folderAccess: 403 });
+    await checkReceiptsFolderOnSignIn('tok', 'sheet_1');
+    expect(getReceiptsFolderStatus().state).toBe('needs-connect');
+
+    expect(await connectReceiptsFolder('tok', async () => 'folder_other')).toBe('wrong-folder');
+    expect(await connectReceiptsFolder('tok', async () => null)).toBe('cancelled');
+
+    stubDrive({ ledgerFolder: 'folder_shared', folderAccess: 200, ownedByMe: false });
+    const pick = vi.fn(async (_t: string, id: string) => id);
+    expect(await connectReceiptsFolder('tok', pick)).toBe('connected');
+    expect(pick).toHaveBeenCalledWith('tok', 'folder_shared');
+    expect(getReceiptsFolderStatus()).toEqual({ state: 'ready', folderId: 'folder_shared' });
+  });
+});
+
+describe('re-sharing on sign-in', () => {
+  it('adds only people newly on the sheet, when this partner owns the folder', async () => {
     const calls = stubDrive({
-      existingFolder: 'folder_old',
-      permissions: [
+      ledgerFolder: 'folder_shared',
+      ownedByMe: true,
+      sheetPermissions: [
         { emailAddress: 'owner@x.com', role: 'owner', type: 'user' },
-        { emailAddress: 'partner@x.com', role: 'writer', type: 'user' },
-        { emailAddress: 'family@x.com', role: 'reader', type: 'group' },
+        { emailAddress: 'Partner@x.com', role: 'writer', type: 'user' },
+        { emailAddress: 'new@x.com', role: 'commenter', type: 'user' },
         { role: 'reader', type: 'anyone' },
-        { role: 'reader', type: 'domain' },
+      ],
+      folderPermissions: [
+        { emailAddress: 'owner@x.com', role: 'owner', type: 'user' },
+        { emailAddress: 'partner@x.com', role: 'reader', type: 'user' },
       ],
     });
-    await uploadPendingAttachment('tok', 'sheet_1', pending());
-
-    const list = calls.find(c => c.url.includes('/files/sheet_1/permissions'))!;
-    expect(list.url).toContain('fields=permissions(emailAddress,role,type)');
-    const grants = calls.filter(c => c.url.includes('/files/file_1/permissions'));
-    expect(grants.every(g => g.url.includes('sendNotificationEmail=false'))).toBe(true);
-    expect(grants.map(g => g.body)).toEqual([
-      { role: 'reader', type: 'user', emailAddress: 'owner@x.com' },
-      { role: 'reader', type: 'user', emailAddress: 'partner@x.com' },
-      { role: 'reader', type: 'group', emailAddress: 'family@x.com' },
+    await checkReceiptsFolderOnSignIn('tok', 'sheet_1');
+    expect(grantsOn(calls, 'folder_shared').map(g => g.body)).toEqual([
+      { role: 'reader', type: 'user', emailAddress: 'new@x.com' },
     ]);
-    // Never public.
-    expect(grants.some(g => g.body.type === 'anyone' || g.body.type === 'domain')).toBe(false);
+    // Nobody is removed or changed.
+    expect(calls.some(c => c.method === 'DELETE' || c.method === 'PATCH')).toBe(false);
   });
 
-  it('keeps the file private and still succeeds when the ledger permissions cannot be read', async () => {
-    const calls = stubDrive({ existingFolder: 'folder_old', permissionsStatus: 403 });
-    const done = await uploadPendingAttachment('tok', 'sheet_1', pending());
-    expect(done.driveFileId).toBe('file_1');
-    expect(done.webViewLink).toContain('file_1');
-    expect(calls.some(c => c.url.includes('/files/file_1/permissions'))).toBe(false);
+  it('leaves sharing alone when this partner does not own the folder', async () => {
+    const calls = stubDrive({
+      ledgerFolder: 'folder_shared',
+      ownedByMe: false,
+      sheetPermissions: [{ emailAddress: 'new@x.com', role: 'writer', type: 'user' }],
+    });
+    await checkReceiptsFolderOnSignIn('tok', 'sheet_1');
+    expect(grantsOn(calls, 'folder_shared')).toHaveLength(0);
   });
 
-  it('reports the fallback from shareWithSheetPartners', async () => {
-    stubDrive({ permissionsStatus: 404 });
-    expect(await shareWithSheetPartners('tok', 'file_1', 'sheet_1')).toBe(false);
+  it('copes when the sheet permissions cannot be read', async () => {
+    stubDrive({ sheetPermissionsStatus: 403 });
+    expect(await shareFolderWithSheet('tok', 'folder_shared', 'sheet_1')).toBeNull();
+  });
+});
+
+describe('removed receipts go to the Drive trash', () => {
+  const uploadedAtt = (id: string, fileId: string): Attachment => ({
+    id, fileName: `${id}.jpg`, mimeType: 'image/jpeg', size: 1, uploadedAt: 'x', driveFileId: fileId,
+  });
+
+  it('finds the files taken off an expense, or all of a deleted one', () => {
+    const before = expense([uploadedAtt('a', 'f_a'), uploadedAtt('b', 'f_b'), pending('c')]);
+    expect(removedDriveFileIds(before, [uploadedAtt('a', 'f_a')])).toEqual(['f_b']);
+    expect(removedDriveFileIds(before, undefined)).toEqual(['f_a', 'f_b']);
+    expect(removedDriveFileIds(undefined, [])).toEqual([]);
+  });
+
+  it('trashes each file and quietly skips one it cannot trash', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const calls = stubDrive();
+    await trashDriveFiles('tok', ['mine', 'theirs']);
+    const patches = calls.filter(c => c.method === 'PATCH');
+    expect(patches.map(p => p.url.split('/files/')[1].split('?')[0])).toEqual(['mine', 'theirs']);
+    expect(patches.every(p => p.body.trashed === true)).toBe(true);
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 });
 
 describe('offline receipts', () => {
   it('keeps a receipt pending, with its file, when the upload fails', async () => {
-    stubDrive({ existingFolder: 'folder_old', uploadFails: true });
+    stubDrive({ ledgerFolder: 'folder_old', uploadFails: true });
     const expenses = [expense([pending()])];
     const work = await collectPendingReceipts(expenses);
     expect(work).toHaveLength(1);
@@ -212,9 +338,9 @@ describe('offline receipts', () => {
   });
 
   it('applies a finished upload to the latest expenses', async () => {
-    stubDrive({ existingFolder: 'folder_old' });
+    stubDrive({ ledgerFolder: 'folder_old' });
     const expenses = [expense([pending()])];
-    const { uploaded } = await uploadPendingReceipts('tok', null, await collectPendingReceipts(expenses));
+    const { uploaded } = await uploadPendingReceipts('tok', 'sheet_1', await collectPendingReceipts(expenses));
     const after = applyUploadedReceipts(expenses, uploaded);
     expect(after[0].attachments![0].driveFileId).toBe('file_1');
     expect(after[0].attachments![0].data).toBeUndefined();
@@ -339,11 +465,11 @@ describe('pending receipt bytes live outside the saved database', () => {
 
   it('reads the bytes back from the store for the upload, then clears the entry', async () => {
     store.entries.set('att_1', { id: 'att_1', data: DATA, savedAt: Date.now() });
-    const calls = stubDrive({ existingFolder: 'folder_old' });
+    const calls = stubDrive({ ledgerFolder: 'folder_old' });
     const work = await collectPendingReceipts([expense([stored()])]);
     expect(work[0].attachment.data).toBe(DATA);
 
-    const { uploaded } = await uploadPendingReceipts('tok', null, work);
+    const { uploaded } = await uploadPendingReceipts('tok', 'sheet_1', work);
     expect(uploaded.get('att_1')?.driveFileId).toBe('file_1');
     expect(calls.find(c => c.url.includes('/upload/'))!.body).toContain('hello');
     expect(store.entries.has('att_1')).toBe(false);
@@ -351,8 +477,8 @@ describe('pending receipt bytes live outside the saved database', () => {
 
   it('keeps the store entry when the upload fails', async () => {
     store.entries.set('att_1', { id: 'att_1', data: DATA, savedAt: Date.now() });
-    stubDrive({ existingFolder: 'folder_old', uploadFails: true });
-    await uploadPendingReceipts('tok', null, await collectPendingReceipts([expense([stored()])]));
+    stubDrive({ ledgerFolder: 'folder_old', uploadFails: true });
+    await uploadPendingReceipts('tok', 'sheet_1', await collectPendingReceipts([expense([stored()])]));
     expect(store.entries.get('att_1')?.data).toBe(DATA);
   });
 

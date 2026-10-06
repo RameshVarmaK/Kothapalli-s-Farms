@@ -6,11 +6,14 @@ import { logError } from '../utils/errorLogging';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocalReceiptSrc } from '../hooks/useLocalReceiptSrc';
 import { stashReceiptData } from '../utils/receiptStore';
+import { ConnectReceiptsFolder } from './ConnectReceiptsFolder';
 
 interface AttachmentUploaderProps {
   attachments: Attachment[] | undefined;
   onAttachmentsChange: (attachments: Attachment[]) => void;
   maxAttachments?: number;
+  /** For connecting the shared receipts folder when this account needs to. */
+  accessToken?: string | null;
 }
 
 function ReceiptThumb({ attachment }: { attachment: Attachment }) {
@@ -32,7 +35,8 @@ function ReceiptThumb({ attachment }: { attachment: Attachment }) {
 export function AttachmentUploader({
   attachments = [],
   onAttachmentsChange,
-  maxAttachments = 5
+  maxAttachments = 5,
+  accessToken = null
 }: AttachmentUploaderProps) {
   const { t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -92,6 +96,7 @@ export function AttachmentUploader({
 
   return (
     <div className="space-y-3">
+      <ConnectReceiptsFolder accessToken={accessToken} />
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}

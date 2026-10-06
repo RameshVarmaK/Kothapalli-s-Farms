@@ -15,6 +15,7 @@ import {
   stripInlineReceiptData,
   uploadPendingReceipts,
 } from '../utils/driveReceipts';
+import { checkReceiptsFolderOnSignIn, onReceiptsFolderStatus } from '../utils/receiptsFolder';
 
 const RETRY_INTERVAL_MS = 2 * 60 * 1000;
 
@@ -44,11 +45,27 @@ export function useReceiptUploads(
     // Also try again now and then, for failures that weren't about being
     // offline (a flaky network, an expired token that was since renewed).
     const intervalId = setInterval(retry, RETRY_INTERVAL_MS);
+    // Upload straight away once the partner connects the shared folder.
+    const stopStatus = onReceiptsFolderStatus(s => { if (s.state === 'ready') retry(); });
     return () => {
       window.removeEventListener('online', retry);
       clearInterval(intervalId);
+      stopStatus();
     };
   }, []);
+
+  // Once per sign-in (token) and ledger: does this partner need to connect
+  // the shared receipts folder, and — if they own it — add people newly on
+  // the sheet to it.
+  const sheetId = db?.settings?.linkedSpreadsheetId;
+  const checkedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!accessToken || !sheetId || isPlaceholderSpreadsheetId(sheetId)) return;
+    const key = `${accessToken}|${sheetId}`;
+    if (checkedRef.current === key) return;
+    checkedRef.current = key;
+    checkReceiptsFolderOnSignIn(accessToken, sheetId);
+  }, [accessToken, sheetId]);
 
   // Old-shape receipts (base64 receiptPhoto) become pending attachments,
   // whether or not anyone is signed in, so the sheet never sees them. Then
@@ -105,14 +122,13 @@ export function useReceiptUploads(
       return;
     }
 
-    const sheetId = db.settings?.linkedSpreadsheetId;
-    const shareWith = sheetId && !isPlaceholderSpreadsheetId(sheetId) ? sheetId : null;
+    const ledgerId = sheetId && !isPlaceholderSpreadsheetId(sheetId) ? sheetId : null;
     runningRef.current = true;
     (async () => {
       try {
         const work = await collectPendingReceipts(db.expenses);
         if (work.length === 0) return;
-        const { uploaded } = await uploadPendingReceipts(accessToken, shareWith, work);
+        const { uploaded } = await uploadPendingReceipts(accessToken, ledgerId, work);
         if (uploaded.size > 0) {
           setDb(prev => {
             if (!prev) return prev;

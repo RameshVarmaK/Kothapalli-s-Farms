@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { CloudOff, KeyRound, ShieldAlert, RefreshCw, AlertTriangle } from 'lucide-react';
 import { SyncErrorKind } from '../utils/syncErrors';
 import { useLanguage } from '../hooks/useLanguage';
+import { onLocalSaveStatus } from '../utils/database';
 
 interface SyncStatusBannerProps {
   kind: SyncErrorKind;
@@ -44,6 +45,16 @@ const COPY: Record<SyncErrorKind, { title: string; body: string }> = {
   },
 };
 
+// Used instead of the body above while this device can't save either (see
+// LocalSaveBanner): "safe on this device" would then be untrue.
+const UNSAVED_BODY: Record<SyncErrorKind, string> = {
+  offline: "Your latest entries are only in this open page. Keep it open; they'll be sent as soon as you're back online.",
+  auth: 'Your latest entries are only in this open page. Keep it open and sign in again to send them to the Google Sheet.',
+  access: "Your latest entries are only in this open page. Ask the sheet's owner to share it with you as an Editor, then tap Retry.",
+  busy: 'Your latest entries are only in this open page. Keep it open; they will be sent automatically.',
+  unknown: 'Your latest entries are only in this open page. Keep it open; they will be sent automatically.',
+};
+
 const ICONS: Record<SyncErrorKind, React.ElementType> = {
   offline: CloudOff,
   auth: KeyRound,
@@ -68,6 +79,9 @@ export const SyncStatusBanner: React.FC<SyncStatusBannerProps> = ({
 }) => {
   const { t } = useLanguage();
   const [now, setNow] = useState(() => Date.now());
+  const [localSaveFailed, setLocalSaveFailed] = useState(false);
+
+  useEffect(() => onLocalSaveStatus(setLocalSaveFailed), []);
 
   useEffect(() => {
     if (!nextRetryAt) return;
@@ -88,7 +102,7 @@ export const SyncStatusBanner: React.FC<SyncStatusBannerProps> = ({
         <Icon size={18} className="text-amber-600 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-bold">{t(copy.title)}</p>
-          <p className="text-xs mt-0.5 leading-relaxed">{t(copy.body)}</p>
+          <p className="text-xs mt-0.5 leading-relaxed">{t(localSaveFailed ? UNSAVED_BODY[kind] : copy.body)}</p>
           <p className="text-[11px] mt-1 font-semibold text-amber-700">
             {pendingChanges > 0 && (
               <span>

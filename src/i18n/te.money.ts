@@ -98,6 +98,15 @@ export const teMoney: Record<string, string> = {
   'Not uploaded yet — it will be sent to Drive from the device that added it.':
     'ఇంకా అప్‌లోడ్ కాలేదు — దీన్ని జోడించిన పరికరం నుండి Drive‌కి పంపబడుతుంది.',
   'Open in Drive': 'Drive‌లో తెరవండి',
+  'Connect the shared receipts folder': 'భాగస్వామ్య రసీదుల ఫోల్డర్‌ను కనెక్ట్ చేయండి',
+  'Receipts for this ledger are kept in a shared Google Drive folder. Connect it once on this account so your receipts can be uploaded. Until then they wait on this device.':
+    'ఈ చిట్టా రసీదులు భాగస్వామ్య Google Drive ఫోల్డర్‌లో ఉంటాయి. మీ రసీదులు అప్‌లోడ్ కావడానికి ఈ ఖాతాలో దాన్ని ఒకసారి కనెక్ట్ చేయండి. అప్పటివరకు అవి ఈ పరికరంలోనే ఉంటాయి.',
+  'Connect folder': 'ఫోల్డర్‌ను కనెక్ట్ చేయండి',
+  'Opening...': 'తెరుస్తోంది...',
+  'That is a different folder. Pick the "FarmLedger Receipts" folder shared with this ledger.':
+    'అది వేరే ఫోల్డర్. ఈ చిట్టాతో షేర్ చేసిన "FarmLedger Receipts" ఫోల్డర్‌ను ఎంచుకోండి.',
+  'Still no access. Ask the partner who shared the ledger to share the receipts folder with you too.':
+    'ఇంకా అనుమతి లేదు. చిట్టాను షేర్ చేసిన భాగస్వామిని రసీదుల ఫోల్డర్‌ను కూడా మీతో షేర్ చేయమని అడగండి.',
   'Loading receipt...': 'రసీదు లోడ్ అవుతోంది...',
   'Open it in Google Drive to view.': 'చూడటానికి Google Drive‌లో తెరవండి.',
   "Can't show this receipt here. Open it in Google Drive — if you don't have access yet, ask there.":

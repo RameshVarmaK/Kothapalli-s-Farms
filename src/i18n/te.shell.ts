@@ -39,6 +39,14 @@ export const teShell: Record<string, string> = {
   'change not yet in the Google Sheet': 'మార్పు ఇంకా గూగుల్ షీట్‌లో లేదు',
   'changes not yet in the Google Sheet': 'మార్పులు ఇంకా గూగుల్ షీట్‌లో లేవు',
   'Retrying now...': 'మళ్లీ ప్రయత్నిస్తోంది...',
+  "Your latest entries are only in this open page. Keep it open; they'll be sent as soon as you're back online.":
+    'మీ తాజా నమోదులు ఈ తెరిచిన పేజీలో మాత్రమే ఉన్నాయి. దీన్ని తెరిచే ఉంచండి; ఇంటర్నెట్ రాగానే అవి పంపబడతాయి.',
+  'Your latest entries are only in this open page. Keep it open and sign in again to send them to the Google Sheet.':
+    'మీ తాజా నమోదులు ఈ తెరిచిన పేజీలో మాత్రమే ఉన్నాయి. దీన్ని తెరిచే ఉంచి, వాటిని గూగుల్ షీట్‌కి పంపడానికి మళ్లీ సైన్ ఇన్ చేయండి.',
+  "Your latest entries are only in this open page. Ask the sheet's owner to share it with you as an Editor, then tap Retry.":
+    'మీ తాజా నమోదులు ఈ తెరిచిన పేజీలో మాత్రమే ఉన్నాయి. షీట్ యజమానిని మీకు ఎడిటర్‌గా షేర్ చేయమని అడిగి, ఆపై మళ్లీ ప్రయత్నించండి నొక్కండి.',
+  'Your latest entries are only in this open page. Keep it open; they will be sent automatically.':
+    'మీ తాజా నమోదులు ఈ తెరిచిన పేజీలో మాత్రమే ఉన్నాయి. దీన్ని తెరిచే ఉంచండి; అవి స్వయంచాలకంగా పంపబడతాయి.',
   'Entries on this device could not be saved — storage is full':
     'ఈ పరికరంలో నమోదులు సేవ్ కాలేదు — నిల్వ నిండిపోయింది',
   "Don't close or reload this page. Stay online so your entries reach the Google Sheet, and free up space on this device (browser site data).":

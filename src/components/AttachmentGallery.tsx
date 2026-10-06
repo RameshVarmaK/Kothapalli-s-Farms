@@ -5,6 +5,7 @@ import { formatFileSize, isImageAttachment } from '../utils/attachments';
 import { fetchReceiptObjectUrl } from '../utils/driveReceipts';
 import { useLanguage } from '../hooks/useLanguage';
 import { useLocalReceiptSrc } from '../hooks/useLocalReceiptSrc';
+import { ConnectReceiptsFolder } from './ConnectReceiptsFolder';
 
 interface AttachmentGalleryProps {
   attachments: Attachment[];
@@ -124,6 +125,7 @@ export function AttachmentGallery({ attachments, accessToken, title, onClose }: 
           </button>
         </div>
         <div className="p-4 space-y-3">
+          <ConnectReceiptsFolder accessToken={accessToken} />
           {attachments.map(att => (
             <ReceiptItem key={att.id} attachment={att} accessToken={accessToken} />
           ))}

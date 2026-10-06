@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MoneyTab } from '../src/components/MoneyTab';
 import { LanguageProvider } from '../src/hooks/useLanguage';
 import { Field, Season, Member, Expense } from '../src/types';
@@ -24,7 +24,7 @@ const withReceipts: Expense = {
   ],
 };
 
-function renderTab(onEditExpense = vi.fn((_e: Expense) => true)) {
+function renderTab(onEditExpense = vi.fn((_e: Expense) => true), accessToken: string | null = null, onDeleteExpense = vi.fn()) {
   render(
     <LanguageProvider>
       <MoneyTab
@@ -37,10 +37,10 @@ function renderTab(onEditExpense = vi.fn((_e: Expense) => true)) {
         activities={[]}
         currency="₹"
         creditAccounts={[]}
-        accessToken={null}
+        accessToken={accessToken}
         onAddExpense={vi.fn(() => true)}
         onEditExpense={onEditExpense}
-        onDeleteExpense={vi.fn()}
+        onDeleteExpense={onDeleteExpense}
         onAddLabour={vi.fn(() => true)}
         onEditLabour={vi.fn(() => true)}
         onDeleteLabour={vi.fn()}
@@ -74,5 +74,35 @@ describe('expense receipts in the Money tab', () => {
     fireEvent.submit(screen.getByPlaceholderText('e.g. 5000').closest('form')!);
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onEdit.mock.calls[0][0].attachments!.map(a => a.id)).toEqual(['a2']);
+  });
+
+  function stubTrash() {
+    const patches: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: any) => {
+      if (init?.method === 'PATCH') patches.push(`${url.split('/files/')[1].split('?')[0]} ${init.body}`);
+      return { ok: true, status: 200, json: async () => ({}), text: async () => '' } as any;
+    }));
+    return patches;
+  }
+
+  it('moves a receipt taken off an expense to the Drive trash', async () => {
+    const patches = stubTrash();
+    renderTab(vi.fn((_e: Expense) => true), 'tok');
+    fireEvent.click(screen.getByTitle('Edit Record'));
+    fireEvent.click(screen.getAllByLabelText('Remove receipt')[1]); // the uploaded PDF
+    fireEvent.submit(screen.getByPlaceholderText('e.g. 5000').closest('form')!);
+    await waitFor(() => expect(patches).toEqual(['file_2 {"trashed":true}']));
+    vi.unstubAllGlobals();
+  });
+
+  it('moves the receipts of a deleted expense to the Drive trash', async () => {
+    const patches = stubTrash();
+    const onDelete = vi.fn();
+    renderTab(vi.fn((_e: Expense) => true), 'tok', onDelete);
+    fireEvent.click(screen.getByTitle('Delete Record'));
+    fireEvent.click(screen.getByText('Delete'));
+    expect(onDelete).toHaveBeenCalledWith('exp_1');
+    await waitFor(() => expect(patches).toEqual(['file_2 {"trashed":true}']));
+    vi.unstubAllGlobals();
   });
 });

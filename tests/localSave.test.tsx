@@ -6,6 +6,8 @@ import { LocalSaveBanner } from '../src/components/LocalSaveBanner';
 import { AttachmentUploader } from '../src/components/AttachmentUploader';
 import { LanguageProvider } from '../src/hooks/useLanguage';
 import { createMemoryReceiptStore, setReceiptStoreBackend } from '../src/utils/receiptStore';
+import { SyncStatusBanner } from '../src/components/SyncStatusBanner';
+import { checkReceiptsFolderOnSignIn, resetReceiptsFolderState } from '../src/utils/receiptsFolder';
 
 const db = { expenses: [] } as unknown as LocalDatabase;
 
@@ -73,5 +75,54 @@ describe('choosing a receipt', () => {
     expect(att).toMatchObject({ fileName: 'bill.pdf', mimeType: 'application/pdf', pending: true });
     expect(att.data).toBeUndefined();
     expect(store.entries.get(att.id)?.data).toBe('aGVsbG8=');
+  });
+});
+
+describe('the sync banner while local saving fails', () => {
+  it('stops saying entries are safe on this device', () => {
+    const props = {
+      kind: 'offline' as const,
+      pendingChanges: 1,
+      nextRetryAt: null,
+      isSyncing: false,
+      onRetry: () => {},
+      onSignIn: () => {},
+    };
+    render(<LanguageProvider><SyncStatusBanner {...props} /></LanguageProvider>);
+    expect(screen.getByRole('alert').textContent).toContain('Your entries are safe on this device');
+
+    const restore = failWrites();
+    act(() => { saveDatabase(db); });
+    const text = screen.getByRole('alert').textContent!;
+    expect(text).not.toContain('safe on this device');
+    expect(text).toContain('Your latest entries are only in this open page.');
+    restore.mockRestore();
+  });
+});
+
+describe('connect prompt', () => {
+  it('appears in the receipt picker when this account cannot reach the shared folder', async () => {
+    resetReceiptsFolderState();
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('developerMetadata')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ developerMetadata: [{ metadataId: 1, metadataKey: 'farmledger.receiptsFolderId', metadataValue: 'folder_shared' }] }),
+        } as any;
+      }
+      return { ok: false, status: 404, json: async () => ({}), text: async () => '' } as any;
+    }));
+    render(
+      <LanguageProvider>
+        <AttachmentUploader attachments={[]} onAttachmentsChange={() => {}} accessToken="tok" />
+      </LanguageProvider>
+    );
+    expect(screen.queryByText('Connect the shared receipts folder')).toBeNull();
+    await act(async () => { await checkReceiptsFolderOnSignIn('tok', 'sheet_1'); });
+    expect(screen.getByText('Connect the shared receipts folder')).toBeTruthy();
+    expect(screen.getByText('Open in Drive').closest('a')!.getAttribute('href'))
+      .toBe('https://drive.google.com/drive/folders/folder_shared');
+    resetReceiptsFolderState();
   });
 });

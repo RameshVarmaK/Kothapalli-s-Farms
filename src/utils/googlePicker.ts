@@ -163,6 +163,57 @@ export function pickSpreadsheet(accessToken: string): Promise<string | null> {
   );
 }
 
+/**
+ * Opens the Drive chooser on folders so a partner can pick the ledger's
+ * shared receipts folder once. Picking it records a drive.file grant for
+ * this app on that folder, which uploading into it requires. Resolves with
+ * the chosen folder's id, or null if closed without picking.
+ */
+export function pickReceiptsFolder(accessToken: string, folderId: string): Promise<string | null> {
+  const config = getPickerConfig();
+  if (!config) {
+    return Promise.reject(new Error('Google Picker is not configured for this app.'));
+  }
+
+  return loadPickerApi().then(
+    () =>
+      new Promise<string | null>((resolve, reject) => {
+        try {
+          const picker = window.google.picker;
+          const folders = new picker.DocsView(picker.ViewId.FOLDERS)
+            .setIncludeFolders(true)
+            .setSelectFolderEnabled(true)
+            .setMimeTypes('application/vnd.google-apps.folder');
+          // Narrow the view to just the ledger's folder where Picker
+          // supports it, so there is nothing else to choose.
+          if (typeof folders.setFileIds === 'function') folders.setFileIds(folderId);
+
+          new picker.PickerBuilder()
+            .setAppId(config.appId)
+            .setOAuthToken(accessToken)
+            .setDeveloperKey(config.developerKey)
+            .addView(folders)
+            .setTitle('Choose "FarmLedger Receipts"')
+            .setCallback((data: any) => {
+              if (data.action === picker.Action.PICKED) {
+                resolve(data.docs?.[0]?.id || null);
+              } else if (data.action === picker.Action.CANCEL) {
+                resolve(null);
+              }
+            })
+            .build()
+            .setVisible(true);
+        } catch (err) {
+          reject(
+            new Error(
+              `Could not open the Drive folder chooser: ${err instanceof Error ? err.message : String(err)}`
+            )
+          );
+        }
+      })
+  );
+}
+
 /** Test seam: forget the cached script-load promise. */
 export function resetPickerApiForTests(): void {
   pickerApiPromise = null;
