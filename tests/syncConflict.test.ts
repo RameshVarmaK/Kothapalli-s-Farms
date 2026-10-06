@@ -6,6 +6,7 @@ import {
   makeSyncFingerprint,
   getLastSyncedFingerprint,
   setLastSyncedFingerprint,
+  countUnsyncedChanges,
 } from '../src/utils/syncConflict';
 import { LocalDatabase } from '../src/utils/database';
 import { Member } from '../src/types';
@@ -340,5 +341,24 @@ describe('edits to an existing record', () => {
       JSON.stringify({ counts: { seasons: 1 }, ids: { seasons: ['season_1'] } })
     );
     expect(getLastSyncedFingerprint()).toBeNull();
+  });
+});
+
+describe('countUnsyncedChanges', () => {
+  const base = () => makeDb({ expenses: [{ id: 'e1', amount: 100 }, { id: 'e2', amount: 200 }] as any });
+
+  it('is zero with no baseline, rather than a guess', () => {
+    expect(countUnsyncedChanges(base(), null)).toBe(0);
+  });
+
+  it('is zero right after a sync', () => {
+    expect(countUnsyncedChanges(base(), makeSyncFingerprint(base()))).toBe(0);
+  });
+
+  it('counts each added, edited and deleted record once', () => {
+    const baseline = makeSyncFingerprint(base());
+    const local = makeDb({ expenses: [{ id: 'e1', amount: 150 }, { id: 'e3', amount: 50 }] as any });
+    // e1 edited, e3 added, e2 deleted
+    expect(countUnsyncedChanges(local, baseline)).toBe(3);
   });
 });

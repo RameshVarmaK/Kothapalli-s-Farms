@@ -159,6 +159,29 @@ export function holdsSameRecords(a: LocalDatabase, b: LocalDatabase): boolean {
   return !changedSince(makeSyncFingerprint(a), makeSyncFingerprint(b));
 }
 
+/**
+ * How many records this device has added, edited or deleted since it last
+ * agreed with the sheet — the changes a reload or a closed tab would leave
+ * unsent. Zero when there is no baseline: with nothing to compare against,
+ * any number shown would be a guess.
+ */
+export function countUnsyncedChanges(db: LocalDatabase, baseline: SyncFingerprint | null): number {
+  if (!baseline) return 0;
+  const local = makeSyncFingerprint(db);
+  let changed = 0;
+  DIFF_KEYS.forEach(key => {
+    const before = new Map((baseline.sigs[key] || []).map(sig => [sig.slice(0, sig.lastIndexOf('#')), sig]));
+    const now = new Map((local.sigs[key] || []).map(sig => [sig.slice(0, sig.lastIndexOf('#')), sig]));
+    now.forEach((sig, id) => {
+      if (before.get(id) !== sig) changed++; // added or edited
+    });
+    before.forEach((_, id) => {
+      if (!now.has(id)) changed++; // deleted
+    });
+  });
+  return changed;
+}
+
 export type SyncDecision = 'adopt-cloud' | 'keep-local' | 'conflict';
 
 /**

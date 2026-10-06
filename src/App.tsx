@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef, Suspense, lazy, ReactNode } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense, lazy, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, googleSignInRedirect, logout, clearGoogleAccessToken } from './utils/auth';
 import {
@@ -20,7 +20,8 @@ import {
   LEGACY_CLEARANCE_KEYS,
   normalizeClearanceKeys
 } from './utils/database';
-import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint } from './utils/syncConflict';
+import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges } from './utils/syncConflict';
+import { classifySyncError, isRetryable, retryDelayMs, SyncErrorKind } from './utils/syncErrors';
 import {
   validateExpense,
   validateLabour,
@@ -62,6 +63,7 @@ import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet
 import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard, Menu, BarChart3 } from 'lucide-react';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 import { SheetSetupModal } from './components/SheetSetupModal';
+import { SyncStatusBanner } from './components/SyncStatusBanner';
 import { isPickerAvailable, pickSpreadsheet } from './utils/googlePicker';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewModeProvider, useViewMode } from './hooks/useViewMode';
@@ -216,6 +218,11 @@ function AppShell() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [syncingState, setSyncingState] = useState<'idle' | 'syncing' | 'success' | 'failed'>('idle');
   const [syncMessage, setSyncMessage] = useState('');
+  // Why the last push failed, in terms of what the user must do; null while
+  // syncing is healthy. Drives the banner and the automatic retries.
+  const [syncErrorKind, setSyncErrorKind] = useState<SyncErrorKind | null>(null);
+  const [nextRetryAt, setNextRetryAt] = useState<number | null>(null);
+  const retryAttemptRef = useRef(0);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -290,6 +297,7 @@ function AppShell() {
               if (decision === 'conflict') {
                 setConflictData({ isOpen: true, cloudData: normalizedCloud });
                 logWarning('sync_push_paused_for_conflict', 'Paused push to Sheets: cloud data changed since last sync', { sheetId: targetSheetId });
+                setSyncErrorKind(null);
                 setSyncingState('idle');
                 break;
               }
@@ -306,6 +314,8 @@ function AppShell() {
                   setDb(normalizedCloud);
                 }
                 setLastSyncedFingerprint(normalizedCloud);
+                setSyncErrorKind(null);
+                retryAttemptRef.current = 0;
                 setSyncingState('idle');
                 shouldPush = false;
               }
@@ -322,26 +332,26 @@ function AppShell() {
 
           await pushDataToSpreadsheet(accessToken, targetSheetId, nextDb);
           setLastSyncedFingerprint(nextDb);
+          setSyncErrorKind(null);
+          retryAttemptRef.current = 0;
           setSyncingState('success');
           setSyncMessage('Successfully synced with cloud Sheets!');
           setTimeout(() => setSyncingState('idle'), 3000);
         } catch (err: any) {
           logError('sync_to_sheets_failed', err, { sheetId: targetSheetId });
+          const kind = classifySyncError(err, navigator.onLine);
+          setSyncErrorKind(kind);
           setSyncingState('failed');
-          const errMsg = err.message || String(err);
-          const isAuthError = errMsg.includes("401") ||
-                              errMsg.toLowerCase().includes("unauthenticated") ||
-                              errMsg.toLowerCase().includes("invalid credentials");
-          if (isAuthError) {
+          setSyncMessage(err?.message || String(err));
+          if (kind === 'auth') {
+            // Keep the user in the app: their entries are saved locally and
+            // they may be mid-way through more. Signing them out used to drop
+            // them on the login screen with no word on why. The banner asks
+            // them to sign in again instead; forgetting the stored token
+            // means a reload asks too, rather than retrying a dead one.
             clearGoogleAccessToken();
-            setSyncMessage('Your Google session has expired. Clearing session to re-authorize...');
-            setTimeout(() => {
-              setAccessToken(null);
-            }, 2000);
-          } else {
-            setSyncMessage(errMsg);
           }
-          // Re-queue the failed sync to retry
+          // Re-queue the failed sync; the retry effect below sends it.
           syncQueueRef.current = nextDb;
           break;
         } finally {
@@ -564,6 +574,7 @@ function AppShell() {
             setAccessToken(null);
           } else {
             setFetchError(errMsg);
+            setSyncErrorKind(classifySyncError(err, navigator.onLine));
             setSyncingState('failed');
             setSyncMessage(errMsg);
             // We do NOT clear or set accessToken to null so they stay logged in inside the app
@@ -587,6 +598,79 @@ function AppShell() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [db, accessToken, loadingData]);
+
+  // Records added, edited or deleted here that the sheet does not have yet.
+  // Recomputed when a sync settles too, since a push moves the baseline
+  // without changing db.
+  const pendingChanges = useMemo(() => {
+    if (!db || !db.settings?.linkedSpreadsheetId || isPlaceholderSpreadsheetId(db.settings.linkedSpreadsheetId)) return 0;
+    return countUnsyncedChanges(db, getLastSyncedFingerprint());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, syncingState]);
+  const pendingChangesRef = useRef(0);
+  pendingChangesRef.current = pendingChanges;
+
+  // Always the latest closure, for listeners registered once.
+  const retrySyncNowRef = useRef<() => void>(() => {});
+  retrySyncNowRef.current = () => {
+    if (!db || isSyncingRef.current) return;
+    syncDatabaseAcrossCloud(db);
+  };
+
+  // Retry a failed push on its own, backing off 10s → 5min. Nothing used to
+  // resend it until the user happened to make another edit or found Sync
+  // Now. An expired sign-in or a missing share would only fail again, so
+  // those wait for the user; being offline waits for the 'online' event.
+  useEffect(() => {
+    if (syncingState !== 'failed' || !syncErrorKind || !accessToken) {
+      setNextRetryAt(null);
+      return;
+    }
+    // A phone that knows it is offline waits for the 'online' event; a flaky
+    // connection that still reports itself online gets the timer.
+    if (!isRetryable(syncErrorKind) || (syncErrorKind === 'offline' && !navigator.onLine)) {
+      setNextRetryAt(null);
+      return;
+    }
+    const delay = retryDelayMs(retryAttemptRef.current);
+    setNextRetryAt(Date.now() + delay);
+    const id = setTimeout(() => {
+      retryAttemptRef.current += 1;
+      setNextRetryAt(null);
+      retrySyncNowRef.current();
+    }, delay);
+    return () => clearTimeout(id);
+  }, [syncingState, syncErrorKind, accessToken]);
+
+  // Send whatever is pending the moment the phone is back online or the app
+  // comes back to the foreground — the usual end of a dead-zone in the field.
+  useEffect(() => {
+    const resume = () => {
+      if (document.hidden) return;
+      if (syncQueueRef.current || pendingChangesRef.current > 0) retrySyncNowRef.current();
+    };
+    window.addEventListener('online', resume);
+    document.addEventListener('visibilitychange', resume);
+    return () => {
+      window.removeEventListener('online', resume);
+      document.removeEventListener('visibilitychange', resume);
+    };
+  }, []);
+
+  // Warn before the tab closes with changes the sheet does not have. They
+  // are safe on this device, but a partner reading the sheet would not see
+  // them until this device opens the app again.
+  useEffect(() => {
+    const warn = (e: BeforeUnloadEvent) => {
+      if (!accessToken) return;
+      if (pendingChangesRef.current > 0 || isSyncingRef.current || syncQueueRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [accessToken]);
 
   const handleLogin = async (mode: 'popup' | 'redirect' = 'popup'): Promise<string | null> => {
     try {
@@ -719,6 +803,17 @@ function AppShell() {
                   <p className="mt-2 text-[10px] text-slate-400">Please make sure your Google Account is permitted to access Sheet <strong>{db?.settings?.linkedSpreadsheetId || PLACEHOLDER_SPREADSHEET_ID}</strong>.</p>
                 </>
               )}
+            </div>
+          )}
+
+          {/* Entries made before the session ran out are still on this device
+              and go to the sheet on sign-in — say so, so nobody re-enters them. */}
+          {pendingChanges > 0 && (
+            <div className="w-full mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed font-medium">
+              <p className="font-bold mb-1">
+                {pendingChanges} {pendingChanges === 1 ? 'change is' : 'changes are'} saved on this device but not yet in the Google Sheet
+              </p>
+              <p>Sign in to send {pendingChanges === 1 ? 'it' : 'them'}. Please don't enter {pendingChanges === 1 ? 'it' : 'them'} again.</p>
             </div>
           )}
 
@@ -1864,6 +1959,14 @@ function AppShell() {
               >
                 <RefreshCw size={12} className={syncingState === 'syncing' ? 'animate-spin' : ''} />
                 <span>{t('Sync Now')}</span>
+                {pendingChanges > 0 && syncingState !== 'syncing' && (
+                  <span
+                    className="bg-amber-500 text-white rounded-full px-1.5 min-w-[18px] text-center text-[10px] leading-[18px]"
+                    title={`${pendingChanges} ${t(pendingChanges === 1 ? 'change not yet in the Google Sheet' : 'changes not yet in the Google Sheet')}`}
+                  >
+                    {pendingChanges}
+                  </span>
+                )}
               </button>
             </div>
           )}
@@ -1909,6 +2012,20 @@ function AppShell() {
           )}
         </div>
       </header>
+
+      {/* Stays up through a retry (syncing) and clears only once a sync
+          succeeds, so it doesn't flicker away and back on every attempt. */}
+      {accessToken && syncErrorKind && (syncingState === 'failed' || syncingState === 'syncing') && (
+        <SyncStatusBanner
+          kind={syncErrorKind}
+          pendingChanges={pendingChanges}
+          nextRetryAt={nextRetryAt}
+          isSyncing={syncingState === 'syncing'}
+          details={syncMessage}
+          onRetry={() => retrySyncNowRef.current()}
+          onSignIn={() => handleLogin()}
+        />
+      )}
 
       {/* Main container body */}
       <main className="flex-1 w-full max-w-7xl mx-auto flex flex-col md:flex-row pb-20 sm:pb-16 md:pb-0 md:h-[calc(100vh-69px)] overflow-hidden">

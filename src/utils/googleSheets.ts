@@ -260,7 +260,7 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
   });
 
   if (!res.ok) {
-    throw new Error(`Failed to fetch spreadsheet metadata: ${res.statusText}`);
+    throw new Error(`Failed to fetch spreadsheet metadata: ${res.status} ${res.statusText || ''}`.trim());
   }
 
   const metadata = await res.json();
@@ -465,7 +465,7 @@ export async function pushDataToSpreadsheet(
 
   if (!res.ok) {
     const errorDetails = await res.text();
-    throw new Error(`Google Sheets batch update failed: ${errorDetails}`);
+    throw new Error(`Google Sheets batch update failed: ${res.status} ${errorDetails}`);
   }
 
   // Now that the write succeeded, clean up any leftover stale rows that
@@ -618,7 +618,7 @@ export async function pullDataFromSpreadsheet(
     });
 
     if (!res.ok) {
-      throw new Error(`Failed to batchGet spreadsheet data: ${res.statusText}`);
+      throw new Error(`Failed to batchGet spreadsheet data: ${res.status} ${res.statusText || ''}`.trim());
     }
 
     const result = await res.json();
