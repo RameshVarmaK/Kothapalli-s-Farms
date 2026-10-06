@@ -148,7 +148,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
             type="button"
             onClick={() => setModalType('purchase')}
             className={`flex-1 text-center py-2 px-1.5 rounded-xl text-xs font-bold transition-all ${
-              modalType === 'purchase' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-450 hover:text-gray-600'
+              modalType === 'purchase' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-500 hover:text-gray-600'
             }`}
           >
             {t('Log Input Purchase (Asset)')}
@@ -160,7 +160,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
               setUsageSeasonId(activeSeasons[0]?.id || seasons[0]?.id || '');
             }}
             className={`flex-1 text-center py-2 px-1.5 rounded-xl text-xs font-bold transition-all ${
-              modalType === 'usage' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-450 hover:text-gray-600'
+              modalType === 'usage' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-gray-500 hover:text-gray-600'
             }`}
           >
             {t('Log Field Usage (Expense)')}
@@ -196,7 +196,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 <select
                   value={itemType}
                   onChange={e => setItemType(e.target.value as StockItem['type'])}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-750"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-800"
                 >
                   <option value="Seed">{t('Seed')}</option>
                   <option value="Fertilizer">{t('Fertilizer')}</option>

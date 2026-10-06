@@ -259,7 +259,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             className={`px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all cursor-pointer ${
               activeSubTab === 'overview'
                 ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-850'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             {t('Creditors Directory & Ledger')}
@@ -269,7 +269,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             className={`px-4 py-2 rounded-lg text-xs font-bold tracking-wide transition-all cursor-pointer ${
               activeSubTab === 'repayments'
                 ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-850'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
             {t('Repayments History')} ({creditRepayments.length})
@@ -286,7 +286,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
               setCredNotes('');
               setIsOpenAddCreditor(true);
             }}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold tracking-wide hover:bg-slate-850 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold tracking-wide hover:bg-slate-900 transition-all cursor-pointer"
           >
             <Plus size={14} className="stroke-[2.5]" />
             <span>{t('Add Creditor')}</span>
@@ -361,7 +361,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                             ? 'bg-amber-50 text-amber-700 border border-amber-100'
                             : report.account.type === 'Vendor'
                             ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                            : 'bg-slate-50 text-slate-650'
+                            : 'bg-slate-50 text-slate-700'
                         }`}>
                           {t(report.account.type)}
                         </span>
@@ -459,7 +459,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           return (
                             <div key={e.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs hover:border-slate-300 transition-all">
                               <div>
-                                <div className="font-extrabold text-slate-850">{e.category} (Expense)</div>
+                                <div className="font-extrabold text-slate-900">{e.category} (Expense)</div>
                                 <div className="text-[10px] text-slate-400 mt-0.5">
                                   {e.date} • Season: <span className="font-bold text-slate-600">{season ? season.cropName : 'Common'}</span> {field && `(${field.name})`}
                                 </div>
@@ -476,7 +476,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           return (
                             <div key={l.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs hover:border-slate-300 transition-all">
                               <div>
-                                <div className="font-extrabold text-slate-850">Labor Service ({l.workersCount} worker(s) at {currency}{l.wageRate})</div>
+                                <div className="font-extrabold text-slate-900">Labor Service ({l.workersCount} worker(s) at {currency}{l.wageRate})</div>
                                 <div className="text-[10px] text-slate-400 mt-0.5">
                                   {l.date} • Season: <span className="font-bold text-slate-600">{season ? season.cropName : 'Unknown'}</span> {field && `(${field.name})`}
                                 </div>
@@ -501,7 +501,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           return (
                             <div key={r.id} className="flex items-center justify-between p-3 bg-emerald-50/40 border border-emerald-100 rounded-xl text-xs hover:border-emerald-200 transition-all">
                               <div>
-                                <div className="font-extrabold text-slate-805">Repaid by {member ? member.name : t('Unknown Partner')}</div>
+                                <div className="font-extrabold text-slate-800">Repaid by {member ? member.name : t('Unknown Partner')}</div>
                                 <div className="text-[10px] text-slate-400 mt-0.5">
                                   {r.date} {r.notes && `• Note: "${r.notes}"`}
                                 </div>
@@ -581,7 +581,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                       <tr key={rep.id} className="hover:bg-slate-50/50 transition-all">
                         <td className="p-4 font-medium text-slate-500">{rep.date}</td>
                         <td className="p-4">
-                          <span className="font-extrabold text-slate-850">{creditor ? creditor.name : t('Deleted Creditor')}</span>
+                          <span className="font-extrabold text-slate-900">{creditor ? creditor.name : t('Deleted Creditor')}</span>
                           {creditor && (
                             <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-sm font-bold ml-1.5 uppercase tracking-wide">
                               {t(creditor.type)}
@@ -597,7 +597,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                         <td className="p-4 text-center">
                           <button
                             onClick={() => handleOpenEditRepayment(rep)}
-                            className="p-2 px-2.5 hover:bg-emerald-50 text-slate-350 hover:text-emerald-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
+                            className="p-2 px-2.5 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
                           >
                             {t('Edit')}
                           </button>
@@ -607,7 +607,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 onDeleteCreditRepayment(rep.id);
                               }
                             }}
-                            className="p-2 px-2.5 hover:bg-rose-50 text-slate-350 hover:text-rose-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
+                            className="p-2 px-2.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
                           >
                             {t('Delete')}
                           </button>
@@ -641,7 +641,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     placeholder="e.g. Ramesh Tractor Services, Labour union leader"
                     value={credName}
                     onChange={(e) => setCredName(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-705"
+                    className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all font-medium text-slate-700"
                   />
                 </div>
 
@@ -651,7 +651,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     <select
                       value={credType}
                       onChange={(e) => setCredType(e.target.value as any)}
-                      className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
+                      className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-700"
                     >
                       <option value="Labour">{t('Labour union')}</option>
                       <option value="Tractor">{t('Tractor / Hire')}</option>
@@ -667,7 +667,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                       placeholder="e.g. +91 99999..."
                       value={credPhone}
                       onChange={(e) => setCredPhone(e.target.value)}
-                      className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
+                      className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-700"
                     />
                   </div>
                 </div>
@@ -679,7 +679,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     rows={3}
                     value={credNotes}
                     onChange={(e) => setCredNotes(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
+                    className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-700"
                   />
                 </div>
               </div>
@@ -697,7 +697,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-xs font-bold bg-slate-900 text-white hover:bg-slate-850 rounded-xl transition-all cursor-pointer"
+                  className="px-4 py-2 text-xs font-bold bg-slate-900 text-white hover:bg-slate-900 rounded-xl transition-all cursor-pointer"
                 >
                   {editingAccountId ? t('Save Changes') : t('Save Profile')}
                 </button>
@@ -723,7 +723,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   <select
                     value={repCreditorId}
                     onChange={(e) => setRepCreditorId(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
+                    className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-700"
                   >
                     {!repCreditorId && <option value="">{t('-- Choose Creditor --')}</option>}
                     {creditAccounts.map(c => {
@@ -743,7 +743,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     <select
                       value={repMemberId}
                       onChange={(e) => setRepMemberId(e.target.value)}
-                      className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
+                      className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-700"
                     >
                       {members.map(m => (
                         <option key={m.id} value={m.id}>{m.name}</option>
@@ -758,7 +758,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                       required
                       value={repDate}
                       onChange={(e) => setRepDate(e.target.value)}
-                      className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
+                      className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-700"
                     />
                   </div>
                 </div>
@@ -783,7 +783,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     placeholder="e.g. Paid cash for second installment"
                     value={repNotes}
                     onChange={(e) => setRepNotes(e.target.value)}
-                    className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-705"
+                    className="w-full text-xs font-semibold px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-slate-700"
                   />
                 </div>
               </div>

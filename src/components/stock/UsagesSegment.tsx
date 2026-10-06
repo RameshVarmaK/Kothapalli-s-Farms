@@ -36,7 +36,7 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
         <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400">{t('Field Usage Consumptions')}</h3>
-        <span className="text-[10px] font-bold text-slate-550 block bg-slate-100 px-2.5 py-1 rounded-full uppercase tracking-wider">{t('Weighted Consumption')}</span>
+        <span className="text-[10px] font-bold text-slate-600 block bg-slate-100 px-2.5 py-1 rounded-full uppercase tracking-wider">{t('Weighted Consumption')}</span>
       </div>
 
       <div className="divide-y divide-slate-100">
@@ -88,16 +88,16 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <span className="text-base font-bold font-mono block text-slate-850">
+                    <span className="text-base font-bold font-mono block text-slate-900">
                       {currency}{Math.round(valueCharged).toLocaleString('en-IN')}
                     </span>
-                    <span className="text-[10px] text-slate-450 mt-1 block font-bold text-right bg-slate-100 px-1.5 py-0.5 rounded">
+                    <span className="text-[10px] text-slate-500 mt-1 block font-bold text-right bg-slate-100 px-1.5 py-0.5 rounded">
                       {t('Used')} {u.quantityUsed} {item?.unit}
                     </span>
                   </div>
                   <button
                     onClick={() => onEditUsage(u)}
-                    className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
+                    className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
                     title={t('Edit Usage')}
                   >
                     <Pencil size={13} />

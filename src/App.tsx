@@ -782,7 +782,7 @@ function AppShell() {
             <p>
               Welcome to the collaborative farm ledger portal for <strong>Kothapalli's Farms</strong>.
             </p>
-            <p className="text-xs text-slate-405">
+            <p className="text-xs text-slate-400">
               Sign in with your Google account to authorize secure real-time access to our synchronized cloud database.
             </p>
           </div>

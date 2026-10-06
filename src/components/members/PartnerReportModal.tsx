@@ -240,7 +240,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
 
           {/* Section 1: crop cycles */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Sprout size={13} className="text-slate-500" />
               <span>{t('Section 1: Crop Cycles')}</span>
             </h4>
@@ -300,7 +300,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
 
           {/* Section 2: settlement */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Scale size={13} className="text-slate-500" />
               <span>{t('Section 2: Settlement')}</span>
             </h4>
@@ -336,7 +336,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
 
           {/* Section 3: transactions */}
           <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Receipt size={13} className="text-slate-500" />
               <span>{t('Section 3: Transactions')}</span>
             </h4>
@@ -391,7 +391,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
           {/* Section 4: stock bought */}
           {ledger.stockPurchases.length > 0 && (
             <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-              <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+              <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
                 <Package size={13} className="text-slate-500" />
                 <span>{t('Section 4: Stock Bought')}</span>
               </h4>
@@ -419,7 +419,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-650 rounded-xl cursor-pointer"
+            className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 rounded-xl cursor-pointer"
           >
             {t('Close View')}
           </button>

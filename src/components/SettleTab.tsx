@@ -351,7 +351,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
             <p className="text-sm font-bold text-slate-800 mt-0.5 font-mono">
               {currency}{Math.round(summary.ledgers.reduce((sum, l) => sum + l.totalExpense, 0)).toLocaleString('en-IN')}
             </p>
-            <span className="text-[10px] text-slate-450 font-bold block mt-0.5 uppercase">{t('100% purchases tracked')}</span>
+            <span className="text-[10px] text-slate-500 font-bold block mt-0.5 uppercase">{t('100% purchases tracked')}</span>
           </div>
         </div>
 
@@ -468,7 +468,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                   key={idx}
                   className={`flex flex-col p-5 rounded-2xl border transition-all gap-4 ${
                     isCleared
-                      ? 'bg-emerald-55/30 border-emerald-300 bg-emerald-50/20'
+                      ? 'bg-emerald-50/30 border-emerald-300 bg-emerald-50/20'
                       : 'bg-slate-50 border-slate-200 hover:border-slate-400'
                   }`}
                 >
@@ -476,7 +476,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                   <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                     <div className="flex items-center gap-3 w-full md:w-auto">
                       <span className={`font-bold text-[10px] tracking-wider uppercase px-2.5 py-1 rounded-lg border ${
-                        isCleared ? 'bg-emerald-100 text-emerald-850 border-emerald-200' : 'bg-red-50 text-red-650 border-red-100'
+                        isCleared ? 'bg-emerald-100 text-emerald-900 border-emerald-200' : 'bg-red-50 text-red-700 border-red-100'
                       }`}>
                         {t('Pay Out')}
                       </span>
@@ -503,7 +503,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                         <span className="text-slate-400 text-[10px] font-bold uppercase block mt-1">{t('Recovers outlay')}</span>
                       </div>
                       <span className={`font-bold text-[10px] tracking-wider uppercase px-2.5 py-1 rounded-lg border ${
-                        isCleared ? 'bg-emerald-100 text-emerald-850 border-emerald-200' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                        isCleared ? 'bg-emerald-100 text-emerald-900 border-emerald-200' : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                       }`}>
                         {t('Receive')}
                       </span>
@@ -517,7 +517,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                           </span>
                           <button
                             onClick={() => handleUnclearMainDebt(debt, subEntries)}
-                            className="text-[9px] text-slate-450 hover:text-red-500 hover:underline font-bold cursor-pointer transition-colors"
+                            className="text-[9px] text-slate-500 hover:text-red-500 hover:underline font-bold cursor-pointer transition-colors"
                           >
                             {t('Mark Uncleared')}
                           </button>
@@ -525,7 +525,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                       ) : (
                         <button
                           onClick={() => handleClearMainDebt(debt, subEntries)}
-                          className="w-full md:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-750 font-bold text-white rounded-xl text-[10px] shadow-xs active:scale-95 cursor-pointer transition-all uppercase tracking-wider"
+                          className="w-full md:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-800 font-bold text-white rounded-xl text-[10px] shadow-xs active:scale-95 cursor-pointer transition-all uppercase tracking-wider"
                         >
                           {t('Mark Transferred')}
                         </button>

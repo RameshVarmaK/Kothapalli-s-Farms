@@ -30,7 +30,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
         <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400">{t('Stock Purchasing Ledger (Intakes)')}</h3>
-        <span className="text-[10px] font-bold text-emerald-750 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md uppercase tracking-wider">{t('Capital Outlays')}</span>
+        <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-md uppercase tracking-wider">{t('Capital Outlays')}</span>
       </div>
 
       <div className="divide-y divide-slate-100">
@@ -83,7 +83,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
                   </div>
                   <button
                     onClick={() => onEditPurchase(p)}
-                    className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
+                    className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
                     title={t('Edit Purchase')}
                   >
                     <Pencil size={13} />

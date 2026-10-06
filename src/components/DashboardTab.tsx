@@ -429,7 +429,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
         {filteredLedgers.length === 0 ? (
           <div className="text-center py-16 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3">
-            <span className="text-3xl text-slate-350">🌾</span>
+            <span className="text-3xl text-slate-400">🌾</span>
             <div>
               <p className="text-slate-800 font-bold text-sm">{t('No cropping cycles found')}</p>
               <p className="text-slate-400 text-xs mt-1">There are no seasons with status "{statusFilter}" currently registered.</p>
@@ -462,7 +462,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         <span>{area} {areaUnit}</span>
                       </p>
                     </div>
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border ${season.isClosed ? 'bg-slate-105 text-slate-600 border-slate-200' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border ${season.isClosed ? 'bg-slate-100 text-slate-600 border-slate-200' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>
                       {season.isClosed ? t('Closed') : t('Active')}
                     </span>
                   </div>

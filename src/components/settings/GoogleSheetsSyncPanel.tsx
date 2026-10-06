@@ -302,7 +302,7 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
                       onCustomAccessTokenChange(e.target.value.trim());
                       safeStorageSet('farmledger_custom_access_token', e.target.value.trim());
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-705 font-mono"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-700 font-mono"
                   />
                   <p className="text-[9px] text-slate-400 leading-normal font-medium">
                     {t('If popups are disabled or blockages exist in sandbox layers, paste a temporary Google OAuth access token to override.')}
@@ -332,7 +332,7 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
                       onCustomFirebaseConfigChange(val);
                       safeStorageSet('farmledger_custom_firebase_config', val.trim());
                     }}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-705 font-mono leading-relaxed"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-700 font-mono leading-relaxed"
                   />
                   <p className="text-[9px] text-slate-400 leading-normal font-medium">
                     {t('If you deploy this application standalone to your own server or Vercel, paste your own Firebase Config JSON above.\n                    This allows you to bypass the shared AI Studio sandbox limits, whitelisting your custom domain in your own Firebase project.')}

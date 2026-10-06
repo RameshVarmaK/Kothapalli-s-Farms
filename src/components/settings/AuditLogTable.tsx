@@ -21,7 +21,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({ auditLogs }) => {
           <FileText size={16} className="text-slate-400" />
           <h3 className="font-bold text-sm text-slate-800">{t('Transactional Audit Logs')}</h3>
         </div>
-        <span className="text-[10px] text-slate-450 font-bold bg-slate-100 px-2.5 py-1 rounded-full uppercase tracking-wider">{t('Bookkeeping Log Trail')}</span>
+        <span className="text-[10px] text-slate-500 font-bold bg-slate-100 px-2.5 py-1 rounded-full uppercase tracking-wider">{t('Bookkeeping Log Trail')}</span>
       </div>
 
       <div className="max-h-64 overflow-y-auto overflow-x-auto">
@@ -42,7 +42,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({ auditLogs }) => {
                   <td className="px-6 py-3.5 font-bold text-[10px] text-slate-400 font-mono whitespace-nowrap">{dateClean}</td>
                   <td className="px-6 py-3.5">
                     <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border ${
-                      log.actionType === 'create' ? 'bg-emerald-50 text-emerald-850 border-emerald-100' :
+                      log.actionType === 'create' ? 'bg-emerald-50 text-emerald-900 border-emerald-100' :
                       log.actionType === 'edit' ? 'bg-blue-50 text-blue-800 border-blue-100' :
                       'bg-red-50 text-red-800 border-red-100'
                     }`}>

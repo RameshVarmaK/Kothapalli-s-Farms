@@ -41,7 +41,7 @@ export const LocalizationPreferencesCard: React.FC<LocalizationPreferencesCardPr
             <select
               value={currency}
               onChange={e => onCurrencyChange(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-750 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
             >
               <option value="₹">{t('₹ INR (Rupees)')}</option>
               <option value="$">{t('$ USD (Dollars)')}</option>
@@ -54,7 +54,7 @@ export const LocalizationPreferencesCard: React.FC<LocalizationPreferencesCardPr
             <select
               value={areaUnit}
               onChange={e => onAreaUnitChange(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-750 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
             >
               <option value="acres">{t('Acres')}</option>
               <option value="hectares">{t('Hectares')}</option>

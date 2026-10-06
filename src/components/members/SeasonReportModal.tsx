@@ -359,7 +359,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                 {t('Crop General Report')}
               </span>
               <span className="text-slate-300">|</span>
-              <span className="text-xs text-slate-450 font-bold font-mono uppercase tracking-wider bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">ID: {season.id}</span>
+              <span className="text-xs text-slate-500 font-bold font-mono uppercase tracking-wider bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded-md">ID: {season.id}</span>
             </div>
             <h3 className="text-base font-extrabold text-slate-800 mt-1.5">{season.cropName} {t('Cycle on')} {field ? field.name : t('Unknown Plot')}</h3>
           </div>
@@ -377,41 +377,41 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Financial Reconciliation Summary Dashboard */}
           <div>
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3">
               {t('Financial Reconciliation Summary')}
             </h4>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5">
               <div className="p-4 rounded-2xl bg-amber-50/30 border border-amber-100 flex flex-col justify-between">
                 <span className="text-[9px] text-amber-700 font-bold uppercase block tracking-wider">{t('Direct Outlays')}</span>
-                <span className="text-md font-extrabold text-amber-850 font-mono mt-1.5 block">
+                <span className="text-md font-extrabold text-amber-900 font-mono mt-1.5 block">
                   {currency}{Math.round(sumDir).toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-orange-50/30 border border-orange-100 flex flex-col justify-between">
                 <span className="text-[9px] text-orange-700 font-bold uppercase block tracking-wider">{t('Common Allocated')}</span>
-                <span className="text-md font-extrabold text-orange-850 font-mono mt-1.5 block">
+                <span className="text-md font-extrabold text-orange-900 font-mono mt-1.5 block">
                   {currency}{Math.round(sumAlloc).toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-sky-50/30 border border-sky-100 flex flex-col justify-between">
                 <span className="text-[9px] text-sky-700 font-bold uppercase block tracking-wider">{t('Labor Hired')}</span>
-                <span className="text-md font-extrabold text-sky-850 font-mono mt-1.5 block">
+                <span className="text-md font-extrabold text-sky-900 font-mono mt-1.5 block">
                   {currency}{Math.round(sumLab).toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="p-4 rounded-2xl bg-purple-50/30 border border-purple-100 flex flex-col justify-between">
                 <span className="text-[9px] text-purple-700 font-bold uppercase block tracking-wider">{t('Stock Consumed')}</span>
-                <span className="text-md font-extrabold text-purple-855 font-mono mt-1.5 block">
+                <span className="text-md font-extrabold text-purple-900 font-mono mt-1.5 block">
                   {currency}{Math.round(sumStock).toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className={`p-4 rounded-2xl col-span-2 lg:col-span-1 border flex flex-col justify-between ${netPayback >= 0 ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'}`}>
                 <span className={`text-[9px] font-bold uppercase block tracking-wider ${netPayback >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>{t('Net Operating Profits')}</span>
-                <span className={`text-md font-extrabold font-mono mt-1.5 block ${netPayback >= 0 ? 'text-emerald-800' : 'text-rose-850'}`}>
+                <span className={`text-md font-extrabold font-mono mt-1.5 block ${netPayback >= 0 ? 'text-emerald-800' : 'text-rose-900'}`}>
                   {currency}{Math.round(netPayback).toLocaleString('en-IN')}
                 </span>
               </div>
@@ -419,13 +419,13 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
             <div className="mt-3.5 p-4.5 rounded-2xl bg-emerald-600 text-white flex flex-wrap justify-between items-center gap-3 shadow-2xs">
               <div>
-                <span className="text-[9px] text-emerald-150 font-bold uppercase tracking-widest">{t('Total Sales Revenues Got')}</span>
+                <span className="text-[9px] text-emerald-200 font-bold uppercase tracking-widest">{t('Total Sales Revenues Got')}</span>
                 <span className="text-lg font-extrabold font-mono block mt-0.5">
                   {currency}{Math.round(sumRev).toLocaleString('en-IN')}
                 </span>
               </div>
               <div>
-                <span className="text-[9px] text-emerald-150 font-bold uppercase tracking-widest">{t('Total Operating Expenses Outlay')}</span>
+                <span className="text-[9px] text-emerald-200 font-bold uppercase tracking-widest">{t('Total Operating Expenses Outlay')}</span>
                 <span className="text-lg font-extrabold font-mono block mt-0.5">
                   {currency}{Math.round(totCost).toLocaleString('en-IN')}
                 </span>
@@ -435,7 +435,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 1: Timelines Activity Logs */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Calendar size={13} className="text-slate-500" />
               <span>{t('Section 1: Timelines Activity Logs')}</span>
             </h4>
@@ -450,7 +450,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                       <span className="font-bold text-slate-700 bg-slate-200/60 px-1.5 py-0.5 rounded-md text-[9px] mr-1.5 uppercase tracking-wider">{a.type}</span>
                       <span className="text-slate-600 font-medium">{a.notes}</span>
                       {a.weatherNote && (
-                        <span className="text-[10px] text-slate-450 italic mt-0.5 block">Weather report context: {a.weatherNote}</span>
+                        <span className="text-[10px] text-slate-500 italic mt-0.5 block">Weather report context: {a.weatherNote}</span>
                       )}
                     </div>
                   </div>
@@ -461,7 +461,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 2: Cash Outlays & Direct Expenses */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <DollarSign size={13} className="text-slate-500" />
               <span>{t('Section 2: Cash Outlays & Direct Expenses')}</span>
             </h4>
@@ -477,8 +477,8 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                     <div key={e.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
                       <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{e.date}]</span>
-                        <span className="font-bold text-slate-705">{e.category}</span>
-                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-200 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
+                        <span className="font-bold text-slate-700">{e.category}</span>
+                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
                       <div className="sm:text-right">
                         <span className="font-bold font-mono text-slate-800 block">
@@ -495,7 +495,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 3: Constituent Stock Inventory Consumed */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Package size={13} className="text-slate-500" />
               <span>{t('Section 3: Stock Materials Consumed')}</span>
             </h4>
@@ -513,8 +513,8 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                     <div key={u.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
                       <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{u.date}]</span>
-                        <span className="font-bold text-slate-705">{item ? item.name : t('Unknown Item')}</span>
-                        {isCommon && <span className="text-[9px] bg-purple-50 text-purple-750 border border-purple-200 font-bold px-1.5 rounded uppercase">{t('Split')}</span>}
+                        <span className="font-bold text-slate-700">{item ? item.name : t('Unknown Item')}</span>
+                        {isCommon && <span className="text-[9px] bg-purple-50 text-purple-800 border border-purple-200 font-bold px-1.5 rounded uppercase">{t('Split')}</span>}
                       </div>
                       <div className="sm:text-right">
                         <span className="font-mono font-bold text-slate-800 block">
@@ -535,7 +535,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 4: Hired Labor Manpower Utilized */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Users size={13} className="text-slate-500" />
               <span>{t('Section 4: Hired Labor Manpower Utilized')}</span>
             </h4>
@@ -551,8 +551,8 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                     <div key={l.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
                       <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{l.date}]</span>
-                        <span className="font-bold text-slate-705">{l.workersCount} {t('worker(s) at')} {currency}{l.wageRate}/{t('worker')}</span>
-                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-200 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
+                        <span className="font-bold text-slate-700">{l.workersCount} {t('worker(s) at')} {currency}{l.wageRate}/{t('worker')}</span>
+                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
                       <div className="sm:text-right">
                         <span className="font-mono font-bold text-slate-800 block">
@@ -569,7 +569,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 5: Harvest Yield Earnings */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <CheckCircle size={13} className="text-slate-500" />
               <span>{t('Section 5: Harvest Yield Earnings')}</span>
             </h4>
@@ -583,7 +583,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                     <div key={r.id} className="flex justify-between items-center text-xs">
                       <div className="flex gap-2">
                         <span className="font-mono text-slate-400">[{r.date}]</span>
-                        <span className="font-bold text-slate-705">{r.crop} (Yield: {r.quantity} sold{r.buyerName ? ` to ${r.buyerName}` : ''})</span>
+                        <span className="font-bold text-slate-700">{r.crop} (Yield: {r.quantity} sold{r.buyerName ? ` to ${r.buyerName}` : ''})</span>
                       </div>
                       <span className="font-mono font-bold text-slate-800">
                         {currency}{Math.round(r.saleAmount).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">held by {rcvr}</span>
@@ -599,7 +599,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           {/* Section 6: Partner Contributions & Settlement */}
           {partnerRows.length > 0 && (
             <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-              <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+              <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
                 <Scale size={13} className="text-slate-500" />
                 <span>{t('Section 6: Partner Contributions & Settlement')}</span>
               </h4>
@@ -632,24 +632,24 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                         {/* Cost side */}
                         <div className="space-y-1">
                           <div className="flex justify-between">
-                            <span className="font-bold text-slate-705">{t('Paid in')}</span>
+                            <span className="font-bold text-slate-700">{t('Paid in')}</span>
                             <span className="font-mono font-bold text-slate-800">{money(r.paidAmount)}</span>
                           </div>
                           {b && (
                             <>
-                              <div className="flex justify-between text-[10px] text-slate-450">
+                              <div className="flex justify-between text-[10px] text-slate-500">
                                 <span className="pl-2">{t('General expenses')}</span>
                                 <span className="font-mono">{money(b.expenses)}</span>
                               </div>
-                              <div className="flex justify-between text-[10px] text-slate-450">
+                              <div className="flex justify-between text-[10px] text-slate-500">
                                 <span className="pl-2">{t('Labour')}</span>
                                 <span className="font-mono">{money(b.labour)}</span>
                               </div>
-                              <div className="flex justify-between text-[10px] text-slate-450">
+                              <div className="flex justify-between text-[10px] text-slate-500">
                                 <span className="pl-2">{t('Stock purchases')}</span>
                                 <span className="font-mono">{money(b.stock)}</span>
                               </div>
-                              <div className="flex justify-between text-[10px] text-slate-450">
+                              <div className="flex justify-between text-[10px] text-slate-500">
                                 <span className="pl-2">{t('Credit repaid')}</span>
                                 <span className="font-mono">{money(b.creditRepayments)}</span>
                               </div>
@@ -664,7 +664,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                             <span className="font-mono text-slate-700">{money(r.costShare)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="font-bold text-slate-705">{t('Cost difference')}</span>
+                            <span className="font-bold text-slate-700">{t('Cost difference')}</span>
                             <span className={`font-mono font-bold ${r.costDifference >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
                               {signedMoney(r.costDifference)}
                             </span>
@@ -678,7 +678,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                             <span className="font-mono text-slate-700">{money(r.revenueShare)}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="font-bold text-slate-705">{t('Revenue difference')}</span>
+                            <span className="font-bold text-slate-700">{t('Revenue difference')}</span>
                             <span className={`font-mono font-bold ${r.revenueDifference >= 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
                               {signedMoney(r.revenueDifference)}
                             </span>
@@ -716,14 +716,14 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-650 rounded-xl cursor-pointer"
+            className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 rounded-xl cursor-pointer"
           >
             {t('Close View')}
           </button>
           <button
             type="button"
             onClick={() => window.print()}
-            className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-650 rounded-xl cursor-pointer flex items-center gap-2 active:scale-95 transition-all"
+            className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 rounded-xl cursor-pointer flex items-center gap-2 active:scale-95 transition-all"
           >
             <Printer size={14} />
             <span>{t('Save as PDF')}</span>

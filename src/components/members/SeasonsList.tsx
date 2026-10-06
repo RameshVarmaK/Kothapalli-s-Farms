@@ -93,7 +93,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                   </button>
                   {s.isClosed ? (
                     <div className="flex items-center gap-2 justify-end">
-                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-450 bg-slate-100 font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 uppercase tracking-wider">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 uppercase tracking-wider">
                         {t('Closed')} {s.endDate}
                       </span>
                       {checkSeasonSettled(s.id) ? (

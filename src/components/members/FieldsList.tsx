@@ -51,20 +51,20 @@ export const FieldsList: React.FC<FieldsListProps> = ({
         <div key={field.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col hover:border-slate-400 hover:shadow-md transition-all">
           <div className="p-5 border-b border-slate-100 bg-slate-50/60 flex justify-between items-start">
             <div>
-              <h3 className="font-bold text-slate-850 text-sm leading-snug">{field.name}</h3>
+              <h3 className="font-bold text-slate-900 text-sm leading-snug">{field.name}</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('Area size:')} <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md">{field.area} {t('acres')}</span></p>
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onEditField(field)}
-                className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
+                className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
                 title={t('Edit Field & Ownership Shares')}
               >
                 <Pencil size={14} />
               </button>
               <button
                 onClick={() => onDeleteField(field.id, field.name)}
-                className="p-2.5 rounded-lg text-slate-350 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
+                className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
               >
                 <Trash2 size={14} />
               </button>

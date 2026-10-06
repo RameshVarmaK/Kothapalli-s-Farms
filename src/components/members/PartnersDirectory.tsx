@@ -36,7 +36,7 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4.5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
           <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400">{t('Collaborating Partners')}</h3>
-          <span className="text-[10px] text-slate-450 bg-slate-100 font-bold px-2.5 py-1 rounded-full uppercase">{members.length} partners registered</span>
+          <span className="text-[10px] text-slate-500 bg-slate-100 font-bold px-2.5 py-1 rounded-full uppercase">{members.length} partners registered</span>
         </div>
 
         <div className="divide-y divide-slate-100">
@@ -80,7 +80,7 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); onViewReport(member.id); }}
-                      className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
+                      className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
                       title={t('Partner Ledger')}
                       aria-label={t('Partner Ledger')}
                     >
@@ -88,14 +88,14 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onEditMember(member); }}
-                      className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
+                      className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
                       title={t('Edit Partner Details')}
                     >
                       <Pencil size={14} />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDeleteMember(member.id, member.name); }}
-                      className="p-2.5 rounded-lg text-slate-350 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
+                      className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
                     >
                       <Trash2 size={14} />
                     </button>

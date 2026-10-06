@@ -412,7 +412,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           <button
             onClick={() => setActiveTab('seasons')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'seasons' ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-750'
+              activeTab === 'seasons' ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-800'
             }`}
           >
             <span className="flex items-center gap-1.5"><Grid size={12}/> {t('Sown Seasons')}</span>
@@ -420,7 +420,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           <button
             onClick={() => setActiveTab('fields')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'fields' ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-750'
+              activeTab === 'fields' ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-800'
             }`}
           >
             <span className="flex items-center gap-1.5"><Sprout size={12}/> {t('Fields')}</span>
@@ -428,7 +428,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           <button
             onClick={() => setActiveTab('directory')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'directory' ? 'bg-white text-emerald-850 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-750'
+              activeTab === 'directory' ? 'bg-white text-emerald-900 shadow-xs font-bold' : 'text-slate-400 hover:text-slate-800'
             }`}
           >
             <span className="flex items-center gap-1.5"><Users size={12}/> {t('Partners')}</span>

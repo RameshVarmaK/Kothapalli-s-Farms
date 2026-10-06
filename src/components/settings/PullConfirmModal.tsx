@@ -18,7 +18,7 @@ export const PullConfirmModal: React.FC<PullConfirmModalProps> = ({ onCancel, on
     <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-100">
       <div className="bg-white rounded-2xl max-w-sm w-full shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
         <div className="p-6">
-          <div className="flex items-center gap-3 text-amber-605 mb-3">
+          <div className="flex items-center gap-3 text-amber-600 mb-3">
             <AlertTriangle size={24} className="stroke-[2.5] text-amber-500" />
             <h3 className="font-extrabold text-slate-900 text-sm">{t('Force Overwrite Local Database?')}</h3>
           </div>

@@ -402,7 +402,7 @@ export const StockTab: React.FC<StockTabProps> = ({
                 key={tab}
                 onClick={() => setActiveSegment(tab)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
-                  activeSegment === tab ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-400 hover:text-slate-750'
+                  activeSegment === tab ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-400 hover:text-slate-800'
                 }`}
               >
                 {tab === 'levels' ? t('Reserves') : tab === 'purchases' ? t('Intakes') : t('Usage')}

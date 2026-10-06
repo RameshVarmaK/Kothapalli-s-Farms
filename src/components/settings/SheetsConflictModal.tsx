@@ -39,7 +39,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
           </div>
           <div>
             <h3 className="font-extrabold text-slate-900 text-base">{t('Google Sheets Conflict Detected')}</h3>
-            <p className="text-slate-650 text-xs font-semibold mt-1 leading-relaxed">
+            <p className="text-slate-700 text-xs font-semibold mt-1 leading-relaxed">
               {t('The local database on this device differs from the version saved in your linked Google Sheet. Select a synchronization strategy to resolve this inconsistency.')}
             </p>
           </div>
@@ -83,7 +83,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
             <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/10">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-                <span className="font-bold text-xs uppercase tracking-wider text-slate-750">{t('Google Sheet (Cloud)')}</span>
+                <span className="font-bold text-xs uppercase tracking-wider text-slate-800">{t('Google Sheet (Cloud)')}</span>
               </div>
               <div className="space-y-1.5 text-xs text-slate-600 font-semibold text-[11px]">
                 <p className="flex justify-between gap-2">
@@ -112,7 +112,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
 
           {/* Difference breakdown checklist */}
           <div className="space-y-2">
-            <h4 className="font-bold text-[10px] text-slate-450 uppercase tracking-widest">{t('Detail Discrepancies')}</h4>
+            <h4 className="font-bold text-[10px] text-slate-500 uppercase tracking-widest">{t('Detail Discrepancies')}</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {Object.entries(conflictData.diffDetails).map(([key, value]) => {
                 const typedVal = value as { localCount: number; cloudCount: number };

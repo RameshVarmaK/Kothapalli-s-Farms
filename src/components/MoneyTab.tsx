@@ -655,7 +655,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 key={type}
                 onClick={() => setFilterType(type)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer ${
-                  filterType === type ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-450 hover:text-slate-800'
+                  filterType === type ? 'bg-white text-emerald-800 shadow-xs font-bold' : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
                 {t(type)}
@@ -709,7 +709,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4.5 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
           <h2 className="text-sm font-bold text-slate-800 uppercase tracking-widest">{t('Transactional Ledger')}</h2>
-          <span className="text-xs text-slate-450 font-bold bg-slate-100 px-2.5 py-1 rounded-full">{filteredLedger.length} {t('entries matching')}</span>
+          <span className="text-xs text-slate-500 font-bold bg-slate-100 px-2.5 py-1 rounded-full">{filteredLedger.length} {t('entries matching')}</span>
         </div>
 
         <div className="divide-y divide-slate-100">
@@ -777,7 +777,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     </div>
                     <button
                       onClick={() => handleStartEdit(item.rawRecord, item.type)}
-                      className="p-2 rounded-lg text-slate-450 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
+                      className="p-2 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
                       title={t('Edit Record')}
                     >
                       <Pencil size={14} />
@@ -867,7 +867,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                           setCreditAccountId(creditAccounts[0].id);
                         }
                       }}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
                       <option value="direct">{t('Direct Paid by Partner')}</option>
                       <option value="credit">{t('Hire or Buy on Credit')}</option>
@@ -885,7 +885,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       value={creditAccountId}
                       required
                       onChange={e => setCreditAccountId(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
                       <option value="">{t('-- Choose Creditor --')}</option>
                       {creditAccounts.map(c => (
@@ -1149,7 +1149,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                           setCreditAccountId(creditAccounts[0].id);
                         }
                       }}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
                       <option value="direct">{t('Direct Paid by Partner')}</option>
                       <option value="credit">{t('Hire or Buy on Credit')}</option>
@@ -1167,7 +1167,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       value={creditAccountId}
                       required
                       onChange={e => setCreditAccountId(e.target.value)}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-705 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     >
                       <option value="">{t('-- Choose Creditor --')}</option>
                       {creditAccounts.map(c => (
