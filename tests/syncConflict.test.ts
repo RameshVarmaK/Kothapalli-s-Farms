@@ -286,3 +286,59 @@ describe('holdsSameRecords', () => {
     expect(holdsSameRecords(a, b)).toBe(false);
   });
 });
+
+describe('edits to an existing record', () => {
+  // Regression: changing a crop cycle's partner split kept every id the same,
+  // so an id-only fingerprint read "nothing changed locally". The pre-push
+  // check then adopted the cloud instead of pushing, and the next reload
+  // restored the old split from the sheet.
+  const season = (shares: { memberId: string; percentage: number }[]) => ({
+    id: 'season_1',
+    fieldId: 'field_1',
+    cropName: 'Paddy',
+    startDate: '2026-06-01',
+    isClosed: false,
+    shares,
+  });
+  const synced = () => makeDb({ seasons: [season([{ memberId: 'm1', percentage: 50 }, { memberId: 'm2', percentage: 50 }])] as any });
+  const edited = () => makeDb({ seasons: [season([{ memberId: 'm1', percentage: 70 }, { memberId: 'm2', percentage: 30 }])] as any });
+
+  it('keeps local (so it gets pushed) after a season split is edited', () => {
+    const baseline = makeSyncFingerprint(synced());
+    expect(classifySync(synced(), edited(), baseline)).toBe('keep-local');
+  });
+
+  it('adopts a teammate edit when this browser has none of its own', () => {
+    const baseline = makeSyncFingerprint(synced());
+    expect(classifySync(edited(), synced(), baseline)).toBe('adopt-cloud');
+    expect(holdsSameRecords(edited(), synced())).toBe(false);
+  });
+
+  it('flags a conflict when both sides edited the same record differently', () => {
+    const baseline = makeSyncFingerprint(synced());
+    const theirs = makeDb({ seasons: [season([{ memberId: 'm1', percentage: 40 }, { memberId: 'm2', percentage: 60 }])] as any });
+    expect(classifySync(theirs, edited(), baseline)).toBe('conflict');
+  });
+
+  it('reads the pushed edit coming back from the sheet as settled, not a change', () => {
+    // What a pull returns: sheet-typed values, no undefined fields, and
+    // nothing the push does not write.
+    const local = makeDb({
+      seasons: [{ ...season([{ memberId: 'm1', percentage: 70 }, { memberId: 'm2', percentage: 30 }]), localOnlyNote: 'x', endDate: undefined }] as any,
+    });
+    const pulled = makeDb({
+      seasons: [{ ...season([{ memberId: 'm1', percentage: 70 }, { memberId: 'm2', percentage: 30 }]), endDate: '', isClosed: 'FALSE' }] as any,
+    });
+    const baseline = makeSyncFingerprint(local);
+    expect(holdsSameRecords(pulled, local)).toBe(true);
+    expect(classifySync(pulled, local, baseline)).toBe('adopt-cloud');
+  });
+
+  it('discards an id-only fingerprint, which cannot see edits', () => {
+    localStorage.setItem(
+      'farm_ledger_last_synced_fingerprint',
+      JSON.stringify({ counts: { seasons: 1 }, ids: { seasons: ['season_1'] } })
+    );
+    expect(getLastSyncedFingerprint()).toBeNull();
+  });
+});

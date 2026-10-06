@@ -324,6 +324,29 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
 }
 
 /**
+ * The columns each collection is written to its Sheet tab with. Anything not
+ * listed here never reaches the sheet, so it is also exactly the part of a
+ * record the sync fingerprint compares (see syncConflict.ts).
+ */
+export const SHEET_COLUMNS: Record<string, string[]> = {
+  members: ['id', 'name', 'phone', 'photo'],
+  fields: ['id', 'name', 'area', 'locationNote', 'shares'],
+  seasons: ['id', 'fieldId', 'cropName', 'startDate', 'endDate', 'isClosed', 'shares'],
+  activities: ['id', 'date', 'fieldId', 'seasonId', 'type', 'notes', 'weatherNote', 'photos'],
+  expenses: ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId'],
+  labours: ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations'],
+  stockItems: ['id', 'name', 'type', 'unit', 'quantityOnHand', 'weightedAverageCost', 'totalCostSpent', 'fundingByMember'],
+  purchases: ['id', 'stockItemId', 'quantity', 'totalCost', 'date', 'paidByMemberId', 'isCredit', 'creditAccountId'],
+  usages: ['id', 'stockItemId', 'quantityUsed', 'date', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'linkedActivityId'],
+  revenues: ['id', 'date', 'fieldId', 'seasonId', 'crop', 'quantity', 'buyerName', 'saleAmount', 'receivedByMemberId'],
+  auditLogs: ['id', 'timestamp', 'actionType', 'entityType', 'entityId', 'description', 'memberId'],
+  creditAccounts: ['id', 'name', 'phone', 'type', 'notes'],
+  creditRepayments: ['id', 'creditAccountId', 'memberId', 'amount', 'date', 'notes'],
+  settlementClearances: ['id', 'scope', 'key', 'clearedAt'],
+  notificationPreferences: ['memberId', 'channel', 'phoneNumber', 'enabledEvents'],
+};
+
+/**
  * Synchronizes local data object to the specified Google Spreadsheet.
  */
 export async function pushDataToSpreadsheet(
@@ -355,11 +378,11 @@ export async function pushDataToSpreadsheet(
   const batchData = [
     {
       range: 'Members!A1:J100',
-      values: toSheetRows(data.members, ['id', 'name', 'phone', 'photo']),
+      values: toSheetRows(data.members, SHEET_COLUMNS.members),
     },
     {
       range: 'Fields!A1:J100',
-      values: toSheetRows(data.fields, ['id', 'name', 'area', 'locationNote', 'shares']),
+      values: toSheetRows(data.fields, SHEET_COLUMNS.fields),
     },
     {
       range: 'Seasons!A1:J150',
@@ -367,56 +390,56 @@ export async function pushDataToSpreadsheet(
       // this list meant an edited split was saved locally but never pushed, so
       // the next pull handed back a season with no shares and the UI silently
       // fell back to the field-level split.
-      values: toSheetRows(data.seasons, ['id', 'fieldId', 'cropName', 'startDate', 'endDate', 'isClosed', 'shares']),
+      values: toSheetRows(data.seasons, SHEET_COLUMNS.seasons),
     },
     {
       range: 'Activities!A1:J1000',
-      values: toSheetRows(data.activities, ['id', 'date', 'fieldId', 'seasonId', 'type', 'notes', 'weatherNote', 'photos']),
+      values: toSheetRows(data.activities, SHEET_COLUMNS.activities),
     },
     {
       range: 'Expenses!A1:Q1000',
-      values: toSheetRows(data.expenses, ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId']),
+      values: toSheetRows(data.expenses, SHEET_COLUMNS.expenses),
     },
     {
       range: 'Labor!A1:N1000',
-      values: toSheetRows(data.labours, ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations']),
+      values: toSheetRows(data.labours, SHEET_COLUMNS.labours),
     },
     {
       range: 'StockItems!A1:J200',
-      values: toSheetRows(data.stockItems, ['id', 'name', 'type', 'unit', 'quantityOnHand', 'weightedAverageCost', 'totalCostSpent', 'fundingByMember']),
+      values: toSheetRows(data.stockItems, SHEET_COLUMNS.stockItems),
     },
     {
       range: 'StockPurchases!A1:L1000',
-      values: toSheetRows(data.purchases, ['id', 'stockItemId', 'quantity', 'totalCost', 'date', 'paidByMemberId', 'isCredit', 'creditAccountId']),
+      values: toSheetRows(data.purchases, SHEET_COLUMNS.purchases),
     },
     {
       range: 'StockUsage!A1:J1000',
-      values: toSheetRows(data.usages, ['id', 'stockItemId', 'quantityUsed', 'date', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'linkedActivityId']),
+      values: toSheetRows(data.usages, SHEET_COLUMNS.usages),
     },
     {
       range: 'HarvestRevenue!A1:J1000',
-      values: toSheetRows(data.revenues, ['id', 'date', 'fieldId', 'seasonId', 'crop', 'quantity', 'buyerName', 'saleAmount', 'receivedByMemberId']),
+      values: toSheetRows(data.revenues, SHEET_COLUMNS.revenues),
     },
     {
       range: 'AuditLogs!A1:J5000',
-      values: toSheetRows(data.auditLogs, ['id', 'timestamp', 'actionType', 'entityType', 'entityId', 'description', 'memberId']),
+      values: toSheetRows(data.auditLogs, SHEET_COLUMNS.auditLogs),
     },
     {
       range: 'CreditAccounts!A1:E500',
-      values: toSheetRows(data.creditAccounts || [], ['id', 'name', 'phone', 'type', 'notes']),
+      values: toSheetRows(data.creditAccounts || [], SHEET_COLUMNS.creditAccounts),
     },
     {
       range: 'CreditRepayments!A1:F1000',
-      values: toSheetRows(data.creditRepayments || [], ['id', 'creditAccountId', 'memberId', 'amount', 'date', 'notes']),
+      values: toSheetRows(data.creditRepayments || [], SHEET_COLUMNS.creditRepayments),
     },
     {
       range: 'SettlementClearances!A1:D1000',
-      values: toSheetRows(data.settlementClearances || [], ['id', 'scope', 'key', 'clearedAt']),
+      values: toSheetRows(data.settlementClearances || [], SHEET_COLUMNS.settlementClearances),
     },
     {
       // Keyed by memberId, not id: there is exactly one preference row per member.
       range: 'NotificationPreferences!A1:D200',
-      values: toSheetRows(data.notificationPreferences || [], ['memberId', 'channel', 'phoneNumber', 'enabledEvents']),
+      values: toSheetRows(data.notificationPreferences || [], SHEET_COLUMNS.notificationPreferences),
     },
   ];
 

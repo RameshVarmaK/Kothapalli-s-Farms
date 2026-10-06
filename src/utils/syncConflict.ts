@@ -4,6 +4,7 @@
  */
 
 import { LocalDatabase, safeStorageGet, safeStorageSet } from './database';
+import { SHEET_COLUMNS, parseSheetRows, toSheetRows } from './googleSheets';
 
 // Every collection that holds user-entered records. All of them must be
 // tracked: a fingerprint that ignores a collection makes edits to it
@@ -36,10 +37,17 @@ const LEGACY_DIFF_KEYS: DiffKey[] = ['members', 'fields', 'seasons', 'expenses']
  * Record identity per collection, not just a count. Counts alone cannot tell
  * "I added one record" apart from "someone else added one record", which is
  * exactly the ambiguity that used to cost users their entry.
+ *
+ * `sigs` adds each record's content ("id#hash"). Ids alone cannot see an edit
+ * to a record that already exists: changing a crop cycle's partner split left
+ * every id the same, so the pre-push check read "nothing changed locally",
+ * adopted the cloud instead of pushing, and the next reload restored the old
+ * split from the sheet.
  */
 export interface SyncFingerprint {
   counts: Record<DiffKey, number>;
   ids: Record<DiffKey, string[]>;
+  sigs: Record<DiffKey, string[]>;
 }
 
 function idsOf(list: any[] | undefined): string[] {
@@ -49,15 +57,66 @@ function idsOf(list: any[] | undefined): string[] {
     .sort();
 }
 
+/** Rounds numbers so a value Sheets hands back re-formatted (it stores
+ * USER_ENTERED cells as typed numbers) still matches what was written. */
+function canonicalValue(val: any): any {
+  if (typeof val === 'number') return Number.isFinite(val) ? Number(val.toPrecision(10)) : String(val);
+  if (Array.isArray(val)) return val.map(canonicalValue);
+  if (val && typeof val === 'object') {
+    const out: Record<string, any> = {};
+    Object.keys(val).sort().forEach(k => {
+      const v = val[k];
+      if (v === undefined || v === null || v === '') return;
+      out[k] = canonicalValue(v);
+    });
+    return out;
+  }
+  return val;
+}
+
+/** 32-bit FNV-1a, so a stored fingerprint stays small. */
+function hashString(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/**
+ * One "id#hash" per record, hashed over the record as the sheet would hand it
+ * back: only the columns that are pushed, put through the same write/read
+ * path a real push and pull take. A freshly edited local record and its
+ * pulled copy therefore hash alike, while local-only fields and type quirks
+ * (TRUE vs true, "70" vs 70, '' vs undefined) never read as an edit.
+ */
+function sigsOf(key: DiffKey, list: any[] | undefined): string[] {
+  if (!Array.isArray(list)) return [];
+  const columns = SHEET_COLUMNS[key];
+  const records = list.filter(Boolean);
+  const asSheetReturnsThem = parseSheetRows<any>(toSheetRows(records, columns));
+  const byId = new Map(asSheetReturnsThem.map(r => [String(r.id), r]));
+  return list
+    .map((r, i) => {
+      const id = r && r.id != null ? String(r.id) : `__noid_${i}`;
+      const content = byId.get(id) ?? r ?? null;
+      return `${id}#${hashString(JSON.stringify(canonicalValue(content)))}`;
+    })
+    .sort();
+}
+
 export function makeSyncFingerprint(db: LocalDatabase): SyncFingerprint {
   const counts = {} as Record<DiffKey, number>;
   const ids = {} as Record<DiffKey, string[]>;
+  const sigs = {} as Record<DiffKey, string[]>;
   DIFF_KEYS.forEach(key => {
     const list = (db as any)[key] as any[] | undefined;
     counts[key] = list?.length || 0;
     ids[key] = idsOf(list);
+    sigs[key] = sigsOf(key, list);
   });
-  return { counts, ids };
+  return { counts, ids, sigs };
 }
 
 function sameIds(a: string[], b: string[]): boolean {
@@ -68,16 +127,18 @@ function sameIds(a: string[], b: string[]): boolean {
   return true;
 }
 
-/** True when `fp` holds any record the baseline did not, or has dropped one. */
+/** True when `fp` holds any record the baseline did not, has dropped one,
+ * or has edited one. */
 function changedSince(fp: SyncFingerprint, baseline: SyncFingerprint): boolean {
-  return DIFF_KEYS.some(key => !sameIds(fp.ids[key] || [], baseline.ids[key] || []));
+  return DIFF_KEYS.some(key => !sameIds(fp.sigs[key] || [], baseline.sigs[key] || []));
 }
 
-/** True when every record in `subset` also appears in `superset`. */
+/** True when every record in `subset` also appears, with the same content,
+ * in `superset`. */
 function isSubsetOf(subset: SyncFingerprint, superset: SyncFingerprint): boolean {
   return DIFF_KEYS.every(key => {
-    const outer = new Set(superset.ids[key] || []);
-    return (subset.ids[key] || []).every(id => outer.has(id));
+    const outer = new Set(superset.sigs[key] || []);
+    return (subset.sigs[key] || []).every(sig => outer.has(sig));
   });
 }
 
@@ -90,8 +151,8 @@ export function hasDataDiverged(a: LocalDatabase, b: LocalDatabase): boolean {
   return LEGACY_DIFF_KEYS.some(key => Math.abs(fa.counts[key] - fb.counts[key]) > 1);
 }
 
-/** True when both snapshots hold exactly the same records, by id, in every
- * tracked collection. Lets a caller skip a no-op adoption instead of
+/** True when both snapshots hold exactly the same records, by id and
+ * content, in every tracked collection. Lets a caller skip a no-op adoption instead of
  * replacing state with an equal-but-new object and re-triggering its own
  * effects forever. */
 export function holdsSameRecords(a: LocalDatabase, b: LocalDatabase): boolean {
@@ -111,7 +172,7 @@ export type SyncDecision = 'adopt-cloud' | 'keep-local' | 'conflict';
  * genuinely disagree" — the local cache going stale over time is not itself
  * a conflict, and should just silently adopt the cloud data.
  *
- * Comparison is by record id, and any difference at all counts as a change.
+ * Comparison is by record id and content, and any difference at all counts as a change.
  * A tolerance here is not a nicety, it is data loss: a user who has just
  * added a single record has local state the cloud does not have yet, and
  * treating that as "unchanged" lets the background reconciler overwrite it.
@@ -150,16 +211,16 @@ const SYNC_FINGERPRINT_KEY = 'farm_ledger_last_synced_fingerprint';
 
 /** Reads the fingerprint of the database state this browser last confirmed
  * matches the cloud (set after a successful push or cloud adoption).
- * Fingerprints written by the older count-only format are discarded: they
- * carry no record ids, so they cannot answer "is this record mine?" and the
- * conservative no-baseline path is the safe reading. The next successful
- * sync rewrites it in the current format. */
+ * Fingerprints written by older formats are discarded: count-only ones carry
+ * no record ids, and id-only ones cannot see an edit, so neither can answer
+ * "is this record mine?" and the conservative no-baseline path is the safe
+ * reading. The next successful sync rewrites it in the current format. */
 export function getLastSyncedFingerprint(): SyncFingerprint | null {
   const raw = safeStorageGet(SYNC_FINGERPRINT_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed || !parsed.ids || !parsed.counts) return null;
+    if (!parsed || !parsed.ids || !parsed.counts || !parsed.sigs) return null;
     return parsed as SyncFingerprint;
   } catch {
     return null;
