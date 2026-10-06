@@ -22,7 +22,6 @@ import {
   NotificationDelivery,
   SettlementClearance
 } from '../types';
-import { saveDatabaseHybrid, loadDatabaseHybrid } from './storage';
 
 export interface LocalDatabase {
   members: Member[];
@@ -292,12 +291,7 @@ export function getInitialDatabase(): LocalDatabase {
 }
 
 export function saveDatabase(db: LocalDatabase): void {
-  // Use hybrid storage (IndexedDB + localStorage)
-  saveDatabaseHybrid(db, STORAGE_KEY).catch(err => {
-    console.warn('Error in hybrid storage save:', err);
-    // Fallback to localStorage if hybrid fails
-    safeStorageSet(STORAGE_KEY, JSON.stringify(db));
-  });
+  safeStorageSet(STORAGE_KEY, JSON.stringify(db));
 }
 
 /**
