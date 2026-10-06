@@ -69,8 +69,9 @@ describe('PartnerReportModal', () => {
     expect(screen.queryByText('Ploughing')).toBeNull();
   });
 
-  it('shows who pays whom and that it is still pending', () => {
+  it('shows who pays whom and that it is still pending, once shares are included', () => {
     renderReport();
+    fireEvent.click(screen.getByLabelText('Include shares & settlement'));
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 's1' } });
     // Ramesh funded Paddy, Suresh pocketed the sale: Suresh owes Ramesh.
     const settlement = screen.getByText('Receives from').closest('div')!;
@@ -87,6 +88,31 @@ describe('PartnerReportModal', () => {
     expect(document.title).toMatch(/^Ramesh - Partner Ledger - \d{4}-\d{2}-\d{2}$/);
     fireEvent.click(screen.getByText('Save as PDF'));
     expect(print).toHaveBeenCalled();
+  });
+
+  it('leaves shares, net standing and settlement out by default', () => {
+    renderReport();
+    const toggle = screen.getByLabelText('Include shares & settlement') as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    // Transactions and what was paid stay.
+    expect(screen.getByText('Seeds')).toBeTruthy();
+    expect(screen.getByText('Section 1: Transactions')).toBeTruthy();
+    expect(screen.getAllByText('Paid in').length).toBeGreaterThan(0);
+    // Partnership terms do not.
+    expect(screen.queryByText('Net Standing')).toBeNull();
+    expect(screen.queryByText(/Share of cost/)).toBeNull();
+    expect(screen.queryByText('Section 1: Crop Cycles')).toBeNull();
+    expect(screen.queryByText('Section 2: Settlement')).toBeNull();
+    expect(screen.queryByText('Receives from')).toBeNull();
+  });
+
+  it('adds shares, the per-cycle table and settlement back when ticked', () => {
+    renderReport();
+    fireEvent.click(screen.getByLabelText('Include shares & settlement'));
+    expect(screen.getByText('Net Standing')).toBeTruthy();
+    expect(screen.getByText('Section 1: Crop Cycles')).toBeTruthy();
+    expect(screen.getByText('Section 2: Settlement')).toBeTruthy();
+    expect(screen.getByText('Section 3: Transactions')).toBeTruthy();
   });
 
   it('restores the page title and print flag on close', () => {

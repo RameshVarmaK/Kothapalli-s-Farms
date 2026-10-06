@@ -191,4 +191,9 @@ export const teMembers: Record<string, string> = {
   'Section 6: Spending by Partner': 'విభాగం 6: భాగస్వామి వారీగా ఖర్చు',
   'Includes expenses, labour and stock each partner paid for, and credit they repaid.':
     'ప్రతి భాగస్వామి చెల్లించిన ఖర్చులు, కూలీ, సరుకు మరియు తీర్చిన అప్పు ఇందులో ఉన్నాయి.',
+
+  // Partner ledger: print without shares & settlement
+  'Include shares & settlement': 'వాటాలు & లెక్క తేల్చడం చేర్చండి',
+  'Section 1: Transactions': 'విభాగం 1: లావాదేవీలు',
+  'Section 2: Stock Bought': 'విభాగం 2: కొన్న నిల్వ సరుకు',
 };

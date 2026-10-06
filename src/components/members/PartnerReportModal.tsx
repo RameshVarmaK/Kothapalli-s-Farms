@@ -83,13 +83,19 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
 }) => {
   const { t } = useLanguage();
   const [scope, setScope] = useState<string>(ALL);
+  // Off: no shares, fair shares, net standing, per-cycle split or
+  // settlement — just what the partner paid and received, line by line, and
+  // the stock they bought. Partnership terms are opt-in, as on the season
+  // report.
+  const [showShares, setShowShares] = useState(false);
 
   const member = members.find(m => m.id === memberId) || null;
   const isOpen = Boolean(member);
 
-  // Start every newly opened report on "all cycles".
+  // Start every newly opened report on "all cycles", without shares.
   useEffect(() => {
     setScope(ALL);
+    setShowShares(false);
   }, [memberId]);
 
   const scopeSeasonIds = useMemo(
@@ -206,16 +212,16 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
 
           {/* Summary */}
           <div data-print-keep>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className={`grid grid-cols-2 gap-3 ${showShares ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
               <div className="p-4 rounded-2xl bg-amber-50/30 border border-amber-100">
                 <span className="text-[9px] text-amber-700 font-bold uppercase block tracking-wider">{t('Paid in')}</span>
                 <span className="text-md font-extrabold text-slate-800 font-mono mt-1.5 block">{money(totals.paidIn)}</span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">{t('Share of cost')} {money(totals.costShare)}</span>
+                {showShares && <span className="text-[10px] text-slate-500 block mt-0.5">{t('Share of cost')} {money(totals.costShare)}</span>}
               </div>
               <div className="p-4 rounded-2xl bg-sky-50/30 border border-sky-100">
                 <span className="text-[9px] text-sky-700 font-bold uppercase block tracking-wider">{t('Revenue taken')}</span>
                 <span className="text-md font-extrabold text-slate-800 font-mono mt-1.5 block">{money(totals.received)}</span>
-                <span className="text-[10px] text-slate-500 block mt-0.5">{t('Share of revenue')} {money(totals.revenueShare)}</span>
+                {showShares && <span className="text-[10px] text-slate-500 block mt-0.5">{t('Share of revenue')} {money(totals.revenueShare)}</span>}
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 col-span-2 lg:col-span-1">
                 <span className="text-[9px] text-slate-500 font-bold uppercase block tracking-wider">{t('Paid in, by kind')}</span>
@@ -226,6 +232,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
                   <div className="flex justify-between"><span>{t('Credit repaid')}</span><span className="font-mono">{money(totals.breakdown.creditRepayments)}</span></div>
                 </div>
               </div>
+              {showShares && (
               <div className={`p-4 rounded-2xl border col-span-2 lg:col-span-1 ${isCreditor ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'}`}>
                 <span className={`text-[9px] font-bold uppercase block tracking-wider ${isCreditor ? 'text-emerald-700' : 'text-rose-700'}`}>{t('Net Standing')}</span>
                 <span className={`text-lg font-extrabold font-mono mt-1 block ${isCreditor ? 'text-emerald-800' : 'text-rose-700'}`}>
@@ -235,9 +242,11 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
                   {isCreditor ? t('Receives') : t('Pays')}
                 </span>
               </div>
+              )}
             </div>
           </div>
 
+          {showShares && (<>
           {/* Section 1: crop cycles */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
@@ -334,11 +343,13 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
             )}
           </div>
 
-          {/* Section 3: transactions */}
+          </>)}
+
+          {/* Section 3 (1 without shares): transactions */}
           <div className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
             <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Receipt size={13} className="text-slate-500" />
-              <span>{t('Section 3: Transactions')}</span>
+              <span>{t(showShares ? 'Section 3: Transactions' : 'Section 1: Transactions')}</span>
             </h4>
             {ledger.lines.length === 0 ? (
               <p className="text-slate-400 text-xs italic">{t('No payments or receipts by this partner in the selected cycles.')}</p>
@@ -398,7 +409,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
             <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
               <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
                 <Package size={13} className="text-slate-500" />
-                <span>{t('Section 4: Stock Bought')}</span>
+                <span>{t(showShares ? 'Section 4: Stock Bought' : 'Section 2: Stock Bought')}</span>
               </h4>
               <div className="space-y-1.5">
                 {ledger.stockPurchases.map(p => (
@@ -421,6 +432,15 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
 
         {/* Footer */}
         <div data-print-hide className="p-6 border-t border-slate-200 bg-slate-50/60 flex flex-wrap items-center justify-end gap-3.5">
+          <label className="mr-auto flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showShares}
+              onChange={e => setShowShares(e.target.checked)}
+              className="w-4 h-4 accent-emerald-600 cursor-pointer"
+            />
+            {t('Include shares & settlement')}
+          </label>
           <button
             type="button"
             onClick={onClose}
