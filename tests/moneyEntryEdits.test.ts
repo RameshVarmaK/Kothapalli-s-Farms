@@ -8,10 +8,10 @@ import { Expense, Labour, HarvestRevenue } from '../src/types';
  * Editing a money entry must refuse whatever adding it would refuse.
  *
  * The decision lives in moneyEntryRejection, tested directly below. That
- * App's edit handlers actually ask it is checked against App.tsx as source:
- * mounting AppShell needs Firebase auth and the sync loop standing up.
+ * the app's edit handlers actually ask it is checked against
+ * src/app/ledgerActions.ts as source, where AppShell's handlers live.
  */
-const appSource = readFileSync(resolve(__dirname, '../src/App.tsx'), 'utf8');
+const actionsSource = readFileSync(resolve(__dirname, '../src/app/ledgerActions.ts'), 'utf8');
 
 const expense: Expense = {
   id: 'exp1',
@@ -87,10 +87,10 @@ describe('moneyEntryRejection', () => {
 
 describe('App edit handlers', () => {
   const handlerBody = (name: string): string => {
-    const start = appSource.indexOf(`const ${name} = (`);
+    const start = actionsSource.indexOf(`const ${name} = (`);
     expect(start).toBeGreaterThan(-1);
-    const end = appSource.indexOf('\n  };\n', start);
-    return appSource.slice(start, end);
+    const end = actionsSource.indexOf('\n  };\n', start);
+    return actionsSource.slice(start, end);
   };
 
   for (const [handler, kind, record] of [
