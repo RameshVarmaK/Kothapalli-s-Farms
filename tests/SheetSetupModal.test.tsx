@@ -160,7 +160,7 @@ describe('empty-ledger recovery', () => {
 
   beforeEach(() => localStorage.clear());
 
-  /** Mirrors the condition in App.tsx's auto-fetch. */
+  /** Mirrors the condition in useSheetSync's auto-fetch. */
   function shouldPromptSetup(sheet: any, local: any, choiceMade: boolean) {
     const sheetEmpty =
       (!sheet.members || sheet.members.length === 0) &&
