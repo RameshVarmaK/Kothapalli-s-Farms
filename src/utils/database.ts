@@ -235,6 +235,24 @@ const DEFAULT_SETTINGS: Settings = {
   googleDriveLinked: false
 };
 
+/**
+ * Pulls before a blank Sheets cell was read as "none" stored '' in list
+ * fields (allocations, shares, attachments, ...), which `?.map` / `?.some`
+ * then throw on. Drop them from data already saved on this device.
+ */
+const STRUCTURED_FIELDS = ['allocations', 'shares', 'attachments', 'photos', 'enabledEvents', 'fundingByMember'];
+function dropBlankStructuredFields<T>(list: T[]): T[] {
+  if (!Array.isArray(list)) return list;
+  return list.map(record => {
+    if (!record || typeof record !== 'object') return record;
+    const blank = STRUCTURED_FIELDS.filter(key => (record as any)[key] === '');
+    if (blank.length === 0) return record;
+    const copy: any = { ...record };
+    blank.forEach(key => delete copy[key]);
+    return copy;
+  });
+}
+
 export function getInitialDatabase(): LocalDatabase {
   // Try localStorage first (synchronous fallback)
   const localData = safeStorageGet(STORAGE_KEY);
@@ -243,14 +261,14 @@ export function getInitialDatabase(): LocalDatabase {
       const parsed = JSON.parse(localData) || {};
       return {
         members: parsed.members || DEFAULT_MEMBERS || [],
-        fields: parsed.fields || DEFAULT_FIELDS || [],
-        seasons: parsed.seasons || DEFAULT_SEASONS || [],
-        activities: stripAutoActivities(parsed.activities || []),
-        expenses: parsed.expenses || DEFAULT_EXPENSES || [],
-        labours: parsed.labours || DEFAULT_LABOUR || [],
-        stockItems: parsed.stockItems || DEFAULT_STOCK || [],
+        fields: dropBlankStructuredFields(parsed.fields || DEFAULT_FIELDS || []),
+        seasons: dropBlankStructuredFields(parsed.seasons || DEFAULT_SEASONS || []),
+        activities: dropBlankStructuredFields(stripAutoActivities(parsed.activities || [])),
+        expenses: dropBlankStructuredFields(parsed.expenses || DEFAULT_EXPENSES || []),
+        labours: dropBlankStructuredFields(parsed.labours || DEFAULT_LABOUR || []),
+        stockItems: dropBlankStructuredFields(parsed.stockItems || DEFAULT_STOCK || []),
         purchases: parsed.purchases || DEFAULT_PURCHASES || [],
-        usages: parsed.usages || DEFAULT_USAGES || [],
+        usages: dropBlankStructuredFields(parsed.usages || DEFAULT_USAGES || []),
         revenues: parsed.revenues || DEFAULT_REVENUES || [],
         auditLogs: parsed.auditLogs || [],
         settings: parsed.settings || DEFAULT_SETTINGS,

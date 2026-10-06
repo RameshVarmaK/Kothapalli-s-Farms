@@ -130,4 +130,10 @@ export const teShell: Record<string, string> = {
   'Basic mode groups tools into 4 hubs. Power mode shows every tool at once.':
     'సాధారణ మోడ్ సాధనాలను 4 విభాగాలుగా చూపుతుంది. పూర్తి మోడ్ అన్ని సాధనాలను ఒకేసారి చూపుతుంది.',
   "Switch the app's language between English and Telugu": 'యాప్ భాషను ఇంగ్లీష్ మరియు తెలుగు మధ్య మార్చండి',
+
+  // Screen error fallback
+  'Something went wrong on this screen': 'ఈ స్క్రీన్‌లో ఏదో పొరపాటు జరిగింది',
+  'Your entries are not affected. Try again, or open another tab.':
+    'మీ నమోదులకు ఏమీ కాలేదు. మళ్లీ ప్రయత్నించండి, లేదా వేరే ట్యాబ్ తెరవండి.',
+  'Try again': 'మళ్లీ ప్రయత్నించండి',
 };

@@ -4,6 +4,7 @@
  */
 
 import { Suspense, lazy } from 'react';
+import { ScreenErrorBoundary } from './ScreenErrorBoundary';
 import { User } from 'firebase/auth';
 import { LocalDatabase } from '../../utils/database';
 import { NotificationPreferences } from '../../types';
@@ -118,6 +119,7 @@ export function TabRouter({
   } = actions;
 
   return (
+    <ScreenErrorBoundary key={activeTab}>
     <Suspense fallback={<TabLoadingFallback />}>
       {activeTab === 'dashboard' && (
         <DashboardTab
@@ -289,5 +291,6 @@ export function TabRouter({
       />
     )}
     </Suspense>
+    </ScreenErrorBoundary>
   );
 }

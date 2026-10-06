@@ -125,6 +125,12 @@ export interface PartnerLedgerInput {
   settlementClearances?: SettlementClearance[];
 }
 
+/** A record's list field, or [] when it is missing or not a list (an older
+ * pull could leave '' in a blank cell). */
+function asList<T>(value: T[] | undefined): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
 export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
   const {
     memberId,
@@ -207,7 +213,7 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
         ? { amount: single.amount, cycles: [seasonLabel(single.seasonId)], isSplit: false }
         : { amount: 0, cycles: [], isSplit: false };
     }
-    const hits = (allocations || []).filter(a => inScope.has(a.seasonId));
+    const hits = asList(allocations).filter(a => inScope.has(a.seasonId));
     return {
       amount: hits.reduce((sum, a) => sum + a.amount, 0),
       cycles: hits.map(a => seasonLabel(a.seasonId)),
@@ -259,7 +265,7 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
 
     const { amount, cycles: c, isSplit } = attribute(
       u.targetType === 'single' ? { seasonId: u.targetSeasonId, amount: memberShare(u.quantityUsed * rate) } : null,
-      u.allocations?.map(a => ({ seasonId: a.seasonId, amount: memberShare(a.quantity * rate) }))
+      u.targetType === 'single' ? undefined : asList(u.allocations).map(a => ({ seasonId: a.seasonId, amount: memberShare(a.quantity * rate) }))
     );
     if (Math.abs(amount) < 0.005) return;
     lines.push({ id: u.id, date: u.date, kind: 'stock', detail: item?.name || 'Unknown item', cycles: c, isSplit, paidIn: amount, received: 0 });
@@ -282,10 +288,10 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
         perSeason.set(seasonId, (perSeason.get(seasonId) || 0) + amount);
       };
       credExp.forEach(e =>
-        e.targetType === 'single' ? add(e.targetSeasonId, e.amount) : e.allocations?.forEach(a => add(a.seasonId, a.amount))
+        e.targetType === 'single' ? add(e.targetSeasonId, e.amount) : asList(e.allocations).forEach(a => add(a.seasonId, a.amount))
       );
       credLab.forEach(l =>
-        l.targetType !== 'common' ? add(l.seasonId, l.totalCost) : l.allocations?.forEach(a => add(a.seasonId, a.amount))
+        l.targetType !== 'common' ? add(l.seasonId, l.totalCost) : asList(l.allocations).forEach(a => add(a.seasonId, a.amount))
       );
 
       const inScopeCredit = [...perSeason.values()].reduce((sum, v) => sum + v, 0);

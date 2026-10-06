@@ -560,6 +560,15 @@ const SHEET_ID_FIELDS: Record<string, string> = {
  * Helper to parse Sheet row data into javascript objects using headers.
  * Safely deserializes JSON with error recovery.
  */
+/**
+ * Columns that hold a JSON list or object. A blank cell in one of these means
+ * "none", so it is left off the record instead of becoming '' — code reads
+ * these with `?.map` / `?.find`, which skips undefined but throws on ''. A
+ * stock usage charged to one crop cycle has a blank 'allocations' cell, and
+ * that '' crashed the partner ledger into a blank screen.
+ */
+const STRUCTURED_COLUMNS = new Set(['allocations', 'shares', 'attachments', 'photos', 'enabledEvents', 'fundingByMember']);
+
 export function parseSheetRows<T>(rows: any[][], idField: string = 'id'): T[] {
   if (!rows || rows.length <= 1) return [];
   const headers = rows[0];
@@ -573,6 +582,9 @@ export function parseSheetRows<T>(rows: any[][], idField: string = 'id'): T[] {
       let val = row[index];
       if (val === undefined || val === null) {
         val = '';
+      }
+      if (val === '' && STRUCTURED_COLUMNS.has(header)) {
+        return;
       }
 
       // A cell that is already a real boolean must pass through untouched.
