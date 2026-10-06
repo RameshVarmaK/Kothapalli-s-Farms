@@ -78,4 +78,9 @@ export const teMoney: Record<string, string> = {
   'Delete Transaction': 'లావాదేవీని తొలగించండి',
   'Permanently delete this ledger transaction? This will instantly recalculate all settlement positions.':
     'ఈ లావాదేవీని పూర్తిగా తొలగించాలా? ఇది అన్ని లెక్కలను వెంటనే మళ్ళీ గణిస్తుంది.',
+
+  'Work done *': 'చేసిన పని *',
+  'e.g. Weeding in the north field, transplanting paddy, spraying pesticide':
+    'ఉదా. ఉత్తర పొలంలో కలుపు తీత, వరి నాట్లు, పురుగు మందు పిచికారీ',
+  'Describe the work that was done before saving.': 'సేవ్ చేసే ముందు చేసిన పనిని వివరించండి.',
 };

@@ -286,7 +286,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
         const isCommon = l.targetType === 'common';
         const actualCost = isCommon ? (l.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : l.totalCost;
         const attribution = l.isCredit ? `${label}${note ? `, ${note}` : ''}` : `Paid by ${label}`;
-        text += `${i + 1}. [${l.date}] ${l.workersCount} workers at ${currency}${l.wageRate}/worker. Total Cost: ${currency}${Math.round(actualCost).toLocaleString('en-IN')} (${attribution})${isCommon ? ' [Allocated split]' : ''}\n`;
+        text += `${i + 1}. [${l.date}] ${l.description ? `${l.description} - ` : ''}${l.workersCount} workers at ${currency}${l.wageRate}/worker. Total Cost: ${currency}${Math.round(actualCost).toLocaleString('en-IN')} (${attribution})${isCommon ? ' [Allocated split]' : ''}\n`;
       });
     }
 
@@ -551,7 +551,8 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                     <div key={l.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
                       <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{l.date}]</span>
-                        <span className="font-bold text-slate-700">{l.workersCount} {t('worker(s) at')} {currency}{l.wageRate}/{t('worker')}</span>
+                        {l.description && <span className="font-bold text-slate-700">{l.description}</span>}
+                        <span className={l.description ? 'text-slate-500' : 'font-bold text-slate-700'}>{l.workersCount} {t('worker(s) at')} {currency}{l.wageRate}/{t('worker')}</span>
                         {isCommon && <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
                       <div className="sm:text-right">

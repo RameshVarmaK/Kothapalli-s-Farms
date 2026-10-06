@@ -420,6 +420,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                             </span>
                             <div>
                               <p className="font-bold text-amber-950 uppercase tracking-tight text-[10px] leading-snug">{t('Field Labour')}</p>
+                              {lab.description && <p className="text-amber-900 font-semibold mt-0.5">{lab.description}</p>}
                               <p className="text-amber-900 font-extrabold font-mono text-xs mt-1">
                                 {currency}{lab.totalCost.toLocaleString('en-IN')}
                               </p>

@@ -26,7 +26,7 @@ const expenses: any[] = [
   { id: 'e4', date: '2026-06-15', amount: 800, paidByMemberId: '', category: 'Pesticide', targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1', isCredit: true, creditAccountId: 'c1' },
 ];
 const labours: any[] = [
-  { id: 'l1', date: '2026-06-20', workersCount: 4, wageRate: 500, totalCost: 2000, paidByMemberId: 'm1', targetType: 'common', allocations: [
+  { id: 'l1', date: '2026-06-20', description: 'Transplanting', workersCount: 4, wageRate: 500, totalCost: 2000, paidByMemberId: 'm1', targetType: 'common', allocations: [
     { fieldId: 'f1', seasonId: 's1', amount: 1500 }, { fieldId: 'f2', seasonId: 's2', amount: 500 },
   ] },
   { id: 'l2', date: '2026-07-02', workersCount: 2, wageRate: 400, totalCost: 800, paidByMemberId: 'm1', fieldId: 'f2', seasonId: 's2' },
@@ -136,6 +136,17 @@ describe('buildPartnerLedger', () => {
       settlementClearances: [{ id: `sub|${key}`, scope: 'sub', key, clearedAt: '2026-10-02T00:00:00Z' }],
     });
     expect(after.cycles[0].settlements[0].cleared).toBe(true);
+  });
+
+  it('describes labour by the work done, with the crew behind the cost', () => {
+    const lines = ledgerFor('m1', allSeasonIds).lines;
+    const described = lines.find(l => l.id === 'l1')!;
+    expect(described.detail).toBe('Transplanting');
+    expect(described.workers).toEqual({ count: 4, wageRate: 500 });
+    // Logged before descriptions were asked for: no detail, crew still shown.
+    const legacy = lines.find(l => l.id === 'l2')!;
+    expect(legacy.detail).toBe('');
+    expect(legacy.workers).toEqual({ count: 2, wageRate: 400 });
   });
 
   it('sorts lines by date', () => {

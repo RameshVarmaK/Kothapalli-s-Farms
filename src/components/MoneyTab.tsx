@@ -94,6 +94,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
   // Labour states
   const [workersCount, setWorkersCount] = useState('');
+  const [labourDescription, setLabourDescription] = useState('');
   const [wageRate, setWageRate] = useState('');
   const [labourTotalCost, setLabourTotalCost] = useState('');
   const [labourTargetType, setLabourTargetType] = useState<'single' | 'common'>('single');
@@ -180,7 +181,9 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       id: l.id,
       type: 'labour',
       date: l.date,
-      description: `Labour (${l.workersCount} worker(s) at ${currency}${l.wageRate})`,
+      description: l.description
+        ? `Labour: ${l.description} (${l.workersCount} worker(s) at ${currency}${l.wageRate})`
+        : `Labour (${l.workersCount} worker(s) at ${currency}${l.wageRate})`,
       subtext: l.isCredit ? payer : `Paid by ${payer}`,
       amount: l.totalCost,
       party: payer,
@@ -276,6 +279,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       }
     } else if (type === 'labour') {
       setWorkersCount(String(rawRecord.workersCount));
+      setLabourDescription(rawRecord.description || '');
       setWageRate(String(rawRecord.wageRate));
       setLabourTotalCost(String(rawRecord.totalCost));
       setLinkedActivityId(rawRecord.linkedActivityId || '');
@@ -415,6 +419,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     const rate = parseFloat(wageRate);
     const computedTotal = labourTotalCost ? parseFloat(labourTotalCost) : count * rate;
 
+    if (!labourDescription.trim()) {
+      setFormError('Describe the work that was done before saving.');
+      return;
+    }
     if (!computedTotal || computedTotal <= 0) {
       setFormError('Enter a workers count/wage rate or total cost greater than 0 before saving.');
       return;
@@ -463,6 +471,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         allocations: undefined,
         commonAllocationRule: undefined,
         linkedActivityId: linkedActivityId || undefined,
+        description: labourDescription.trim(),
         workersCount: count || 0,
         wageRate: rate || 0,
         totalCost: computedTotal,
@@ -495,6 +504,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         commonAllocationRule: labourAllocationRule,
         allocations: calculatedAlloc,
         linkedActivityId: linkedActivityId || undefined,
+        description: labourDescription.trim(),
         workersCount: count || 0,
         wageRate: rate || 0,
         totalCost: computedTotal,
@@ -568,6 +578,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
     setCategory('');
     setLinkedActivityId('');
     setWorkersCount('');
+    setLabourDescription('');
     setWageRate('');
     setLabourTotalCost('');
     setRevenueCrop('');
@@ -838,7 +849,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
             {formError && (
               <div className="mx-6 mt-4 p-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-[10px] flex items-start gap-2">
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                <span>{formError}</span>
+                <span>{t(formError)}</span>
               </div>
             )}
 
@@ -1155,6 +1166,20 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       <option value="credit">{t('Hire or Buy on Credit')}</option>
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label htmlFor="labour-description" className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Work done *')}</label>
+                  <textarea
+                    id="labour-description"
+                    required
+                    rows={2}
+                    maxLength={300}
+                    placeholder={t('e.g. Weeding in the north field, transplanting paddy, spraying pesticide')}
+                    value={labourDescription}
+                    onChange={e => setLabourDescription(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none"
+                  />
                 </div>
 
                 {isCredit ? (

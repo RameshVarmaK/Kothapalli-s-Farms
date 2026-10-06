@@ -197,7 +197,7 @@ export async function createSpreadsheet(accessToken: string): Promise<string> {
       { properties: { title: 'Seasons', gridProperties: { columnCount: 10, rowCount: 150 } } },
       { properties: { title: 'Activities', gridProperties: { columnCount: 10, rowCount: 1000 } } },
       { properties: { title: 'Expenses', gridProperties: { columnCount: 15, rowCount: 1000 } } },
-      { properties: { title: 'Labor', gridProperties: { columnCount: 14, rowCount: 1000 } } },
+      { properties: { title: 'Labor', gridProperties: { columnCount: 15, rowCount: 1000 } } },
       { properties: { title: 'StockItems', gridProperties: { columnCount: 10, rowCount: 200 } } },
       { properties: { title: 'StockPurchases', gridProperties: { columnCount: 10, rowCount: 1000 } } },
       { properties: { title: 'StockUsage', gridProperties: { columnCount: 10, rowCount: 1000 } } },
@@ -251,7 +251,7 @@ export function toSheetRows<T extends object>(data: T[], headers: string[]): any
  * If any sheets are missing, it sends a batchUpdate request to create them.
  */
 export async function ensureSheetsExist(accessToken: string, spreadsheetId: string): Promise<void> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties(title,sheetId,gridProperties.columnCount)`;
   const res = await fetch(url, {
     method: 'GET',
     headers: {
@@ -265,10 +265,15 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
 
   const metadata = await res.json();
   const existingTitles = new Set<string>();
+  const existingTabs = new Map<string, { sheetId: number; columnCount: number }>();
   if (metadata.sheets) {
     metadata.sheets.forEach((sheet: any) => {
       if (sheet.properties?.title) {
         existingTitles.add(sheet.properties.title);
+        existingTabs.set(sheet.properties.title, {
+          sheetId: sheet.properties.sheetId,
+          columnCount: sheet.properties.gridProperties?.columnCount ?? 0,
+        });
       }
     });
   }
@@ -279,7 +284,7 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
     { title: 'Seasons', columnCount: 10, rowCount: 150 },
     { title: 'Activities', columnCount: 10, rowCount: 1000 },
     { title: 'Expenses', columnCount: 15, rowCount: 1000 },
-    { title: 'Labor', columnCount: 14, rowCount: 1000 },
+    { title: 'Labor', columnCount: 15, rowCount: 1000 },
     { title: 'StockItems', columnCount: 10, rowCount: 200 },
     { title: 'StockPurchases', columnCount: 10, rowCount: 1000 },
     { title: 'StockUsage', columnCount: 10, rowCount: 1000 },
@@ -293,9 +298,22 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
 
   const missingSheets = requiredSheets.filter(s => !existingTitles.has(s.title));
 
-  if (missingSheets.length > 0) {
+  // A tab created before a column was added (Labor gained 'description') is
+  // too narrow for the new layout; widen it rather than write past its edge.
+  const narrowSheets = requiredSheets
+    .map(s => ({ required: s, existing: existingTabs.get(s.title) }))
+    .filter(({ required, existing }) => existing && existing.columnCount > 0 && existing.columnCount < required.columnCount);
+
+  if (missingSheets.length > 0 || narrowSheets.length > 0) {
     const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
-    const requests = missingSheets.map(sheet => ({
+    const widenRequests = narrowSheets.map(({ required, existing }) => ({
+      appendDimension: {
+        sheetId: existing!.sheetId,
+        dimension: 'COLUMNS',
+        length: required.columnCount - existing!.columnCount,
+      },
+    }));
+    const addRequests = missingSheets.map(sheet => ({
       addSheet: {
         properties: {
           title: sheet.title,
@@ -313,12 +331,12 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ requests }),
+      body: JSON.stringify({ requests: [...addRequests, ...widenRequests] }),
     });
 
     if (!updateRes.ok) {
       const errText = await updateRes.text();
-      throw new Error(`Failed to create missing sheets in spreadsheet: ${errText}`);
+      throw new Error(`Failed to create or widen sheet tabs in spreadsheet: ${errText}`);
     }
   }
 }
@@ -334,7 +352,8 @@ export const SHEET_COLUMNS: Record<string, string[]> = {
   seasons: ['id', 'fieldId', 'cropName', 'startDate', 'endDate', 'isClosed', 'shares'],
   activities: ['id', 'date', 'fieldId', 'seasonId', 'type', 'notes', 'weatherNote', 'photos'],
   expenses: ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId'],
-  labours: ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations'],
+  // 'description' goes last so existing sheets keep every column where it was.
+  labours: ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations', 'description'],
   stockItems: ['id', 'name', 'type', 'unit', 'quantityOnHand', 'weightedAverageCost', 'totalCostSpent', 'fundingByMember'],
   purchases: ['id', 'stockItemId', 'quantity', 'totalCost', 'date', 'paidByMemberId', 'isCredit', 'creditAccountId'],
   usages: ['id', 'stockItemId', 'quantityUsed', 'date', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'linkedActivityId'],
@@ -401,7 +420,7 @@ export async function pushDataToSpreadsheet(
       values: toSheetRows(data.expenses, SHEET_COLUMNS.expenses),
     },
     {
-      range: 'Labor!A1:N1000',
+      range: 'Labor!A1:O1000',
       values: toSheetRows(data.labours, SHEET_COLUMNS.labours),
     },
     {

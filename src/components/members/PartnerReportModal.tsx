@@ -362,7 +362,12 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
                           <span className={`inline-block px-1.5 rounded-md text-[9px] font-bold uppercase border mr-1.5 ${KIND_STYLE[l.kind]}`}>
                             {t(KIND_LABEL[l.kind])}
                           </span>
-                          <span className="text-slate-700 font-semibold">{l.kind === 'labour' ? `${l.detail.replace(' × ', ` ${t('workers')} × ${currency}`)}` : l.detail}</span>
+                          <span className="text-slate-700 font-semibold">{l.detail}</span>
+                          {l.workers && (
+                            <span className="text-slate-500">
+                              {l.detail ? ' · ' : ''}{l.workers.count} {t('workers')} × {currency}{l.workers.wageRate}
+                            </span>
+                          )}
                         </td>
                         <td className="py-1.5 pr-2 text-slate-500">
                           {l.cycles.join(', ')}

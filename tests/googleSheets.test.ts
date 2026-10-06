@@ -1,13 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import {
-  parseSheetRows,
-  toSheetRows,
-  findExistingSpreadsheet,
-  DriveSearchError,
-  extractSpreadsheetId,
-  spreadsheetUrl,
-  fetchSpreadsheetTitle,
-} from '../src/utils/googleSheets';
+import { parseSheetRows, toSheetRows, findExistingSpreadsheet, DriveSearchError, extractSpreadsheetId, spreadsheetUrl, fetchSpreadsheetTitle, SHEET_COLUMNS, ensureSheetsExist } from '../src/utils/googleSheets';
 
 describe('parseSheetRows', () => {
   it('parses lowercase true/false into booleans', () => {
@@ -330,5 +322,68 @@ describe('fetchSpreadsheetTitle', () => {
   it('reports a network failure as unknown rather than a permission problem', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
     await expect(fetchSpreadsheetTitle('tok', 'id')).rejects.toMatchObject({ reason: 'unknown' });
+  });
+});
+
+describe('labour work description', () => {
+  it('reaches the sheet and comes back on a pull', () => {
+    const labour = {
+      id: 'lab1', date: '2026-06-20', fieldId: 'f1', seasonId: 's1', workersCount: 4, wageRate: 500,
+      totalCost: 2000, paidByMemberId: 'm1', targetType: 'single', description: 'Transplanting paddy',
+    };
+    const restored = parseSheetRows<any>(toSheetRows([labour], SHEET_COLUMNS.labours));
+    expect(restored[0].description).toBe('Transplanting paddy');
+  });
+
+  it('is the last Labor column, so existing sheets keep their layout', () => {
+    expect(SHEET_COLUMNS.labours[SHEET_COLUMNS.labours.length - 1]).toBe('description');
+    expect(SHEET_COLUMNS.labours.slice(0, 14)).toEqual([
+      'id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost',
+      'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations',
+    ]);
+  });
+});
+
+describe('ensureSheetsExist', () => {
+  const allTabs = [
+    'Members', 'Fields', 'Seasons', 'Activities', 'Expenses', 'Labor', 'StockItems', 'StockPurchases',
+    'StockUsage', 'HarvestRevenue', 'AuditLogs', 'CreditAccounts', 'CreditRepayments',
+    'SettlementClearances', 'NotificationPreferences',
+  ];
+
+  function stubSheets(laborColumns: number) {
+    const calls: { url: string; body?: any }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: any) => {
+      calls.push({ url, body: init?.body ? JSON.parse(init.body) : undefined });
+      if (!init || init.method === 'GET') {
+        return {
+          ok: true,
+          json: async () => ({
+            sheets: allTabs.map((title, i) => ({
+              properties: { title, sheetId: 100 + i, gridProperties: { columnCount: title === 'Labor' ? laborColumns : 20 } },
+            })),
+          }),
+        } as any;
+      }
+      return { ok: true, json: async () => ({}), text: async () => '' } as any;
+    }));
+    return calls;
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('widens a Labor tab made before the description column existed', async () => {
+    const calls = stubSheets(14);
+    await ensureSheetsExist('token', 'sheet');
+    const update = calls.find(c => c.url.endsWith(':batchUpdate'))!;
+    expect(update.body.requests).toEqual([
+      { appendDimension: { sheetId: 105, dimension: 'COLUMNS', length: 1 } },
+    ]);
+  });
+
+  it('leaves a sheet that is already wide enough untouched', async () => {
+    const calls = stubSheets(15);
+    await ensureSheetsExist('token', 'sheet');
+    expect(calls.some(c => c.url.endsWith(':batchUpdate'))).toBe(false);
   });
 });

@@ -12,6 +12,7 @@ export interface NotificationPayload {
     cropName?: string;
     quantity?: number;
     fieldName?: string;
+    description?: string;
     currency?: string;
   };
 }
@@ -24,7 +25,7 @@ const MESSAGE_TEMPLATES: Record<NotificationEvent, (data: any) => string> = {
   settlement_calculated: () =>
     'Settlement calculation completed. Check the app for your statement.',
   labour_logged: (data) =>
-    `Labour entry: ${data.quantity} workers recorded for ${data.fieldName}`,
+    `Labour entry: ${data.quantity} workers recorded for ${data.fieldName}${data.description ? ` (${data.description})` : ''}`,
 };
 
 export function getMessageTemplate(eventType: NotificationEvent, data: any): string {

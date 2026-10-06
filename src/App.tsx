@@ -970,7 +970,7 @@ function AppShell() {
       'create',
       'Labour',
       lab.id,
-      `Logged contract worker shift: ${lab.workersCount} people for ${settings.currency}${lab.totalCost}`,
+      `Logged contract worker shift: ${lab.description ? `${lab.description}, ` : ''}${lab.workersCount} people for ${settings.currency}${lab.totalCost}`,
       lab.paidByMemberId
     );
     setDb(finalDb);
@@ -983,6 +983,7 @@ function AppShell() {
         eventType: 'labour_logged',
         data: {
           quantity: lab.workersCount,
+          description: lab.description,
           fieldName: lab.targetType === 'common' ? 'Multiple fields (shared)' : (targetField?.name || 'Unknown'),
           currency: settings.currency
         }
@@ -999,7 +1000,7 @@ function AppShell() {
       'edit',
       'Labour',
       updatedLab.id,
-      `Updated labour shift: ${updatedLab.workersCount} workers, cost ${settings.currency}${updatedLab.totalCost}`,
+      `Updated labour shift: ${updatedLab.description ? `${updatedLab.description}, ` : ''}${updatedLab.workersCount} workers, cost ${settings.currency}${updatedLab.totalCost}`,
       updatedLab.paidByMemberId
     );
     setDb(finalDb);
@@ -1016,7 +1017,7 @@ function AppShell() {
         'delete',
         'Labour',
         id,
-        `Removed labour payroll: ${target.workersCount} workers, cost ${settings.currency}${target.totalCost}`,
+        `Removed labour payroll: ${target.description ? `${target.description}, ` : ''}${target.workersCount} workers, cost ${settings.currency}${target.totalCost}`,
         target.paidByMemberId
       );
       setDb(finalDb);

@@ -129,6 +129,9 @@ export interface Labour {
   wageRate: number; // per worker rate
   totalCost: number; // lump sum or workersCount * wageRate
   paidByMemberId: string;
+  /** What work was done — required for new entries; absent on rows logged
+   * before it was asked for. */
+  description?: string;
   isCredit?: boolean;
   creditAccountId?: string;
   // Absent targetType (legacy rows written before common-split support)

@@ -145,6 +145,10 @@ export const validateLabour = (labour: Labour): { valid: boolean; errors: string
   const costCheck = validateLabourAmount(labour.totalCost);
   if (!costCheck.valid) errors.push(costCheck.error!);
 
+  if (!labour.description || !labour.description.trim()) {
+    errors.push('Describe the work that was done');
+  }
+
   const qtyCheck = validateQuantity(labour.workersCount);
   if (!qtyCheck.valid) errors.push('Number of workers must be greater than 0');
 

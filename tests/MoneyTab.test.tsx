@@ -160,3 +160,68 @@ describe('MoneyTab - a rejected entry must not look saved', () => {
     expect(screen.getByText('Expense saved')).toBeTruthy();
   });
 });
+
+describe('MoneyTab - Log Farm Labour description', () => {
+  const seasons: Season[] = [{ id: 's1', fieldId: 'f1', cropName: 'Rice', startDate: '2024-01-01', isClosed: false }];
+
+  function renderForLabour(labours: any[] = []) {
+    const onAddLabour = vi.fn((_l: any) => true);
+    const onEditLabour = vi.fn((_l: any) => true);
+    render(
+      <LanguageProvider>
+        <MoneyTab
+          expenses={[]}
+          labours={labours}
+          revenues={[]}
+          fields={fields}
+          seasons={seasons}
+          members={members}
+          activities={[]}
+          currency="₹"
+          creditAccounts={[]}
+          onAddExpense={vi.fn(() => true)}
+          onEditExpense={vi.fn(() => true)}
+          onDeleteExpense={vi.fn()}
+          onAddLabour={onAddLabour}
+          onEditLabour={onEditLabour}
+          onDeleteLabour={vi.fn()}
+          onAddRevenue={vi.fn(() => true)}
+          onEditRevenue={vi.fn(() => true)}
+          onDeleteRevenue={vi.fn()}
+        />
+      </LanguageProvider>
+    );
+    return { onAddLabour, onEditLabour };
+  }
+
+  function fillLabour(description: string) {
+    fireEvent.click(screen.getByText('+ New Entry'));
+    fireEvent.click(screen.getByText('Log Farm Labour'));
+    fireEvent.change(screen.getByPlaceholderText('e.g. 10'), { target: { value: '4' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 400'), { target: { value: '500' } });
+    fireEvent.change(screen.getByLabelText('Work done *'), { target: { value: description } });
+    fireEvent.submit(screen.getByLabelText('Work done *').closest('form')!);
+  }
+
+  it('saves what work was done with the labour cost', () => {
+    const { onAddLabour } = renderForLabour();
+    fillLabour('  Weeding and transplanting  ');
+    expect(onAddLabour).toHaveBeenCalledTimes(1);
+    expect(onAddLabour.mock.calls[0][0].description).toBe('Weeding and transplanting');
+    expect(onAddLabour.mock.calls[0][0].totalCost).toBe(2000);
+  });
+
+  it('refuses to save without a description', () => {
+    const { onAddLabour } = renderForLabour();
+    fillLabour('   ');
+    expect(onAddLabour).not.toHaveBeenCalled();
+    expect(screen.getByText('Describe the work that was done before saving.')).toBeTruthy();
+  });
+
+  it('shows the description in the transactions list', () => {
+    renderForLabour([
+      { id: 'lab1', date: '2024-02-01', fieldId: 'f1', seasonId: 's1', targetType: 'single', description: 'Spraying pesticide', workersCount: 2, wageRate: 400, totalCost: 800, paidByMemberId: 'm1' },
+    ]);
+    expect(screen.getByText(/Spraying pesticide/)).toBeTruthy();
+  });
+});

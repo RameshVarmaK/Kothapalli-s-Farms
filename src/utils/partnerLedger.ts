@@ -45,6 +45,8 @@ export interface PartnerLedgerLine {
   cycles: string[];
   /** True when the record was split across several cycles. */
   isSplit: boolean;
+  /** Labour lines only: the crew and rate behind the cost. */
+  workers?: { count: number; wageRate: number };
   paidIn: number;
   received: number;
 }
@@ -260,7 +262,9 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
         id: l.id,
         date: l.date,
         kind: 'labour',
-        detail: `${l.workersCount} × ${l.wageRate}`,
+        // What the crew did; older entries predate the description.
+        detail: l.description || '',
+        workers: { count: l.workersCount, wageRate: l.wageRate },
         cycles: c,
         isSplit,
         paidIn: amount,

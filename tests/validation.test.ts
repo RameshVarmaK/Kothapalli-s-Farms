@@ -256,6 +256,7 @@ describe('Validation Functions', () => {
         date: '2024-01-15',
         fieldId: 'f1',
         seasonId: 's1',
+        description: 'Weeding',
         workersCount: 5,
         wageRate: 200,
         totalCost: 1000,
@@ -263,6 +264,25 @@ describe('Validation Functions', () => {
       };
       const result = validateLabour(labour);
       expect(result.valid).toBe(true);
+    });
+
+    it('should reject labour with no description of the work', () => {
+      for (const description of [undefined, '', '   ']) {
+        const labour: Labour = {
+          id: 'lab1',
+          date: '2024-01-15',
+          fieldId: 'f1',
+          seasonId: 's1',
+          description,
+          workersCount: 5,
+          wageRate: 200,
+          totalCost: 1000,
+          paidByMemberId: 'm1'
+        };
+        const result = validateLabour(labour);
+        expect(result.valid).toBe(false);
+        expect(result.errors).toContain('Describe the work that was done');
+      }
     });
 
     it('should reject labour with zero workers', () => {
@@ -286,6 +306,7 @@ describe('Validation Functions', () => {
         date: '2024-01-15',
         fieldId: 'f1',
         seasonId: 's1',
+        description: 'Weeding',
         workersCount: 5,
         wageRate: 200,
         totalCost: 1000,
@@ -304,6 +325,7 @@ describe('Validation Functions', () => {
         date: '2024-01-15',
         fieldId: 'f1',
         seasonId: 's1',
+        description: 'Weeding',
         workersCount: 5,
         wageRate: 200,
         totalCost: 1000,

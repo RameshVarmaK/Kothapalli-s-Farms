@@ -476,7 +476,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           return (
                             <div key={l.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs hover:border-slate-300 transition-all">
                               <div>
-                                <div className="font-extrabold text-slate-900">Labor Service ({l.workersCount} worker(s) at {currency}{l.wageRate})</div>
+                                <div className="font-extrabold text-slate-900">{l.description || 'Labor Service'} ({l.workersCount} worker(s) at {currency}{l.wageRate})</div>
                                 <div className="text-[10px] text-slate-400 mt-0.5">
                                   {l.date} • Season: <span className="font-bold text-slate-600">{season ? season.cropName : 'Unknown'}</span> {field && `(${field.name})`}
                                 </div>
