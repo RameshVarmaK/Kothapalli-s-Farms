@@ -33,7 +33,7 @@ export const BackupRestoreCard: React.FC<BackupRestoreCardProps> = ({ backupMess
       <div className="grid grid-cols-2 gap-4">
         <button
           onClick={onExport}
-          className="flex items-center justify-center gap-1.5 p-3 rounded-xl border border-slate-250 text-xs font-bold text-slate-600 hover:bg-slate-50 bg-white shadow-2xs cursor-pointer"
+          className="flex items-center justify-center gap-1.5 p-3 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-50 bg-white shadow-2xs cursor-pointer"
         >
           <Download size={14} className="text-slate-400" />
           <span>{t('Backup JSON')}</span>

@@ -649,7 +649,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-center justify-between">
         <div className="flex flex-wrap gap-3 items-center">
           {/* Quick type toggler */}
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-250">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-300">
             {(['all', 'expense', 'labour', 'revenue'] as const).map(type => (
               <button
                 key={type}
@@ -743,7 +743,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                     setFilterFieldId('all');
                     setFilterMemberId('all');
                   }}
-                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-150 px-3 py-1.5 rounded-lg cursor-pointer transition-all"
+                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg cursor-pointer transition-all"
                 >
                   {t('Clear filters')}
                 </button>
@@ -755,7 +755,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
               return (
                 <div key={item.id} className="p-4.5 flex justify-between items-center hover:bg-slate-50/70 transition-colors">
                   <div className="flex gap-4 items-center min-w-0">
-                    <span className={`p-3 rounded-xl border ${isRevenue ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-600 border-slate-150'}`}>
+                    <span className={`p-3 rounded-xl border ${isRevenue ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
                       {isRevenue ? <ArrowUpRight size={18} /> : <ArrowDownLeft size={18} />}
                     </span>
                     <div className="min-w-0">
@@ -1061,10 +1061,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       <div
                         className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold ${
                           !amount
-                            ? 'bg-white border-gray-150 text-gray-400'
+                            ? 'bg-white border-gray-200 text-gray-400'
                             : Math.abs(allocationDiff) <= 0.5
                             ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                            : 'bg-amber-50 border-amber-150 text-amber-700'
+                            : 'bg-amber-50 border-amber-200 text-amber-700'
                         }`}
                       >
                         <span className="flex items-center gap-1.5">
@@ -1317,10 +1317,10 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                       <div
                         className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold ${
                           !labourTotalCost
-                            ? 'bg-white border-gray-150 text-gray-400'
+                            ? 'bg-white border-gray-200 text-gray-400'
                             : Math.abs(labourAllocationDiff) <= 0.5
                             ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                            : 'bg-amber-50 border-amber-150 text-amber-700'
+                            : 'bg-amber-50 border-amber-200 text-amber-700'
                         }`}
                       >
                         <span className="flex items-center gap-1.5">

@@ -238,7 +238,7 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
                   <button
                     id="google-signout-btn"
                     onClick={onLogout}
-                    className="px-2.5 py-1 text-[9px] bg-white border border-slate-250 hover:bg-slate-50 text-slate-600 font-bold rounded-lg cursor-pointer transition-colors shrink-0"
+                    className="px-2.5 py-1 text-[9px] bg-white border border-slate-300 hover:bg-slate-50 text-slate-600 font-bold rounded-lg cursor-pointer transition-colors shrink-0"
                   >
                     {t('Disconnect')}
                   </button>
@@ -272,7 +272,7 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
                       <span>{t('Sign in with Google (Full-Page Redirect)')}</span>
                     </button>
                   </div>
-                  <p className="text-[9.5px] text-slate-400 leading-normal mt-1 font-medium bg-slate-50 p-3 rounded-lg border border-slate-150">
+                  <p className="text-[9.5px] text-slate-400 leading-normal mt-1 font-medium bg-slate-50 p-3 rounded-lg border border-slate-200">
                     💡 <strong>{t('Vercel & Safari Note:')}</strong> {t('If the popup dialog closes immediately, use')} <strong>{t('Full-Page Redirect')}</strong>{t('. Popups on custom domains frequently hit browser cookie-sandbox blocks.')}
                   </p>
                 </div>
@@ -386,7 +386,7 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
 
             <button
               onClick={onPull}
-              className="w-full py-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-250 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-3xs transition-all"
+              className="w-full py-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer shadow-3xs transition-all"
             >
               <Download size={14} />
               <span>{t('Pull Spreadsheet (Overwrite Local)')}</span>

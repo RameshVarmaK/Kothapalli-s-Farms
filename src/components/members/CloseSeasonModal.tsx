@@ -35,7 +35,7 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
       <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
         <div className="flex justify-between items-start">
           <div>
-            <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-150 font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider">
+            <span className="text-[10px] bg-amber-50 text-amber-800 border border-amber-200 font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider">
               {t('Conclude Cropping Cycle')}
             </span>
             <h3 className="text-sm font-extrabold text-slate-800 mt-2">{t('Mark Crop Harvested')}</h3>
@@ -57,7 +57,7 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
               required
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 text-xs text-slate-750 font-medium"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-750 font-medium"
             />
           </div>
         </div>

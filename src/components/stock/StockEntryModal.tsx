@@ -143,7 +143,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
     <div className="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header switcher */}
-        <div className="border-b border-gray-150 bg-gray-50/50 p-2 flex">
+        <div className="border-b border-gray-200 bg-gray-50/50 p-2 flex">
           <button
             type="button"
             onClick={() => setModalType('purchase')}
@@ -410,7 +410,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                 </select>
               </div>
             ) : (
-              <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-150">
+              <div className="space-y-3 bg-gray-50 p-4 rounded-2xl border border-gray-200">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-bold text-gray-500 uppercase">{t('Division Rule')}</span>
                   <select
@@ -486,10 +486,10 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                   <div
                     className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-[11px] font-bold ${
                       !usageQty
-                        ? 'bg-white border-gray-150 text-gray-400'
+                        ? 'bg-white border-gray-200 text-gray-400'
                         : Math.abs(usageAllocationDiff) <= 0.001
                         ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                        : 'bg-amber-50 border-amber-150 text-amber-700'
+                        : 'bg-amber-50 border-amber-200 text-amber-700'
                     }`}
                   >
                     <span className="flex items-center gap-1.5">

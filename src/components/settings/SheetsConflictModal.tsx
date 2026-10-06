@@ -50,7 +50,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
           {/* Columns Side by Side */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Local DB */}
-            <div className="p-4 rounded-2xl border border-slate-150 bg-slate-50/50">
+            <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
                 <span className="font-bold text-xs uppercase tracking-wider text-slate-700">{t('This Device (Local)')}</span>
@@ -80,7 +80,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
             </div>
 
             {/* Cloud DB */}
-            <div className="p-4 rounded-2xl border border-emerald-150 bg-emerald-50/10">
+            <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/10">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
                 <span className="font-bold text-xs uppercase tracking-wider text-slate-750">{t('Google Sheet (Cloud)')}</span>

@@ -408,7 +408,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     <div className="space-y-6">
       {/* Sub-Tabs selector */}
       <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-250">
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-300">
           <button
             onClick={() => setActiveTab('seasons')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${

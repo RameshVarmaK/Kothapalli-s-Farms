@@ -252,7 +252,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
       </div>
 
       {/* Primary Sub-Tabs */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-250">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 rounded-2xl border border-slate-300">
         <div className="flex gap-1.5 bg-slate-100 p-1 rounded-xl">
           <button
             onClick={() => setActiveSubTab('overview')}
@@ -457,7 +457,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           const season = seasons.find(s => s.id === e.targetSeasonId);
                           const field = fields.find(f => f.id === e.targetFieldId);
                           return (
-                            <div key={e.id} className="flex items-center justify-between p-3 bg-white border border-slate-150 rounded-xl text-xs hover:border-slate-300 transition-all">
+                            <div key={e.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs hover:border-slate-300 transition-all">
                               <div>
                                 <div className="font-extrabold text-slate-850">{e.category} (Expense)</div>
                                 <div className="text-[10px] text-slate-400 mt-0.5">
@@ -474,7 +474,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           const season = seasons.find(s => s.id === l.seasonId);
                           const field = fields.find(f => f.id === l.fieldId);
                           return (
-                            <div key={l.id} className="flex items-center justify-between p-3 bg-white border border-slate-150 rounded-xl text-xs hover:border-slate-300 transition-all">
+                            <div key={l.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs hover:border-slate-300 transition-all">
                               <div>
                                 <div className="font-extrabold text-slate-850">Labor Service ({l.workersCount} worker(s) at {currency}{l.wageRate})</div>
                                 <div className="text-[10px] text-slate-400 mt-0.5">
@@ -564,7 +564,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 border-b border-slate-150 text-slate-500 font-bold">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold">
                     <th className="p-4">{t('Date')}</th>
                     <th className="p-4">{t('Creditor / Vendor')}</th>
                     <th className="p-4">{t('Paid By Partner')}</th>

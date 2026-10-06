@@ -392,11 +392,11 @@ export const StockTab: React.FC<StockTabProps> = ({
               </p>
             </div>
           </div>
-          <span className="text-[10px] bg-emerald-50 border border-emerald-150 font-bold px-2.5 py-1 rounded-lg text-emerald-800 uppercase tracking-wider">{t('Asset Reserve')}</span>
+          <span className="text-[10px] bg-emerald-50 border border-emerald-200 font-bold px-2.5 py-1 rounded-lg text-emerald-800 uppercase tracking-wider">{t('Asset Reserve')}</span>
         </div>
 
         <div className="bg-white px-5 py-3 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-4">
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-250">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-300">
             {(['levels', 'purchases', 'usages'] as const).map(tab => (
               <button
                 key={tab}

@@ -48,7 +48,7 @@ export const FieldsList: React.FC<FieldsListProps> = ({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {fields.map(field => (
-        <div key={field.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col hover:border-slate-350 hover:shadow-md transition-all">
+        <div key={field.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col hover:border-slate-400 hover:shadow-md transition-all">
           <div className="p-5 border-b border-slate-100 bg-slate-50/60 flex justify-between items-start">
             <div>
               <h3 className="font-bold text-slate-850 text-sm leading-snug">{field.name}</h3>

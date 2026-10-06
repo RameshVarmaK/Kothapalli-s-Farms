@@ -341,7 +341,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                   <Calendar size={11} />
                 </span>
 
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5.5 transition-all hover:border-emerald-250 hover:shadow-xs">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5.5 transition-all hover:border-emerald-300 hover:shadow-xs">
                   {/* Top Header info */}
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3.5 mb-3.5">
                     <div>

@@ -367,7 +367,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
       {/* Main Sections */}
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-105 pb-4 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-slate-100 pb-4 print:hidden">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
               <Sprout className="text-emerald-600" size={16} />

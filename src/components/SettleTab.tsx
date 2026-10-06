@@ -286,7 +286,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
         <div className="flex justify-between items-center flex-wrap gap-2">
           <h3 className="font-bold text-xs uppercase tracking-wider text-slate-400">{t('Select Cropping seasons for Settlement')}</h3>
           <div className="flex gap-2 text-[10px]">
-            <button onClick={selectAll} className="text-emerald-700 font-bold px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-150 rounded-lg cursor-pointer">
+            <button onClick={selectAll} className="text-emerald-700 font-bold px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg cursor-pointer">
               {t('Include All')}
             </button>
             <button onClick={selectOnlyOpen} className="text-slate-600 font-bold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg cursor-pointer">
@@ -306,7 +306,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                 className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all text-left flex flex-col justify-between cursor-pointer ${
                   isSelected
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-200 shadow-2xs'
-                    : 'bg-white text-slate-400 border-slate-200 hover:border-slate-350'
+                    : 'bg-white text-slate-400 border-slate-200 hover:border-slate-400'
                 }`}
               >
                 <span>{s.cropName}</span>
@@ -343,7 +343,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
 
         {/* Total Expense Attributed */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3.5">
-          <span className="p-2.5 rounded-xl bg-slate-50 text-slate-600 shrink-0 border border-slate-150">
+          <span className="p-2.5 rounded-xl bg-slate-50 text-slate-600 shrink-0 border border-slate-200">
             <ClipboardCheck size={20} />
           </span>
           <div>
@@ -359,21 +359,21 @@ export const SettleTab: React.FC<SettleTabProps> = ({
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-around print:hidden gap-1">
           <button
             onClick={handleExportCSV}
-            className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-150 hover:border-slate-350 rounded-xl transition-all cursor-pointer flex-1 text-center"
+            className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-200 hover:border-slate-400 rounded-xl transition-all cursor-pointer flex-1 text-center"
           >
             <Download size={16} />
             <span>{t('Export CSV')}</span>
           </button>
           <button
             onClick={handleShareCSV}
-            className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-150 hover:border-slate-350 rounded-xl transition-all cursor-pointer flex-1 text-center"
+            className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-200 hover:border-slate-400 rounded-xl transition-all cursor-pointer flex-1 text-center"
           >
             <Share2 size={16} className={copiedCSV ? "text-emerald-600 animate-bounce" : ""} />
             <span>{copiedCSV ? t('Copied CSV!') : t('Share CSV')}</span>
           </button>
           <button
             onClick={() => window.print()}
-            className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-150 hover:border-slate-350 rounded-xl transition-all cursor-pointer flex-1 text-center"
+            className="flex flex-col items-center gap-1.5 text-xs text-slate-600 font-bold hover:text-emerald-700 hover:bg-slate-50 px-2.5 py-2.5 border border-slate-200 hover:border-slate-400 rounded-xl transition-all cursor-pointer flex-1 text-center"
           >
             <Printer size={16} />
             <span>{t('Print PDF')}</span>
@@ -468,8 +468,8 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                   key={idx}
                   className={`flex flex-col p-5 rounded-2xl border transition-all gap-4 ${
                     isCleared
-                      ? 'bg-emerald-55/30 border-emerald-250 bg-emerald-50/20'
-                      : 'bg-slate-50 border-slate-200 hover:border-slate-350'
+                      ? 'bg-emerald-55/30 border-emerald-300 bg-emerald-50/20'
+                      : 'bg-slate-50 border-slate-200 hover:border-slate-400'
                   }`}
                 >
                   {/* Main Entry row */}
@@ -512,7 +512,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                     <div className="flex items-center justify-center pt-3 md:pt-0 md:pl-4 md:border-l md:border-slate-200 shrink-0">
                       {isCleared ? (
                         <div className="flex flex-col items-center gap-1">
-                          <span className="text-[10px] font-extrabold tracking-wider text-emerald-700 uppercase bg-emerald-100 border border-emerald-205 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-3xs">
+                          <span className="text-[10px] font-extrabold tracking-wider text-emerald-700 uppercase bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-3xs">
                             {t('✓ Cleared')}
                           </span>
                           <button
@@ -564,7 +564,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                                   type="checkbox"
                                   checked={isSubCleared}
                                   onChange={() => toggleClearedSubEntry(sub, debtKey)}
-                                  className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-350 cursor-pointer"
+                                  className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-400 cursor-pointer"
                                 />
                                 <div className="leading-tight">
                                   <span className={`font-bold ${isSubCleared ? 'line-through text-slate-400' : 'text-slate-800'}`}>

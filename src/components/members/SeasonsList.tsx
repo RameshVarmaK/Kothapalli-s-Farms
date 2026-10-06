@@ -79,14 +79,14 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                 <td className="px-6 py-4 text-right flex items-center justify-end gap-2.5">
                   <button
                     onClick={() => onViewReport(s.id)}
-                    className="text-[10px] text-slate-700 hover:text-emerald-800 bg-slate-100 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-250 font-bold px-3 py-1.5 rounded-lg border-slate-200 hover:border-slate-350 cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
+                    className="text-[10px] text-slate-700 hover:text-emerald-800 bg-slate-100 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 font-bold px-3 py-1.5 rounded-lg border-slate-200 hover:border-slate-400 cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
                   >
                     <FileText size={12} className="text-emerald-600" />
                     <span>{t('View Report')}</span>
                   </button>
                   <button
                     onClick={() => onEditSeason(s)}
-                    className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-250 hover:border-emerald-150 transition-colors cursor-pointer"
+                    className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
                     title={t('Edit Season & Ownership Shares')}
                   >
                     <Pencil size={13} />
@@ -99,7 +99,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                       {checkSeasonSettled(s.id) ? (
                         <button
                           onClick={() => onDeleteSeason(s.id)}
-                          className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-250 hover:border-red-150 transition-colors cursor-pointer"
+                          className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-300 hover:border-red-200 transition-colors cursor-pointer"
                           title={t('Delete Season (Fully Settled)')}
                         >
                           <Trash2 size={13} />
@@ -113,7 +113,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                   ) : (
                     <button
                       onClick={() => onCloseCropSeason(s.id)}
-                      className="text-[10px] text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-150 font-bold px-2.5 py-1.5 rounded-lg cursor-pointer transition-all"
+                      className="text-[10px] text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 font-bold px-2.5 py-1.5 rounded-lg cursor-pointer transition-all"
                     >
                       {t('Mark Harvested')}
                     </button>

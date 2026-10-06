@@ -820,7 +820,7 @@ function AppShell() {
           {/* Dynamic Sign-In Trigger button */}
           <button
             onClick={() => handleLogin()}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-2xl border border-slate-250 shadow-xs hover:border-slate-350 hover:shadow-md cursor-pointer transition-all active:scale-98"
+            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm rounded-2xl border border-slate-300 shadow-xs hover:border-slate-400 hover:shadow-md cursor-pointer transition-all active:scale-98"
           >
             <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
               <path
@@ -1952,8 +1952,8 @@ function AppShell() {
                 onClick={() => syncDatabaseAcrossCloud(db)}
                 className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-all ${
                   syncingState === 'syncing'
-                    ? 'bg-slate-50 text-slate-400 border-slate-150 animate-pulse'
-                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-350 active:scale-95'
+                    ? 'bg-slate-50 text-slate-400 border-slate-200 animate-pulse'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-400 active:scale-95'
                 }`}
                 title="Force Synchronize with Google Sheet"
               >
@@ -2042,7 +2042,7 @@ function AppShell() {
         {/* Mobile bottom bar: always the 4 hubs, regardless of Basic/Power mode.
             Tapping a hub with several tools jumps to its first tool; the drawer
             (hamburger button in the header) gives full access to every tab. */}
-        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-250 p-2 flex gap-1.5 justify-around md:hidden print:hidden shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-300 p-2 flex gap-1.5 justify-around md:hidden print:hidden shrink-0 shadow-[0_-4px_12px_rgba(0,0,0,0.05)]">
           {TAB_GROUPS.map(group => (
             <button
               key={group.id}
@@ -2122,7 +2122,7 @@ function AppShell() {
                   className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     activeTab === tab.id
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-350'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'
                   }`}
                 >
                   {t(tab.label)}
@@ -2386,7 +2386,7 @@ function AppShell() {
                     <p className="leading-relaxed">
                       The domain <span className="font-mono text-[11px] bg-slate-100 px-1.5 py-0.5 rounded select-all font-bold text-slate-800">{authError.domain}</span> has not been whitelisted under Authorized Domains in your Firebase/Google Cloud platform yet.
                     </p>
-                    <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-150 text-[11px] space-y-1.5 leading-relaxed font-medium">
+                    <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-[11px] space-y-1.5 leading-relaxed font-medium">
                       <div className="font-bold text-slate-800">Step-by-Step Whitelisting:</div>
                       <div>1. Log in to your <span className="font-semibold text-slate-800">Firebase Console</span>.</div>
                       <div>2. Navigate to your project, then click <strong>Authentication &gt; Settings &gt; Authorized Domains</strong>.</div>
@@ -2401,7 +2401,7 @@ function AppShell() {
                     <p>
                       Your web browser blocked the Google authentication popup window entirely.
                     </p>
-                    <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-150 text-[11px] space-y-1 font-medium">
+                    <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-[11px] space-y-1 font-medium">
                       <div className="font-bold text-slate-800">Quick Fix:</div>
                       <div>• Look for a "popup blocked" badge in your browser's address bar and select <strong>Always Allow Popups</strong>.</div>
                       <div>• Temporarily turn off adblockers, Brave Shields, or privacy extensions on this page.</div>
@@ -2413,7 +2413,7 @@ function AppShell() {
                     <p>
                       When run inside sandboxed or cross-origin iframes (like the AI Studio internal development preview), major browsers frequently block cookie storage or popup communications.
                     </p>
-                    <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-150 text-[11px] space-y-2 font-medium">
+                    <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 text-[11px] space-y-2 font-medium">
                       <div className="font-bold text-slate-800">Try these easy options:</div>
                       <div>
                         <span className="font-bold text-slate-800">Option A: Open in a New Tab</span>

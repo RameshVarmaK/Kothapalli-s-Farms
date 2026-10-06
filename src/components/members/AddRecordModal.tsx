@@ -194,7 +194,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 <span>{t('Ratio Split (%)')}</span>
               </div>
 
-              <div className="divide-y divide-gray-150 space-y-2">
+              <div className="divide-y divide-gray-200 space-y-2">
                 {members.map(m => (
                   <div key={m.id} className="flex justify-between items-center pt-2 text-xs text-gray-700">
                     <span>{m.name}</span>
@@ -220,7 +220,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
               </div>
 
               {/* Validate on board live counter */}
-              <div className="flex justify-between items-center text-[10px] uppercase font-semibold text-gray-500 pt-2 border-t border-gray-150">
+              <div className="flex justify-between items-center text-[10px] uppercase font-semibold text-gray-500 pt-2 border-t border-gray-200">
                 <span>{t('Total share ratio allocation')}</span>
                 <span className={`font-bold text-xs ${Math.abs(sumOfShares - 100) < 0.1 ? 'text-emerald-600' : 'text-amber-500'}`}>
                   {sumOfShares}% / 100%
@@ -302,10 +302,10 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
             <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
               <div className="flex justify-between items-center">
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest block">{t('Season Partner Shares (%)')}</span>
-                <span className="text-[9px] text-emerald-800 bg-emerald-50 border border-emerald-150 font-bold px-2 py-0.5 rounded-md">{t('Customizable per Cycle')}</span>
+                <span className="text-[9px] text-emerald-800 bg-emerald-50 border border-emerald-200 font-bold px-2 py-0.5 rounded-md">{t('Customizable per Cycle')}</span>
               </div>
 
-              <div className="divide-y divide-slate-150 space-y-2">
+              <div className="divide-y divide-slate-200 space-y-2">
                 {members.map(m => (
                   <div key={m.id} className="flex justify-between items-center pt-2 text-xs text-slate-700">
                     <span className="font-semibold">{m.name}</span>
@@ -322,7 +322,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                             [m.id]: val
                           }));
                         }}
-                        className="bg-white border border-slate-205 rounded-lg text-xs w-24 pr-6 py-1 text-right font-semibold"
+                        className="bg-white border border-slate-200 rounded-lg text-xs w-24 pr-6 py-1 text-right font-semibold"
                       />
                       <span className="absolute right-2 top-1.5 text-[10px] text-slate-400">%</span>
                     </div>
