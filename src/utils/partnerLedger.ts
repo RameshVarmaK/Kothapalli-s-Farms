@@ -88,6 +88,19 @@ export interface PartnerStockPurchase {
   totalCost: number;
 }
 
+/** A payment this partner made to a creditor, at its full amount. */
+export interface PartnerCreditPayment {
+  id: string;
+  date: string;
+  creditorName: string;
+  notes?: string;
+  amount: number;
+  /** The part of it this report counts toward the cycles in scope — the
+   * share of that creditor's credit those cycles used. Less than `amount`
+   * when the credit also covered other cycles; 0 when none of it did. */
+  countedInScope: number;
+}
+
 export interface PartnerLedger {
   memberId: string;
   memberName: string;
@@ -96,6 +109,8 @@ export interface PartnerLedger {
   /** Stock bought with this partner's money. Informational: a purchase only
    * counts toward a cycle when the stock is used there (the "stock" lines). */
   stockPurchases: PartnerStockPurchase[];
+  /** Every payment the partner made to a creditor, newest last. */
+  creditPayments: PartnerCreditPayment[];
   totals: {
     paidIn: number;
     costShare: number;
@@ -273,9 +288,21 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
 
   // A repayment is made against a creditor, not a bill; the engine spreads it
   // over cycles by how much of that creditor's credit each cycle used.
+  const creditPayments: PartnerCreditPayment[] = [];
   creditRepayments
     .filter(r => r.memberId === memberId)
     .forEach(rep => {
+      const creditor = input.creditAccounts?.find(c => c.id === rep.creditAccountId);
+      const payment: PartnerCreditPayment = {
+        id: rep.id,
+        date: rep.date,
+        creditorName: creditor?.name || 'Creditor',
+        notes: rep.notes || undefined,
+        amount: rep.amount,
+        countedInScope: 0,
+      };
+      creditPayments.push(payment);
+
       const credExp = expenses.filter(e => e.isCredit && e.creditAccountId === rep.creditAccountId);
       const credLab = labours.filter(l => l.isCredit && l.creditAccountId === rep.creditAccountId);
       const totalCredit =
@@ -296,8 +323,8 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
 
       const inScopeCredit = [...perSeason.values()].reduce((sum, v) => sum + v, 0);
       const amount = rep.amount * (inScopeCredit / totalCredit);
+      payment.countedInScope = amount;
       if (Math.abs(amount) < 0.005) return;
-      const creditor = input.creditAccounts?.find(c => c.id === rep.creditAccountId);
       lines.push({
         id: rep.id,
         date: rep.date,
@@ -375,6 +402,7 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
     cycles,
     lines,
     stockPurchases,
+    creditPayments: creditPayments.sort((a, b) => String(a.date).localeCompare(String(b.date))),
     totals: {
       paidIn: Number(paidIn.toFixed(2)),
       costShare,

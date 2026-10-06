@@ -5,7 +5,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Printer, Scale, Receipt, Sprout, Package } from 'lucide-react';
+import { X, Printer, Scale, Receipt, Sprout, Package, Landmark } from 'lucide-react';
 import {
   Member,
   Field,
@@ -163,6 +163,13 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
   const linesPaid = ledger.lines.reduce((sum, l) => sum + l.paidIn, 0);
   const linesReceived = ledger.lines.reduce((sum, l) => sum + l.received, 0);
   const settlementsInScope = ledger.cycles.filter(c => c.settlements.length > 0);
+  // Sections number from 1 in whatever is shown.
+  const firstListSection = showShares ? 3 : 1;
+  const hasCreditPayments = ledger.creditPayments.length > 0;
+  const creditSection = firstListSection + 1;
+  const stockSection = firstListSection + (hasCreditPayments ? 2 : 1);
+  const creditPaid = ledger.creditPayments.reduce((sum, p) => sum + p.amount, 0);
+  const creditCounted = ledger.creditPayments.reduce((sum, p) => sum + p.countedInScope, 0);
   const generatedOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return createPortal(
@@ -404,12 +411,57 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
             </p>
           </div>
 
-          {/* Section 4: stock bought */}
+          {/* Payments to creditors, at full amount */}
+          {hasCreditPayments && (
+            <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
+              <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+                <Landmark size={13} className="text-slate-500" />
+                <span>{t(`Section ${creditSection}: Payments to Creditors`)}</span>
+              </h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px] min-w-[480px]">
+                  <thead>
+                    <tr className="text-[9px] uppercase tracking-wider text-slate-400">
+                      <th className="text-left font-bold pb-2">{t('Date')}</th>
+                      <th className="text-left font-bold pb-2">{t('Creditor')}</th>
+                      <th className="text-right font-bold pb-2">{t('Paid')}</th>
+                      <th className="text-right font-bold pb-2">{t('Counted in this report')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {ledger.creditPayments.map(p => (
+                      <tr key={p.id} className="align-top">
+                        <td className="py-1.5 pr-2 font-mono text-slate-500 whitespace-nowrap">{p.date}</td>
+                        <td className="py-1.5 pr-2">
+                          <span className="text-slate-700 font-semibold">{p.creditorName}</span>
+                          {p.notes && <span className="block text-[10px] text-slate-400">{p.notes}</span>}
+                        </td>
+                        <td className="py-1.5 text-right font-mono text-slate-800">{money(p.amount)}</td>
+                        <td className="py-1.5 text-right font-mono text-slate-500">{money(p.countedInScope)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="border-t-2 border-slate-300 font-bold text-slate-800">
+                    <tr>
+                      <td colSpan={2} className="py-2 text-[10px] uppercase tracking-widest text-slate-500">{t('Total')}</td>
+                      <td className="text-right font-mono">{money(creditPaid)}</td>
+                      <td className="text-right font-mono text-slate-500">{money(creditCounted)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <p className="mt-2 text-[10px] text-slate-400 leading-normal">
+                {t('A payment to a creditor counts toward a crop cycle in proportion to how much of that creditor’s credit the cycle used. "Counted in this report" is the part that falls in the crop cycles shown.')}
+              </p>
+            </div>
+          )}
+
+          {/* Stock bought */}
           {ledger.stockPurchases.length > 0 && (
             <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
               <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
                 <Package size={13} className="text-slate-500" />
-                <span>{t(showShares ? 'Section 4: Stock Bought' : 'Section 2: Stock Bought')}</span>
+                <span>{t(`Section ${stockSection}: Stock Bought`)}</span>
               </h4>
               <div className="space-y-1.5">
                 {ledger.stockPurchases.map(p => (

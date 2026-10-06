@@ -196,4 +196,14 @@ export const teMembers: Record<string, string> = {
   'Include shares & settlement': 'వాటాలు & లెక్క తేల్చడం చేర్చండి',
   'Section 1: Transactions': 'విభాగం 1: లావాదేవీలు',
   'Section 2: Stock Bought': 'విభాగం 2: కొన్న నిల్వ సరుకు',
+
+  // Partner ledger: payments to creditors
+  'Section 2: Payments to Creditors': 'విభాగం 2: అప్పుదారులకు చెల్లింపులు',
+  'Section 4: Payments to Creditors': 'విభాగం 4: అప్పుదారులకు చెల్లింపులు',
+  'Section 3: Stock Bought': 'విభాగం 3: కొన్న నిల్వ సరుకు',
+  'Section 5: Stock Bought': 'విభాగం 5: కొన్న నిల్వ సరుకు',
+  'Paid': 'చెల్లించినది',
+  'Counted in this report': 'ఈ నివేదికలో లెక్కించినది',
+  'A payment to a creditor counts toward a crop cycle in proportion to how much of that creditor’s credit the cycle used. "Counted in this report" is the part that falls in the crop cycles shown.':
+    'అప్పుదారుకు చేసిన చెల్లింపు, ఆ అప్పుదారు అప్పులో ఏ పంట కాలం ఎంత వాడిందో ఆ నిష్పత్తిలో లెక్కించబడుతుంది. "ఈ నివేదికలో లెక్కించినది" అంటే చూపిన పంట కాలాలకు వచ్చే భాగం.',
 };
