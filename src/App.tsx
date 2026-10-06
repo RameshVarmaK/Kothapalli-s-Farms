@@ -132,7 +132,24 @@ function groupForTab(tabId: TabId): TabGroup {
   return TAB_GROUPS.find(g => g.tabs.some(t => t.id === tabId)) || TAB_GROUPS[0];
 }
 
-const formatErrorTextWithLinks = (text: string) => {
+/** A plain-language reason for a failed Google sign-in, as a translation key. */
+function signInErrorMessage(code: string): string {
+  switch (code) {
+    case 'auth/popup-blocked':
+      return 'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.';
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return 'The Google sign-in window was closed before it finished. Try again.';
+    case 'auth/network-request-failed':
+      return 'No internet connection. Connect and try again.';
+    case 'auth/unauthorized-domain':
+      return "This web address isn't approved for Google sign-in yet. Ask whoever set up the app to add it.";
+    default:
+      return 'Google sign-in failed. Try again, or open the app in a new browser tab.';
+  }
+}
+
+const formatErrorTextWithLinks = (text: string, t: (s: string) => string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = text.split(urlRegex);
   return parts.map((part, index) => {
@@ -146,7 +163,7 @@ const formatErrorTextWithLinks = (text: string) => {
           rel="noopener noreferrer"
           className="text-indigo-700 hover:text-indigo-900 underline font-black inline-flex items-center gap-1 bg-white border border-indigo-200 px-3 py-1.5 rounded-xl ml-1 hover:shadow-xs transition-all my-1"
         >
-          Enable Google Sheets API ↗
+          {t('Enable Google Sheets API')} ↗
         </a>
       );
     }
@@ -154,14 +171,17 @@ const formatErrorTextWithLinks = (text: string) => {
   });
 };
 
-const TabLoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-[60vh] text-sm font-semibold text-slate-400">
-    <div className="flex items-center gap-2">
-      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
-      Loading tab...
+const TabLoadingFallback = () => {
+  const { t } = useLanguage();
+  return (
+    <div className="flex items-center justify-center min-h-[60vh] text-sm font-semibold text-slate-400">
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-600 animate-pulse" />
+        {t('Loading tab...')}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // Merges a raw Sheets pull with a fallback base, filling in the shape
 // LocalDatabase expects. Shared by the login pull, the background
@@ -777,7 +797,7 @@ function AppShell() {
         {/* Language switch, so a Telugu reader can switch before signing in */}
         <div
           className="absolute top-4 right-4 flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
-          title="Switch the app's language between English and Telugu"
+          title={t("Switch the app's language between English and Telugu")}
         >
           {(['en', 'te'] as const).map(lng => (
             <button
@@ -829,7 +849,7 @@ function AppShell() {
               ) : (
                 <>
                   <p className="font-bold mb-1">{t('Could not synchronize database:')}</p>
-                  <p className="break-words">{formatErrorTextWithLinks(fetchError)}</p>
+                  <p className="break-words">{formatErrorTextWithLinks(fetchError, t)}</p>
                   <p className="mt-2 text-[10px] text-slate-400">{t('Please make sure your Google Account is permitted to access Sheet')} <strong>{db?.settings?.linkedSpreadsheetId || PLACEHOLDER_SPREADSHEET_ID}</strong>.</p>
                 </>
               )}
@@ -844,6 +864,17 @@ function AppShell() {
                 {pendingChanges} {t(pendingChanges === 1 ? 'change is saved on this device but not yet in the Google Sheet' : 'changes are saved on this device but not yet in the Google Sheet')}
               </p>
               <p>{t(pendingChanges === 1 ? "Sign in to send it. Please don't enter it again." : "Sign in to send them. Please don't enter them again.")}</p>
+            </div>
+          )}
+
+          {/* The detailed diagnostics modal only exists inside the signed-in
+              app, so without this a failed sign-in here (blocked popup,
+              closed window, no network) showed nothing at all. */}
+          {authError && (
+            <div role="alert" className="w-full mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-xs text-red-700 leading-relaxed font-medium">
+              <p className="font-bold mb-1">{t("Sign-in didn't complete")}</p>
+              <p>{t(signInErrorMessage(authError.code))}</p>
+              <p className="mt-1.5 text-[10px] text-red-400 font-mono">{authError.code}</p>
             </div>
           )}
 
@@ -1968,7 +1999,7 @@ function AppShell() {
                     ? 'bg-slate-50 text-slate-400 border-slate-200 animate-pulse'
                     : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-400 active:scale-95'
                 }`}
-                title="Force Synchronize with Google Sheet"
+                title={t('Force Synchronize with Google Sheet')}
               >
                 <RefreshCw size={12} className={syncingState === 'syncing' ? 'animate-spin' : ''} />
                 <span>{t('Sync Now')}</span>
@@ -1986,7 +2017,7 @@ function AppShell() {
 
           <div
             className="hidden md:flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
-            title="Basic mode groups tools into 4 hubs. Power mode shows every tool at once."
+            title={t('Basic mode groups tools into 4 hubs. Power mode shows every tool at once.')}
           >
             {(['basic', 'power'] as const).map(m => (
               <button
@@ -2003,7 +2034,7 @@ function AppShell() {
 
           <div
             className="hidden md:flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
-            title="Switch the app's language between English and Telugu"
+            title={t("Switch the app's language between English and Telugu")}
           >
             {(['en', 'te'] as const).map(lng => (
               <button
@@ -2020,7 +2051,7 @@ function AppShell() {
 
           {seasons.filter(s => !s.isClosed).length > 0 && (
             <span className="hidden sm:inline-block text-[10px] bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-lg border border-emerald-100 uppercase tracking-widest">
-              ● {seasons.filter(s => !s.isClosed).length} Active Seasons
+              ● {seasons.filter(s => !s.isClosed).length} {t('Active Seasons')}
             </span>
           )}
         </div>

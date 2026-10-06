@@ -104,4 +104,22 @@ export const teShell: Record<string, string> = {
   'OK': 'సరే',
   'Confirm': 'నిర్ధారించండి',
   'Close': 'మూసివేయండి',
+
+  // Sign-in failures and remaining shell strings
+  "Sign-in didn't complete": 'సైన్-ఇన్ పూర్తి కాలేదు',
+  'Your browser blocked the Google sign-in window. Allow pop-ups for this site and try again.':
+    'మీ బ్రౌజర్ గూగుల్ సైన్-ఇన్ విండోను అడ్డుకుంది. ఈ సైట్‌కు పాప్-అప్‌లను అనుమతించి మళ్లీ ప్రయత్నించండి.',
+  'The Google sign-in window was closed before it finished. Try again.':
+    'గూగుల్ సైన్-ఇన్ విండో పూర్తి కాకముందే మూసివేయబడింది. మళ్లీ ప్రయత్నించండి.',
+  'No internet connection. Connect and try again.': 'ఇంటర్నెట్ కనెక్షన్ లేదు. కనెక్ట్ అయి మళ్లీ ప్రయత్నించండి.',
+  "This web address isn't approved for Google sign-in yet. Ask whoever set up the app to add it.":
+    'ఈ వెబ్ చిరునామాకు గూగుల్ సైన్-ఇన్ ఇంకా అనుమతి లేదు. యాప్‌ను సెటప్ చేసిన వారిని దీన్ని జోడించమని అడగండి.',
+  'Google sign-in failed. Try again, or open the app in a new browser tab.':
+    'గూగుల్ సైన్-ఇన్ విఫలమైంది. మళ్లీ ప్రయత్నించండి, లేదా యాప్‌ను కొత్త బ్రౌజర్ ట్యాబ్‌లో తెరవండి.',
+  'Enable Google Sheets API': 'గూగుల్ షీట్స్ APIని ప్రారంభించండి',
+  'Loading tab...': 'ట్యాబ్ లోడ్ అవుతోంది...',
+  'Force Synchronize with Google Sheet': 'గూగుల్ షీట్‌తో ఇప్పుడే సింక్ చేయండి',
+  'Basic mode groups tools into 4 hubs. Power mode shows every tool at once.':
+    'సాధారణ మోడ్ సాధనాలను 4 విభాగాలుగా చూపుతుంది. పూర్తి మోడ్ అన్ని సాధనాలను ఒకేసారి చూపుతుంది.',
+  "Switch the app's language between English and Telugu": 'యాప్ భాషను ఇంగ్లీష్ మరియు తెలుగు మధ్య మార్చండి',
 };
