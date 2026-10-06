@@ -114,13 +114,21 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
       .filter(l => l.paidByMemberId === m.id)
       .reduce((sum, l) => sum + l.totalCost, 0);
 
-    const total = expenseTotal + stockTotal + labourTotal;
+    // A bill taken on credit has no partner payer; the partner's money goes
+    // in when they repay the creditor. Leaving repayments out understated
+    // every partner who settled a creditor.
+    const creditRepaidTotal = creditRepayments
+      .filter(r => r.memberId === m.id)
+      .reduce((sum, r) => sum + r.amount, 0);
+
+    const total = expenseTotal + stockTotal + labourTotal + creditRepaidTotal;
 
     return {
       name: m.name,
       Expenses: Number(expenseTotal.toFixed(2)),
       'Stock Purchase': Number(stockTotal.toFixed(2)),
       'Labour/Wages': Number(labourTotal.toFixed(2)),
+      'Credit Repaid': Number(creditRepaidTotal.toFixed(2)),
       total: Number(total.toFixed(2))
     };
   });
@@ -357,7 +365,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                 />
                 <Bar dataKey="Expenses" stackId="a" fill="#6366f1" radius={[0, 0, 0, 0]} barSize={36} />
                 <Bar dataKey="Stock Purchase" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} barSize={36} />
-                <Bar dataKey="Labour/Wages" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={36} />
+                <Bar dataKey="Labour/Wages" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} barSize={36} />
+                <Bar dataKey="Credit Repaid" stackId="a" fill="#64748b" radius={[4, 4, 0, 0]} barSize={36} />
               </BarChart>
             </ResponsiveContainer>
           </div>
