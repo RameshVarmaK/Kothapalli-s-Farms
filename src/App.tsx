@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useRef, useMemo, Suspense, lazy, ReactNode } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, googleSignInRedirect, logout, clearGoogleAccessToken } from './utils/auth';
 import {
@@ -14,11 +14,8 @@ import {
   PLACEHOLDER_SPREADSHEET_ID,
   isPlaceholderSpreadsheetId,
   safeStorageRemove,
-  safeStorageGet,
-  safeStorageSet,
   stripAutoActivities,
-  LEGACY_CLEARANCE_KEYS,
-  normalizeClearanceKeys
+  LEGACY_CLEARANCE_KEYS
 } from './utils/database';
 import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges, collectionsToPush } from './utils/syncConflict';
 import { classifySyncError, isRetryable, retryDelayMs, SyncErrorKind } from './utils/syncErrors';
@@ -59,7 +56,7 @@ const SettingsTab = lazy(() => import('./components/SettingsTab').then(m => ({ d
 const CreditsTab = lazy(() => import('./components/CreditsTab').then(m => ({ default: m.CreditsTab })));
 const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard').then(m => ({ default: m.AnalyticsDashboard })));
 import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet, extractSpreadsheetId, fetchSpreadsheetTitle, describeSheetLinkError } from './utils/googleSheets';
-import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wrench, Sprout, Check, X, RefreshCw, AlertTriangle, CreditCard, Menu, BarChart3 } from 'lucide-react';
+import { Sprout, Check, X, RefreshCw, AlertTriangle, Menu } from 'lucide-react';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 import { SheetSetupModal } from './components/SheetSetupModal';
 import { SyncStatusBanner } from './components/SyncStatusBanner';
@@ -69,68 +66,9 @@ import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewModeProvider, useViewMode } from './hooks/useViewMode';
 import { LanguageProvider, useLanguage } from './hooks/useLanguage';
 import { useReceiptUploads } from './hooks/useReceiptUploads';
-import { keepPendingReceiptData } from './utils/attachments';
-
-type TabId = 'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings' | 'credits' | 'analytics';
-
-interface TabDef {
-  id: TabId;
-  label: string;
-  icon: ReactNode;
-}
-
-interface TabGroup {
-  id: string;
-  label: string;
-  icon: ReactNode;
-  tabs: TabDef[];
-}
-
-// Nine flat tabs collapse into four hubs (Home / Money / Farm / More). Basic
-// mode shows only the hubs; Power mode shows every leaf tab grouped under
-// the same hubs. Mobile always uses the hub-level bottom bar, with the full
-// grouped list one tap away in the drawer.
-const TAB_GROUPS: TabGroup[] = [
-  {
-    id: 'grp-home',
-    label: 'Home',
-    icon: <LayoutDashboard size={18} className="shrink-0" />,
-    tabs: [{ id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={17} className="shrink-0" /> }]
-  },
-  {
-    id: 'grp-money',
-    label: 'Money',
-    icon: <Coins size={18} className="shrink-0" />,
-    tabs: [
-      { id: 'money', label: 'Transactions', icon: <FileText size={17} className="shrink-0" /> },
-      { id: 'settle', label: 'Settle Bilateral', icon: <Coins size={17} className="shrink-0" /> },
-      { id: 'credits', label: 'Credit & Payables', icon: <CreditCard size={17} className="shrink-0" /> }
-    ]
-  },
-  {
-    id: 'grp-farm',
-    label: 'Farm',
-    icon: <Sprout size={18} className="shrink-0" />,
-    tabs: [
-      { id: 'timeline', label: 'Farm Activity', icon: <CalendarDays size={17} className="shrink-0" /> },
-      { id: 'stock', label: 'Inventory', icon: <PackageOpen size={17} className="shrink-0" /> },
-      { id: 'members', label: 'Fields & Directory', icon: <Users size={17} className="shrink-0" /> }
-    ]
-  },
-  {
-    id: 'grp-more',
-    label: 'More',
-    icon: <Wrench size={18} className="shrink-0" />,
-    tabs: [
-      { id: 'analytics', label: 'Reports & Insights', icon: <BarChart3 size={17} className="shrink-0" /> },
-      { id: 'settings', label: 'Audit & Config', icon: <Wrench size={17} className="shrink-0" /> }
-    ]
-  }
-];
-
-function groupForTab(tabId: TabId): TabGroup {
-  return TAB_GROUPS.find(g => g.tabs.some(t => t.id === tabId)) || TAB_GROUPS[0];
-}
+import { TabId, TAB_GROUPS, groupForTab } from './app/navigation';
+import { normalizeCloudDb } from './app/normalizeCloudDb';
+import { hasChosenLedger, rememberLedgerChoice } from './app/ledgerChoice';
 
 /** A plain-language reason for a failed Google sign-in, as a translation key. */
 function signInErrorMessage(code: string): string {
@@ -182,45 +120,6 @@ const TabLoadingFallback = () => {
     </div>
   );
 };
-
-// Merges a raw Sheets pull with a fallback base, filling in the shape
-// LocalDatabase expects. Shared by the login pull, the background
-// reconciler, and the pre-push conflict check so all three compare data
-// the same way.
-function normalizeCloudDb(sheetData: any, base: LocalDatabase, targetSheetId: string): LocalDatabase {
-  return {
-    members: sheetData.members ?? base.members ?? [],
-    fields: sheetData.fields ?? base.fields ?? [],
-    seasons: sheetData.seasons ?? base.seasons ?? [],
-    activities: stripAutoActivities(sheetData.activities ?? base.activities ?? []),
-    // Receipts not yet in Drive keep their file from this device's copy.
-    expenses: keepPendingReceiptData(sheetData.expenses ?? base.expenses ?? [], base.expenses),
-    labours: sheetData.labours ?? base.labours ?? [],
-    stockItems: sheetData.stockItems ?? base.stockItems ?? [],
-    purchases: sheetData.purchases ?? base.purchases ?? [],
-    usages: sheetData.usages ?? base.usages ?? [],
-    revenues: sheetData.revenues ?? base.revenues ?? [],
-    auditLogs: sheetData.auditLogs ?? base.auditLogs ?? [],
-    creditAccounts: sheetData.creditAccounts ?? base.creditAccounts ?? [],
-    creditRepayments: sheetData.creditRepayments ?? base.creditRepayments ?? [],
-    notificationPreferences: sheetData.notificationPreferences ?? base.notificationPreferences,
-    settlementClearances: normalizeClearanceKeys(sheetData.settlementClearances ?? base.settlementClearances ?? []),
-    settings: {
-      ...base.settings,
-      ...(sheetData.settings || {}),
-      googleDriveLinked: true,
-      linkedSpreadsheetId: targetSheetId
-    }
-  };
-}
-
-/** Records that this device's owner has deliberately settled which ledger
- * to use — by linking one, creating one, or choosing to stay offline.
- * Without it the "this ledger is empty" prompt below would nag someone who
- * genuinely did just start a fresh, still-empty ledger. */
-const LEDGER_CHOICE_KEY = 'farmledger_ledger_choice_made';
-const hasChosenLedger = () => safeStorageGet(LEDGER_CHOICE_KEY) === 'true';
-const rememberLedgerChoice = () => safeStorageSet(LEDGER_CHOICE_KEY, 'true');
 
 function AppShell() {
   const { mode, setMode } = useViewMode();
