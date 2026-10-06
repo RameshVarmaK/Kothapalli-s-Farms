@@ -493,7 +493,7 @@ describe('sheet sizes follow the data', () => {
     const calls = stubSheets();
     await pushDataToSpreadsheet('token', 'sheet', makeDb({ expenses: makeExpenses(2) }), ['expenses']);
     const write = calls.find(c => c.url.endsWith('/values:batchUpdate'))!;
-    expect(write.body.data.map((d: any) => d.range)).toEqual(['Expenses!A1:N3']);
+    expect(write.body.data.map((d: any) => d.range)).toEqual(['Expenses!A1:O3']);
     const clears = calls.filter(c => c.url.endsWith(':clear'));
     expect(clears.map(c => c.url.split('/values/')[1])).toEqual(['Expenses!A4:Z:clear']);
   });

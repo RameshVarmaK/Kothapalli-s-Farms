@@ -67,6 +67,8 @@ import { isPickerAvailable, pickSpreadsheet } from './utils/googlePicker';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewModeProvider, useViewMode } from './hooks/useViewMode';
 import { LanguageProvider, useLanguage } from './hooks/useLanguage';
+import { useReceiptUploads } from './hooks/useReceiptUploads';
+import { keepPendingReceiptData } from './utils/attachments';
 
 type TabId = 'dashboard' | 'money' | 'stock' | 'timeline' | 'settle' | 'members' | 'settings' | 'credits' | 'analytics';
 
@@ -170,7 +172,8 @@ function normalizeCloudDb(sheetData: any, base: LocalDatabase, targetSheetId: st
     fields: sheetData.fields ?? base.fields ?? [],
     seasons: sheetData.seasons ?? base.seasons ?? [],
     activities: stripAutoActivities(sheetData.activities ?? base.activities ?? []),
-    expenses: sheetData.expenses ?? base.expenses ?? [],
+    // Receipts not yet in Drive keep their file from this device's copy.
+    expenses: keepPendingReceiptData(sheetData.expenses ?? base.expenses ?? [], base.expenses),
     labours: sheetData.labours ?? base.labours ?? [],
     stockItems: sheetData.stockItems ?? base.stockItems ?? [],
     purchases: sheetData.purchases ?? base.purchases ?? [],
@@ -208,6 +211,7 @@ function AppShell() {
   // Unified Google Firebase Authentication state
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  useReceiptUploads(db, setDb, accessToken);
   const [authError, setAuthError] = useState<{
     code: string;
     message: string;
@@ -2170,6 +2174,7 @@ function AppShell() {
               activities={activities}
               currency={settings.currency}
               creditAccounts={creditAccounts}
+              accessToken={accessToken}
               onAddExpense={handleAddExpense}
               onEditExpense={handleEditExpense}
               onDeleteExpense={handleDeleteExpense}

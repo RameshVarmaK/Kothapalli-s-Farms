@@ -52,13 +52,28 @@ export interface Allocation {
   amount: number; // calculated cost share
 }
 
+/**
+ * A receipt or document attached to an expense. The file itself lives in the
+ * uploader's Google Drive ("FarmLedger Receipts" folder); the expense only
+ * carries this metadata, and that is what reaches the sheet.
+ */
 export interface Attachment {
   id: string;
-  type: 'image' | 'document';
   fileName: string;
+  mimeType: string;
   size: number;
   uploadedAt: string;
-  base64Data: string; // base64 encoded image/document data
+  driveFileId?: string;
+  webViewLink?: string;
+  /** Not in Drive yet (offline, or the upload failed); retried later. */
+  pending?: boolean;
+  /** Base64 file content, kept on this device only until the upload
+   * succeeds. Never written to the sheet. */
+  data?: string;
+  /** @deprecated pre-Drive shape ('image' | 'document'); read once, then dropped. */
+  type?: 'image' | 'document';
+  /** @deprecated pre-Drive name for `data`; read once, then dropped. */
+  base64Data?: string;
 }
 
 export interface Expense {
@@ -73,8 +88,10 @@ export interface Expense {
   targetSeasonId?: string;     // empty if common
   commonAllocationRule?: CommonAllocationType;
   allocations?: Allocation[];  // list of field-season allocations
-  receiptPhoto?: string;       // base64 (deprecated, use attachments)
-  attachments?: Attachment[];  // new: multiple attachments
+  /** @deprecated base64 photo from an old version. Turned into a pending
+   * attachment, uploaded to Drive like any other, then dropped. */
+  receiptPhoto?: string;
+  attachments?: Attachment[];
   isCredit?: boolean;
   creditAccountId?: string;
 }

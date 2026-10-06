@@ -16,9 +16,11 @@ import {
   CreditAccount,
   Attachment
 } from '../types';
-import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Receipt, Pencil, AlertTriangle, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Receipt, Pencil, AlertTriangle, Check, Paperclip } from 'lucide-react';
 import { calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
 import { AttachmentUploader } from './AttachmentUploader';
+import { AttachmentGallery } from './AttachmentGallery';
+import { expenseAttachments, receiptCount } from '../utils/attachments';
 import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -32,6 +34,8 @@ interface MoneyTabProps {
   activities: Activity[];
   currency: string;
   creditAccounts?: CreditAccount[];
+  /** Google access token, for loading receipt images from Drive. */
+  accessToken?: string | null;
   onAddExpense: (expense: Expense) => boolean;
   onEditExpense: (expense: Expense) => boolean;
   onDeleteExpense: (id: string) => void;
@@ -53,6 +57,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   activities = [],
   currency,
   creditAccounts = [],
+  accessToken = null,
   onAddExpense,
   onEditExpense,
   onDeleteExpense,
@@ -110,6 +115,9 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   const [isCredit, setIsCredit] = useState(false);
   const [creditAccountId, setCreditAccountId] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [galleryExpenseId, setGalleryExpenseId] = useState<string | null>(null);
+  const galleryExpense = galleryExpenseId ? expenses.find(e => e.id === galleryExpenseId) : undefined;
+  const galleryAttachments = galleryExpense ? expenseAttachments(galleryExpense) : [];
 
   // Compiling transactional ledger timeline
   const ledgerItems: {
@@ -263,7 +271,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
       setCategory(rawRecord.category);
       setLinkedActivityId(rawRecord.linkedActivityId || '');
       setTargetType(rawRecord.targetType);
-      setAttachments(rawRecord.attachments || []);
+      setAttachments(expenseAttachments(rawRecord));
       
       if (rawRecord.targetType === 'single') {
         setSelectedSeasonId(rawRecord.targetSeasonId || '');
@@ -341,6 +349,15 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
 
     let expensePost: Expense;
     const baseExpense = editingRecordId ? expenses.find(exp => exp.id === editingRecordId) : null;
+    // A receipt may have reached Drive while this form was open; keep the
+    // uploaded copy rather than the pending one the form loaded, or it would
+    // be uploaded twice.
+    const currentAttachments = baseExpense ? expenseAttachments(baseExpense) : [];
+    const reconciled = attachments.map(a => {
+      const current = currentAttachments.find(c => c.id === a.id);
+      return current?.driveFileId && !a.driveFileId ? current : a;
+    });
+    const savedAttachments = reconciled.length > 0 ? reconciled : undefined;
 
     if (targetType === 'single') {
       const season = seasons.find(s => s.id === selectedSeasonId);
@@ -361,7 +378,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         targetSeasonId: season.id,
         isCredit,
         creditAccountId: isCredit ? creditAccountId : undefined,
-        attachments: attachments.length > 0 ? attachments : undefined
+        receiptPhoto: undefined,
+        attachments: savedAttachments
       } as Expense;
     } else {
       // Allocate common
@@ -396,7 +414,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
         allocations: calculatedAlloc,
         isCredit,
         creditAccountId: isCredit ? creditAccountId : undefined,
-        attachments: attachments.length > 0 ? attachments : undefined
+        receiptPhoto: undefined,
+        attachments: savedAttachments
       } as Expense;
     }
 
@@ -780,6 +799,18 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                   </div>
 
                   <div className="flex items-center gap-4 ml-4 shrink-0">
+                    {item.type === 'expense' && receiptCount(item.rawRecord) > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setGalleryExpenseId(item.id)}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-1 rounded-lg text-[11px] font-bold text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                        title={t('View receipts')}
+                        aria-label={`${t('View receipts')} (${receiptCount(item.rawRecord)})`}
+                      >
+                        <Paperclip size={14} />
+                        {receiptCount(item.rawRecord)}
+                      </button>
+                    )}
                     <div className="text-right">
                       <p className={`text-base font-bold font-mono tracking-tight ${isRevenue ? 'text-emerald-600' : 'text-slate-800'}`}>
                         {isRevenue ? '+' : '-'}{currency}{item.amount.toLocaleString('en-IN')}
@@ -807,6 +838,15 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
           )}
         </div>
       </div>
+
+      {galleryExpense && galleryAttachments.length > 0 && (
+        <AttachmentGallery
+          attachments={galleryAttachments}
+          accessToken={accessToken}
+          title={galleryExpense.category}
+          onClose={() => setGalleryExpenseId(null)}
+        />
+      )}
 
       {/* QUICK ENTRY MODAL */}
       {isOpenAddModal && (

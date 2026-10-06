@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { attachmentsForSheet } from './attachments';
+
 interface SheetsBatchUpdatePayload {
   valueInputOption: 'USER_ENTERED';
   data: {
@@ -236,7 +238,12 @@ export function toSheetRows<T extends object>(data: T[], headers: string[]): any
   data.forEach(item => {
     if (!item) return;
     const row = headers.map(header => {
-      const val = (item as any)[header];
+      let val = (item as any)[header];
+      // Receipt files live in Drive; only their metadata goes in the sheet.
+      // File content (base64) would overflow a cell and has no place in the
+      // shared ledger, so it is dropped here, on every write path.
+      if (header === 'attachments') val = attachmentsForSheet(val);
+      if (header === 'receiptPhoto') val = undefined;
       if (val === undefined || val === null) return '';
       if (typeof val === 'object') return JSON.stringify(val);
       return val;
@@ -394,7 +401,10 @@ export const SHEET_COLUMNS: Record<string, string[]> = {
   fields: ['id', 'name', 'area', 'locationNote', 'shares'],
   seasons: ['id', 'fieldId', 'cropName', 'startDate', 'endDate', 'isClosed', 'shares'],
   activities: ['id', 'date', 'fieldId', 'seasonId', 'type', 'notes', 'weatherNote', 'photos'],
-  expenses: ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId'],
+  // 'receiptPhoto' is kept only so later columns don't move; it is always
+  // written blank (see toSheetRows). 'attachments' (Drive receipt metadata)
+  // goes last so existing sheets keep every column where it was.
+  expenses: ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId', 'attachments'],
   // 'description' goes last so existing sheets keep every column where it was.
   labours: ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations', 'description'],
   stockItems: ['id', 'name', 'type', 'unit', 'quantityOnHand', 'weightedAverageCost', 'totalCostSpent', 'fundingByMember'],

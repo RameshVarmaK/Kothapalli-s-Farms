@@ -23,6 +23,7 @@ import { computeStockLevels, splitStockCostByFunder } from '../../utils/calculat
 import { X, Copy, Check, Calendar, DollarSign, Package, Users, CheckCircle, Scale, Printer } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../../hooks/useLanguage';
+import { receiptCount } from '../../utils/attachments';
 
 interface SeasonReportModalProps {
   seasonId: string | null;
@@ -255,7 +256,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
         const isCommon = e.targetType === 'common';
         const actualAmt = isCommon ? (e.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : e.amount;
         const attribution = e.isCredit ? `${label}${note ? `, ${note}` : ''}` : `Paid by ${label}`;
-        text += `${i + 1}. [${e.date}] ${e.category}: ${currency}${Math.round(actualAmt).toLocaleString('en-IN')} (${attribution})${isCommon ? ' [Allocated split]' : ''}\n`;
+        text += `${i + 1}. [${e.date}] ${e.category}: ${currency}${Math.round(actualAmt).toLocaleString('en-IN')} (${attribution})${isCommon ? ' [Allocated split]' : ''}${receiptCount(e) > 0 ? ` [📎 ${receiptCount(e)}]` : ''}\n`;
       });
     }
 
@@ -479,6 +480,9 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                         <span className="font-mono text-slate-400">[{e.date}]</span>
                         <span className="font-bold text-slate-700">{e.category}</span>
                         {isCommon && <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-200 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
+                        {receiptCount(e) > 0 && (
+                          <span className="text-[10px] text-slate-500 font-semibold" title={t('Receipts attached')}>📎 {receiptCount(e)}</span>
+                        )}
                       </div>
                       <div className="sm:text-right">
                         <span className="font-bold font-mono text-slate-800 block">

@@ -83,4 +83,23 @@ export const teMoney: Record<string, string> = {
   'e.g. Weeding in the north field, transplanting paddy, spraying pesticide':
     'ఉదా. ఉత్తర పొలంలో కలుపు తీత, వరి నాట్లు, పురుగు మందు పిచికారీ',
   'Describe the work that was done before saving.': 'సేవ్ చేసే ముందు చేసిన పనిని వివరించండి.',
+
+  // Expense receipts (stored in Google Drive)
+  'Add receipt photo or PDF': 'రసీదు ఫోటో లేదా PDF జోడించండి',
+  'Preparing...': 'సిద్ధం చేస్తోంది...',
+  'Maximum receipts reached': 'గరిష్ఠ రసీదుల సంఖ్య చేరుకుంది',
+  'Could not add this file (5 MB at most):': 'ఈ ఫైల్‌ను జోడించలేకపోయాం (గరిష్ఠం 5 MB):',
+  'Receipts are too large (20 MB in total at most).': 'రసీదులు చాలా పెద్దవి (మొత్తం గరిష్ఠం 20 MB).',
+  'Receipts': 'రసీదులు',
+  'Receipts attached': 'జతచేసిన రసీదులు',
+  'View receipts': 'రసీదులు చూడండి',
+  'Remove receipt': 'రసీదును తీసివేయండి',
+  'Not uploaded yet': 'ఇంకా అప్‌లోడ్ కాలేదు',
+  'Not uploaded yet — it will be sent to Drive from the device that added it.':
+    'ఇంకా అప్‌లోడ్ కాలేదు — దీన్ని జోడించిన పరికరం నుండి Drive‌కి పంపబడుతుంది.',
+  'Open in Drive': 'Drive‌లో తెరవండి',
+  'Loading receipt...': 'రసీదు లోడ్ అవుతోంది...',
+  'Open it in Google Drive to view.': 'చూడటానికి Google Drive‌లో తెరవండి.',
+  "Can't show this receipt here. Open it in Google Drive — if you don't have access yet, ask there.":
+    'ఈ రసీదును ఇక్కడ చూపించలేము. Google Drive‌లో తెరవండి — మీకు ఇంకా అనుమతి లేకపోతే, అక్కడే అడగండి.',
 };
