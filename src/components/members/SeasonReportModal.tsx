@@ -74,10 +74,10 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   // Off: the report (screen, PDF and copied text) drops shares, fair shares
   // and settlement, and shows only how much each partner spent — for handing
   // to someone who should see the costs but not the partnership terms.
-  // Every report opens with it on.
-  const [showPartnership, setShowPartnership] = useState(true);
+  // Every report opens with it off; partnership terms are opt-in.
+  const [showPartnership, setShowPartnership] = useState(false);
   useEffect(() => {
-    setShowPartnership(true);
+    setShowPartnership(false);
   }, [seasonId]);
 
   // Flags the document while a report is open so the print stylesheet can

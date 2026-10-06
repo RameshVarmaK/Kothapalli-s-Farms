@@ -119,8 +119,9 @@ function realLedger(): FieldSeasonLedger {
   return summary.ledgers.find(l => l.seasonId === 's1')!;
 }
 
-function renderWithPartners() {
-  return renderReport({
+// Partnership terms are opt-in; `partnership: true` ticks the switch.
+function renderWithPartners({ partnership = false } = {}) {
+  const result = renderReport({
     fields: sharedField,
     members: partners,
     expenses: partnerExpenses,
@@ -130,6 +131,8 @@ function renderWithPartners() {
     purchases: [],
     ledger: realLedger(),
   });
+  if (partnership) fireEvent.click(screen.getByLabelText('Include partner shares & settlement'));
+  return result;
 }
 
 describe('SeasonReportModal - Section 6: Partner Contributions', () => {
@@ -140,7 +143,7 @@ describe('SeasonReportModal - Section 6: Partner Contributions', () => {
   });
 
   it('lists each partner with their share', () => {
-    renderWithPartners();
+    renderWithPartners({ partnership: true });
     expect(screen.getByText(/Partner Contributions/)).toBeTruthy();
     expect(screen.getByText('Ramesh')).toBeTruthy();
     expect(screen.getByText('Shyam')).toBeTruthy();
@@ -151,7 +154,7 @@ describe('SeasonReportModal - Section 6: Partner Contributions', () => {
   it('shows what each partner paid against their share of the cost', () => {
     // Cost = 5000 + 1500 = 6500. Ramesh paid 5000, his 70% share is 4550,
     // so he funded 450 more than his share.
-    renderWithPartners();
+    renderWithPartners({ partnership: true });
     expect(screen.getAllByText('₹5,000').length).toBeGreaterThan(0);
     expect(screen.getByText('₹4,550')).toBeTruthy();
     expect(screen.getByText('+₹450')).toBeTruthy();
@@ -160,14 +163,14 @@ describe('SeasonReportModal - Section 6: Partner Contributions', () => {
   it('shows revenue taken against share of revenue', () => {
     // Revenue 12000 all collected by Shyam; his 30% share is 3600, so he has
     // taken 8400 more than his share.
-    renderWithPartners();
+    renderWithPartners({ partnership: true });
     expect(screen.getByText('₹3,600')).toBeTruthy();
     expect(screen.getByText('-₹8,400')).toBeTruthy();
   });
 
   it('reconciles the two gaps to the net position the Settle screen shows', () => {
     const ledger = realLedger();
-    renderWithPartners();
+    renderWithPartners({ partnership: true });
 
     ledger.statements.forEach(stmt => {
       const ratio = (stmt.sharePercentage || 0) / 100;
@@ -182,7 +185,7 @@ describe('SeasonReportModal - Section 6: Partner Contributions', () => {
     const totalPaid = ledger.statements.reduce((s, st) => s + st.paidAmount, 0);
     expect(Math.abs(totalPaid - ledger.totalExpense)).toBeLessThan(0.01);
 
-    renderWithPartners();
+    renderWithPartners({ partnership: true });
     // The "All partners" footer proves it on screen.
     expect(screen.getByText('All partners')).toBeTruthy();
   });
@@ -274,18 +277,24 @@ describe('SeasonReportModal - Save as PDF', () => {
 describe('SeasonReportModal - print without partnership details', () => {
   const toggle = () => screen.getByLabelText('Include partner shares & settlement');
 
-  it('includes partnership details by default', () => {
+  it('leaves partnership details out by default', () => {
     renderWithPartners();
-    expect((toggle() as HTMLInputElement).checked).toBe(true);
+    expect((toggle() as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText(/Spending by Partner/)).toBeTruthy();
+    expect(screen.queryByText(/Partner Contributions/)).toBeNull();
+  });
+
+  it('adds them back when ticked', () => {
+    renderWithPartners();
+    fireEvent.click(toggle());
     expect(screen.getByText(/Partner Contributions/)).toBeTruthy();
     expect(screen.queryByText(/Spending by Partner/)).toBeNull();
   });
 
-  it('shows only who spent how much when switched off', () => {
+  it('shows only who spent how much', () => {
     // Ramesh paid 5000, Shyam 1500; shares (70/30), fair shares and the
-    // settlement must all disappear.
+    // settlement must all be absent.
     renderWithPartners();
-    fireEvent.click(toggle());
     expect(screen.getByText(/Spending by Partner/)).toBeTruthy();
     expect(screen.queryByText(/Partner Contributions/)).toBeNull();
     expect(screen.queryByText(/70%/)).toBeNull();
@@ -300,12 +309,11 @@ describe('SeasonReportModal - print without partnership details', () => {
   });
 
   it('keeps partnership terms out of the copied text report too', async () => {
-    const writeText = vi.fn(() => Promise.resolve());
+    const writeText = vi.fn((_text: string) => Promise.resolve());
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
     renderWithPartners();
-    fireEvent.click(toggle());
     fireEvent.click(screen.getByText('Export & Copy Report'));
-    const text = writeText.mock.calls[0][0] as string;
+    const text = writeText.mock.calls[0][0];
     expect(text).toContain('SPENDING BY PARTNER');
     expect(text).toContain('Ramesh: ₹5,000');
     expect(text).not.toContain('NET POSITION');
