@@ -717,7 +717,7 @@ function AppShell() {
   if (!db) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 text-xs font-semibold text-gray-400">
-        Starting Kothapalli's Farms Engine...
+        {t("Starting Kothapalli's Farms Engine...")}
       </div>
     );
   }
@@ -737,14 +737,14 @@ function AppShell() {
           </div>
 
           <h2 className="text-base font-bold tracking-tight text-slate-800 text-center">
-            Synchronizing Database
+            {t('Synchronizing Database')}
           </h2>
           <p className="text-[10px] uppercase tracking-widest text-emerald-600 font-bold mt-1">
-            Kothapalli's Farms Cloud
+            {t("Kothapalli's Farms Cloud")}
           </p>
 
           <p className="mt-5 text-slate-400 text-xs text-center leading-relaxed">
-            Reading cells from synchronized Google Sheet spreadsheet...
+            {t('Reading cells from synchronized Google Sheet spreadsheet...')}
           </p>
 
           <div className="w-32 h-1 bg-slate-100 rounded-full overflow-hidden mt-6">
@@ -761,6 +761,24 @@ function AppShell() {
         {/* Decorative Top Accent */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-emerald-600" />
 
+        {/* Language switch, so a Telugu reader can switch before signing in */}
+        <div
+          className="absolute top-4 right-4 flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
+          title="Switch the app's language between English and Telugu"
+        >
+          {(['en', 'te'] as const).map(lng => (
+            <button
+              key={lng}
+              onClick={() => setLanguage(lng)}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase cursor-pointer transition-all ${
+                language === lng ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {lng}
+            </button>
+          ))}
+        </div>
+
         <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 p-8 shadow-xl flex flex-col items-center">
           {/* Logo / App Brand Header */}
           <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-xs mb-5 border border-emerald-100">
@@ -768,10 +786,10 @@ function AppShell() {
           </div>
 
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-800 text-center">
-            Kothapalli's Farms
+            {t("Kothapalli's Farms")}
           </h1>
           <p className="text-xs uppercase tracking-widest text-emerald-600 font-bold mt-1.5 mb-7">
-            Partnership Transparency
+            {t('Partnership Transparency')}
           </p>
 
           <div className="w-full border-t border-slate-100 mb-6" />
@@ -779,10 +797,10 @@ function AppShell() {
           {/* Prompt Information description */}
           <div className="text-slate-500 text-sm leading-relaxed mb-8 text-center space-y-2">
             <p>
-              Welcome to the collaborative farm ledger portal for <strong>Kothapalli's Farms</strong>.
+              {t('Welcome to the collaborative farm ledger portal for')} <strong>{t("Kothapalli's Farms")}</strong>.
             </p>
             <p className="text-xs text-slate-400">
-              Sign in with your Google account to authorize secure real-time access to our synchronized cloud database.
+              {t('Sign in with your Google account to authorize secure real-time access to our synchronized cloud database.')}
             </p>
           </div>
 
@@ -791,15 +809,15 @@ function AppShell() {
             <div className="w-full mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-xs text-red-600 leading-relaxed font-medium">
               {fetchError === "session-expired" ? (
                 <>
-                  <p className="font-bold mb-1">Google Session Expired</p>
-                  <p className="break-words">Your Google Authorization session has expired or was revoked. This is a standard security measure after 1 hour of inactivity.</p>
-                  <p className="mt-2 text-[10px] text-emerald-600 font-bold">Please click the button below to sign in again and refresh access to your sheets.</p>
+                  <p className="font-bold mb-1">{t('Google Session Expired')}</p>
+                  <p className="break-words">{t('Your Google Authorization session has expired or was revoked. This is a standard security measure after 1 hour of inactivity.')}</p>
+                  <p className="mt-2 text-[10px] text-emerald-600 font-bold">{t('Please click the button below to sign in again and refresh access to your sheets.')}</p>
                 </>
               ) : (
                 <>
-                  <p className="font-bold mb-1">Could not synchronize database:</p>
+                  <p className="font-bold mb-1">{t('Could not synchronize database:')}</p>
                   <p className="break-words">{formatErrorTextWithLinks(fetchError)}</p>
-                  <p className="mt-2 text-[10px] text-slate-400">Please make sure your Google Account is permitted to access Sheet <strong>{db?.settings?.linkedSpreadsheetId || PLACEHOLDER_SPREADSHEET_ID}</strong>.</p>
+                  <p className="mt-2 text-[10px] text-slate-400">{t('Please make sure your Google Account is permitted to access Sheet')} <strong>{db?.settings?.linkedSpreadsheetId || PLACEHOLDER_SPREADSHEET_ID}</strong>.</p>
                 </>
               )}
             </div>
@@ -810,9 +828,9 @@ function AppShell() {
           {pendingChanges > 0 && (
             <div className="w-full mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 leading-relaxed font-medium">
               <p className="font-bold mb-1">
-                {pendingChanges} {pendingChanges === 1 ? 'change is' : 'changes are'} saved on this device but not yet in the Google Sheet
+                {pendingChanges} {t(pendingChanges === 1 ? 'change is saved on this device but not yet in the Google Sheet' : 'changes are saved on this device but not yet in the Google Sheet')}
               </p>
-              <p>Sign in to send {pendingChanges === 1 ? 'it' : 'them'}. Please don't enter {pendingChanges === 1 ? 'it' : 'them'} again.</p>
+              <p>{t(pendingChanges === 1 ? "Sign in to send it. Please don't enter it again." : "Sign in to send them. Please don't enter them again.")}</p>
             </div>
           )}
 
@@ -827,13 +845,13 @@ function AppShell() {
                 d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.579-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.242-3.12C18.416 1.832 15.541.97 12.24.97 6.13.97 1.13 5.97 1.13 12s5 11.03 11.11 11.03c6.38 0 10.618-4.484 10.618-10.8 0-.727-.076-1.282-.172-1.945H12.24z"
               />
             </svg>
-            <span>Authorize Google Account</span>
+            <span>{t('Authorize Google Account')}</span>
           </button>
         </div>
 
         {/* Footer info lockup */}
         <p className="mt-8 text-center text-[10px] text-slate-400 font-medium">
-          Secured via Google Firebase Auth & Sheets Sandbox API.
+          {t('Secured via Google Firebase Auth & Sheets Sandbox API.')}
         </p>
       </div>
     );
@@ -1892,7 +1910,7 @@ function AppShell() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col antialiased">
+    <div className="min-h-screen md:h-screen bg-slate-50 font-sans text-slate-900 flex flex-col antialiased">
       {/* Mobile-first top navigation banner bar */}
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 shrink-0 shadow-xs flex justify-between items-center print:hidden">
         <button
@@ -2014,7 +2032,7 @@ function AppShell() {
       )}
 
       {/* Main container body */}
-      <main className="flex-1 w-full max-w-7xl mx-auto flex flex-col md:flex-row pb-20 sm:pb-16 md:pb-0 md:h-[calc(100vh-69px)] overflow-hidden">
+      <main className="flex-1 w-full max-w-7xl mx-auto flex flex-col md:flex-row pb-20 sm:pb-16 md:pb-0 md:min-h-0 overflow-hidden">
 
         {/* Mobile Navigation Drawer — full grouped list, one tap away from the 4-hub bottom bar */}
         <MobileNavDrawer

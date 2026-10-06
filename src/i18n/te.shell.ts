@@ -44,6 +44,34 @@ export const teShell: Record<string, string> = {
   'Sign in again': 'మళ్లీ సైన్ ఇన్ చేయండి',
   'Retry': 'మళ్లీ ప్రయత్నించండి',
 
+  // Startup, loading and sign-in screens (shown before the main app)
+  "Starting Kothapalli's Farms Engine...": 'కొత్తపల్లి వ్యవసాయ క్షేత్రం ప్రారంభమవుతోంది...',
+  'Synchronizing Database': 'డేటాబేస్ సింక్ అవుతోంది',
+  "Kothapalli's Farms Cloud": 'కొత్తపల్లి వ్యవసాయ క్షేత్రం క్లౌడ్',
+  'Reading cells from synchronized Google Sheet spreadsheet...': 'గూగుల్ షీట్ నుండి వివరాలు చదువుతోంది...',
+  'Welcome to the collaborative farm ledger portal for': 'ఉమ్మడి వ్యవసాయ లెక్కల పోర్టల్‌కు స్వాగతం —',
+  'Sign in with your Google account to authorize secure real-time access to our synchronized cloud database.':
+    'మా క్లౌడ్ డేటాబేస్‌ను సురక్షితంగా ఉపయోగించడానికి మీ గూగుల్ ఖాతాతో సైన్ ఇన్ చేయండి.',
+  'Google Session Expired': 'గూగుల్ సెషన్ గడువు ముగిసింది',
+  'Your Google Authorization session has expired or was revoked. This is a standard security measure after 1 hour of inactivity.':
+    'మీ గూగుల్ అనుమతి సెషన్ గడువు ముగిసింది లేదా రద్దు చేయబడింది. 1 గంట పాటు ఉపయోగించకపోతే ఇది సాధారణ భద్రతా చర్య.',
+  'Please click the button below to sign in again and refresh access to your sheets.':
+    'మీ షీట్‌లకు మళ్లీ యాక్సెస్ పొందడానికి కింది బటన్ నొక్కి మళ్లీ సైన్ ఇన్ చేయండి.',
+  'Could not synchronize database:': 'డేటాబేస్‌ను సింక్ చేయలేకపోయాం:',
+  'Please make sure your Google Account is permitted to access Sheet':
+    'మీ గూగుల్ ఖాతాకు ఈ షీట్‌ను చూసే అనుమతి ఉందో లేదో సరిచూసుకోండి:',
+  'change is saved on this device but not yet in the Google Sheet':
+    'మార్పు ఈ పరికరంలో సేవ్ అయింది, కానీ ఇంకా గూగుల్ షీట్‌లో లేదు',
+  'changes are saved on this device but not yet in the Google Sheet':
+    'మార్పులు ఈ పరికరంలో సేవ్ అయ్యాయి, కానీ ఇంకా గూగుల్ షీట్‌లో లేవు',
+  "Sign in to send it. Please don't enter it again.":
+    'దాన్ని పంపడానికి సైన్ ఇన్ చేయండి. దయచేసి దాన్ని మళ్లీ నమోదు చేయకండి.',
+  "Sign in to send them. Please don't enter them again.":
+    'వాటిని పంపడానికి సైన్ ఇన్ చేయండి. దయచేసి వాటిని మళ్లీ నమోదు చేయకండి.',
+  'Authorize Google Account': 'గూగుల్ ఖాతాతో సైన్ ఇన్ చేయండి',
+  'Secured via Google Firebase Auth & Sheets Sandbox API.':
+    'గూగుల్ ఫైర్‌బేస్ ఆథ్ & షీట్స్ API ద్వారా సురక్షితం.',
+
   'basic': 'సాధారణ',
   'power': 'పూర్తి',
 
