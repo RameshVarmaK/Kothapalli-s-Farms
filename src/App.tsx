@@ -23,9 +23,8 @@ import {
 import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges } from './utils/syncConflict';
 import { classifySyncError, isRetryable, retryDelayMs, SyncErrorKind } from './utils/syncErrors';
 import {
-  validateExpense,
-  validateLabour,
-  validateRevenue,
+  moneyEntryRejection,
+  type MoneyEntry,
   validateFieldShares,
   validateSeasonShares
 } from './utils/validation';
@@ -866,22 +865,26 @@ function AppShell() {
     saveDatabase(updatedDb);
   };
 
+  // Shows why a money entry cannot be saved and reports whether it was
+  // refused. Add and edit both go through here so they refuse the same things.
+  const refuseInvalidMoneyEntry = (entry: MoneyEntry): boolean => {
+    const rejection = moneyEntryRejection(entry);
+    if (!rejection) return false;
+    setConfirmDialog({
+      isOpen: true,
+      title: rejection.title,
+      message: rejection.message,
+      confirmText: 'OK',
+      onConfirm: () => setConfirmDialog(null)
+    });
+    logWarning(rejection.logEvent, rejection.message, { [entry.kind]: entry.record });
+    return true;
+  };
+
   // ACTIONS: Expenses
   const handleAddExpense = (exp: Expense): boolean => {
     // Validate expense before saving
-    const validation = validateExpense(exp);
-    if (!validation.valid) {
-      const errorMsg = validation.errors.join('; ');
-      setConfirmDialog({
-        isOpen: true,
-        title: 'Invalid Expense',
-        message: errorMsg,
-        confirmText: 'OK',
-        onConfirm: () => setConfirmDialog(null)
-      });
-      logWarning('expense_validation_failed', errorMsg, { expense: exp });
-      return false;
-    }
+    if (refuseInvalidMoneyEntry({ kind: 'expense', record: exp })) return false;
 
     const nextList = [...expenses, exp];
     const newDb = { ...db, expenses: nextList };
@@ -913,6 +916,8 @@ function AppShell() {
   };
 
   const handleEditExpense = (updatedExp: Expense): boolean => {
+    if (refuseInvalidMoneyEntry({ kind: 'expense', record: updatedExp })) return false;
+
     const nextList = expenses.map(e => e.id === updatedExp.id ? updatedExp : e);
     const newDb = { ...db, expenses: nextList };
     const finalDb = addAuditLog(
@@ -949,19 +954,7 @@ function AppShell() {
   // ACTIONS: Labour
   const handleAddLabour = (lab: Labour): boolean => {
     // Validate labour before saving
-    const validation = validateLabour(lab);
-    if (!validation.valid) {
-      const errorMsg = validation.errors.join('; ');
-      setConfirmDialog({
-        isOpen: true,
-        title: 'Invalid Labour Entry',
-        message: errorMsg,
-        confirmText: 'OK',
-        onConfirm: () => setConfirmDialog(null)
-      });
-      logWarning('labour_validation_failed', errorMsg, { labour: lab });
-      return false;
-    }
+    if (refuseInvalidMoneyEntry({ kind: 'labour', record: lab })) return false;
 
     const nextList = [...labours, lab];
     const newDb = { ...db, labours: nextList };
@@ -993,6 +986,8 @@ function AppShell() {
   };
 
   const handleEditLabour = (updatedLab: Labour): boolean => {
+    if (refuseInvalidMoneyEntry({ kind: 'labour', record: updatedLab })) return false;
+
     const nextList = labours.map(l => l.id === updatedLab.id ? updatedLab : l);
     const newDb = { ...db, labours: nextList };
     const finalDb = addAuditLog(
@@ -1029,19 +1024,7 @@ function AppShell() {
   // ACTIONS: Harvest Sales
   const handleAddRevenue = (rev: HarvestRevenue): boolean => {
     // Validate revenue before saving
-    const validation = validateRevenue(rev);
-    if (!validation.valid) {
-      const errorMsg = validation.errors.join('; ');
-      setConfirmDialog({
-        isOpen: true,
-        title: 'Invalid Revenue Entry',
-        message: errorMsg,
-        confirmText: 'OK',
-        onConfirm: () => setConfirmDialog(null)
-      });
-      logWarning('revenue_validation_failed', errorMsg, { revenue: rev });
-      return false;
-    }
+    if (refuseInvalidMoneyEntry({ kind: 'revenue', record: rev })) return false;
 
     const nextList = [...revenues, rev];
     const newDb = { ...db, revenues: nextList };
@@ -1073,6 +1056,8 @@ function AppShell() {
   };
 
   const handleEditRevenue = (updatedRev: HarvestRevenue): boolean => {
+    if (refuseInvalidMoneyEntry({ kind: 'revenue', record: updatedRev })) return false;
+
     const nextList = revenues.map(r => r.id === updatedRev.id ? updatedRev : r);
     const newDb = { ...db, revenues: nextList };
     const finalDb = addAuditLog(

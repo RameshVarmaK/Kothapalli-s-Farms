@@ -194,6 +194,34 @@ export const validateRevenue = (revenue: HarvestRevenue): { valid: boolean; erro
   return { valid: errors.length === 0, errors };
 };
 
+export type MoneyEntry =
+  | { kind: 'expense'; record: Expense }
+  | { kind: 'labour'; record: Labour }
+  | { kind: 'revenue'; record: HarvestRevenue };
+
+const MONEY_ENTRY_REJECTION_TITLES: Record<MoneyEntry['kind'], string> = {
+  expense: 'Invalid Expense',
+  labour: 'Invalid Labour Entry',
+  revenue: 'Invalid Revenue Entry'
+};
+
+// Why a money entry may not be saved, or null when it may. Adding and editing
+// both ask this, so an edit cannot save what an add would have refused.
+export const moneyEntryRejection = (
+  entry: MoneyEntry
+): { title: string; message: string; logEvent: string } | null => {
+  const { valid, errors } =
+    entry.kind === 'expense' ? validateExpense(entry.record)
+    : entry.kind === 'labour' ? validateLabour(entry.record)
+    : validateRevenue(entry.record);
+  if (valid) return null;
+  return {
+    title: MONEY_ENTRY_REJECTION_TITLES[entry.kind],
+    message: errors.join('; '),
+    logEvent: `${entry.kind}_validation_failed`
+  };
+};
+
 // Validate purchase
 export const validatePurchase = (purchase: StockPurchase): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
