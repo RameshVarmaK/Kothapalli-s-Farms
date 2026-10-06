@@ -484,18 +484,48 @@ export function buildSettlementLedger(
   }
 
   // Debt Simplification (greedy approach)
-  const debts: SimplifiedDebt[] = [];
   const positions = Object.values(membersTotalStatements).map(total => ({
     memberId: total.memberId,
     name: total.memberName,
     balance: total.netPosition
   }));
+  const debts = simplifyDebts(positions);
 
-  // Separate debtors and creditors
-  // If balance > 0, they should receive (creditor)
-  // If balance < 0, they should pay (debtor)
-  let creditors = positions.filter(p => p.balance > 0.01).sort((a, b) => b.balance - a.balance);
-  let debtors = positions.filter(p => p.balance < -0.01).sort((a, b) => a.balance - b.balance); // Most negative first (owes most)
+  // Check invariant: Sum of net positions must equal 0
+  // Tolerance is 10 paise (₹0.10) which absorbs floating-point drift caused
+  // by the rounding-to-2-decimals applied inside per-season computation,
+  // but still flags real imbalances (e.g. unpaid credit, bad share splits).
+  const sumPositions = Object.values(membersTotalStatements).reduce((sum, m) => sum + m.netPosition, 0);
+  const isBalanced = Math.abs(sumPositions) < 0.1;
+
+  return {
+    ledgers,
+    membersTotalStatements,
+    debts,
+    isBalanced,
+    totalSettlementDiscrepancy: Number(sumPositions.toFixed(2))
+  };
+}
+
+export interface DebtPosition {
+  memberId: string;
+  name: string;
+  balance: number;
+}
+
+/**
+ * Greedy "who pays whom": pair the partner owed the most with the partner who
+ * owes the most, settle the smaller of the two (rounded to 2 decimals), and
+ * repeat. Balances within 0.01 of zero are treated as settled. A positive
+ * balance means the partner should receive, a negative one that they pay.
+ * The pairing order is load-bearing: the Settle tab's clearance keys are
+ * built from it. Works on copies; the input positions are not changed.
+ */
+export function simplifyDebts(positions: DebtPosition[]): SimplifiedDebt[] {
+  const debts: SimplifiedDebt[] = [];
+
+  let creditors = positions.filter(p => p.balance > 0.01).map(p => ({ ...p })).sort((a, b) => b.balance - a.balance);
+  let debtors = positions.filter(p => p.balance < -0.01).map(p => ({ ...p })).sort((a, b) => a.balance - b.balance); // Most negative first (owes most)
 
   while (creditors.length > 0 && debtors.length > 0) {
     const debtor = debtors[0];
@@ -520,18 +550,14 @@ export function buildSettlementLedger(
     debtors = debtors.filter(p => p.balance < -0.01).sort((a, b) => a.balance - b.balance);
   }
 
-  // Check invariant: Sum of net positions must equal 0
-  // Tolerance is 10 paise (₹0.10) which absorbs floating-point drift caused
-  // by the rounding-to-2-decimals applied inside per-season computation,
-  // but still flags real imbalances (e.g. unpaid credit, bad share splits).
-  const sumPositions = Object.values(membersTotalStatements).reduce((sum, m) => sum + m.netPosition, 0);
-  const isBalanced = Math.abs(sumPositions) < 0.1;
+  return debts;
+}
 
-  return {
-    ledgers,
-    membersTotalStatements,
-    debts,
-    isBalanced,
-    totalSettlementDiscrepancy: Number(sumPositions.toFixed(2))
-  };
+/** simplifyDebts over one crop cycle's partner statements. */
+export function simplifySeasonDebts(ledger: FieldSeasonLedger): SimplifiedDebt[] {
+  return simplifyDebts(ledger.statements.map(stmt => ({
+    memberId: stmt.memberId,
+    name: stmt.memberName,
+    balance: stmt.netPosition
+  })));
 }

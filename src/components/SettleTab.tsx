@@ -19,7 +19,7 @@ import {
   SettlementSummary,
   SettlementClearance,
 } from '../types';
-import { buildSettlementLedger, computeStockLevels } from '../utils/calculations';
+import { buildSettlementLedger, computeStockLevels, simplifySeasonDebts } from '../utils/calculations';
 import { CheckCircle2, AlertOctagon, Download, Share2, Printer, ClipboardCheck } from 'lucide-react';
 import { convertToCSV, downloadFile } from '../utils/database';
 import { useLanguage } from '../hooks/useLanguage';
@@ -150,45 +150,13 @@ export const SettleTab: React.FC<SettleTabProps> = ({
   );
 
   // Run per-season matching to get sub-entries (individual season simplified debts)
-  const allSeasonDebts = summary.ledgers.flatMap(ledger => {
-    const seasonPositions = ledger.statements.map(stmt => ({
-      memberId: stmt.memberId,
-      name: stmt.memberName,
-      balance: stmt.netPosition
-    }));
-
-    let sCreditors = seasonPositions.filter(p => p.balance > 0.01).sort((a, b) => b.balance - a.balance);
-    let sDebtors = seasonPositions.filter(p => p.balance < -0.01).sort((a, b) => a.balance - b.balance);
-
-    const seasonSimplifiedDebts: { seasonId: string; seasonCrop: string; fromId: string; fromName: string; toId: string; toName: string; amount: number }[] = [];
-
-    while (sCreditors.length > 0 && sDebtors.length > 0) {
-      const debtor = sDebtors[0];
-      const creditor = sCreditors[0];
-
-      const oweAmt = Math.abs(debtor.balance);
-      const recAmt = creditor.balance;
-      const settleAmt = Number(Math.min(oweAmt, recAmt).toFixed(2));
-
-      seasonSimplifiedDebts.push({
-        seasonId: ledger.seasonId,
-        seasonCrop: ledger.cropName,
-        fromId: debtor.memberId,
-        fromName: debtor.name,
-        toId: creditor.memberId,
-        toName: creditor.name,
-        amount: settleAmt
-      });
-
-      debtor.balance = Number((debtor.balance + settleAmt).toFixed(2));
-      creditor.balance = Number((creditor.balance - settleAmt).toFixed(2));
-
-      sCreditors = sCreditors.filter(p => p.balance > 0.01).sort((a, b) => b.balance - a.balance);
-      sDebtors = sDebtors.filter(p => p.balance < -0.01).sort((a, b) => a.balance - b.balance);
-    }
-
-    return seasonSimplifiedDebts;
-  });
+  const allSeasonDebts = summary.ledgers.flatMap(ledger =>
+    simplifySeasonDebts(ledger).map(debt => ({
+      seasonId: ledger.seasonId,
+      seasonCrop: ledger.cropName,
+      ...debt
+    }))
+  );
 
   // Keys deliberately carry no amount: a settlement is identified by the
   // seasons it covers and the two partners, so a tick survives the figure

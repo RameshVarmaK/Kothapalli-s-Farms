@@ -17,10 +17,12 @@ import {
   CreditRepayment,
   SettlementClearance,
   SettlementSummary,
-  FieldSeasonLedger,
   PaidBreakdown,
 } from '../types';
-import { computeStockLevels, splitStockCostByFunder } from './calculations';
+import { computeStockLevels, splitStockCostByFunder, simplifySeasonDebts } from './calculations';
+
+// Re-exported for existing importers; the pairing now lives in calculations.
+export { simplifySeasonDebts };
 
 /**
  * One partner's ledger: what they put in and took out, cycle by cycle and
@@ -121,32 +123,6 @@ export interface PartnerLedgerInput {
   creditAccounts?: CreditAccount[];
   creditRepayments?: CreditRepayment[];
   settlementClearances?: SettlementClearance[];
-}
-
-/** The same greedy pairing the Settle tab uses per cycle, so its per-cycle
- * transfers, and the keys they are ticked off under, line up with these. */
-export function simplifySeasonDebts(ledger: FieldSeasonLedger) {
-  let creditors = ledger.statements
-    .filter(s => s.netPosition > 0.01)
-    .map(s => ({ id: s.memberId, name: s.memberName, balance: s.netPosition }))
-    .sort((a, b) => b.balance - a.balance);
-  let debtors = ledger.statements
-    .filter(s => s.netPosition < -0.01)
-    .map(s => ({ id: s.memberId, name: s.memberName, balance: s.netPosition }))
-    .sort((a, b) => a.balance - b.balance);
-
-  const debts: { fromId: string; fromName: string; toId: string; toName: string; amount: number }[] = [];
-  while (creditors.length > 0 && debtors.length > 0) {
-    const debtor = debtors[0];
-    const creditor = creditors[0];
-    const amount = Number(Math.min(Math.abs(debtor.balance), creditor.balance).toFixed(2));
-    debts.push({ fromId: debtor.id, fromName: debtor.name, toId: creditor.id, toName: creditor.name, amount });
-    debtor.balance = Number((debtor.balance + amount).toFixed(2));
-    creditor.balance = Number((creditor.balance - amount).toFixed(2));
-    creditors = creditors.filter(p => p.balance > 0.01).sort((a, b) => b.balance - a.balance);
-    debtors = debtors.filter(p => p.balance < -0.01).sort((a, b) => a.balance - b.balance);
-  }
-  return debts;
 }
 
 export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {

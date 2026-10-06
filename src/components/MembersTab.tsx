@@ -20,7 +20,7 @@ import {
   SettlementSummary,
   SettlementClearance,
 } from '../types';
-import { buildSettlementLedger } from '../utils/calculations';
+import { buildSettlementLedger, simplifySeasonDebts } from '../utils/calculations';
 import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 import { Plus, Users, Grid, Sprout } from 'lucide-react';
@@ -184,38 +184,12 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     const ledger = summary.ledgers.find(l => l.seasonId === seasonId);
     if (!ledger) return true;
 
-    const seasonPositions = ledger.statements.map(stmt => ({
-      memberId: stmt.memberId,
-      name: stmt.memberName,
-      balance: stmt.netPosition
+    const seasonSimplifiedDebts = simplifySeasonDebts(ledger).map(debt => ({
+      seasonId: ledger.seasonId,
+      fromId: debt.fromId,
+      toId: debt.toId,
+      amount: debt.amount
     }));
-
-    let sCreditors = seasonPositions.filter(p => p.balance > 0.01).map(p => ({ ...p })).sort((a, b) => b.balance - a.balance);
-    let sDebtors = seasonPositions.filter(p => p.balance < -0.01).map(p => ({ ...p })).sort((a, b) => a.balance - b.balance);
-
-    const seasonSimplifiedDebts: { seasonId: string; fromId: string; toId: string; amount: number }[] = [];
-
-    while (sCreditors.length > 0 && sDebtors.length > 0) {
-      const debtor = sDebtors[0];
-      const creditor = sCreditors[0];
-
-      const oweAmt = Math.abs(debtor.balance);
-      const recAmt = creditor.balance;
-      const settleAmt = Number(Math.min(oweAmt, recAmt).toFixed(2));
-
-      seasonSimplifiedDebts.push({
-        seasonId: ledger.seasonId,
-        fromId: debtor.memberId,
-        toId: creditor.memberId,
-        amount: settleAmt
-      });
-
-      debtor.balance = Number((debtor.balance + settleAmt).toFixed(2));
-      creditor.balance = Number((creditor.balance - settleAmt).toFixed(2));
-
-      sCreditors = sCreditors.filter(p => p.balance > 0.01).sort((a, b) => b.balance - a.balance);
-      sDebtors = sDebtors.filter(p => p.balance < -0.01).sort((a, b) => a.balance - b.balance);
-    }
 
     if (seasonSimplifiedDebts.length === 0) return true;
 
