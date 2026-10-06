@@ -1,4 +1,4 @@
-// Telugu translations for App.tsx's navigation shell, header, and welcome screen.
+// Telugu translations for the app shell (src/components/shell): navigation, header, and welcome screen.
 export const teShell: Record<string, string> = {
   "Kothapalli's Farms": "కొత్తపల్లి వ్యవసాయ క్షేత్రం",
   'Partnership Transparency': 'భాగస్వామ్య పారదర్శకత',
