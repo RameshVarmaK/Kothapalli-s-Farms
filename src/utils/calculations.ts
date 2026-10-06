@@ -50,10 +50,6 @@ export function computeStockLevels(
     const itemPurchases = sortedPurchases.filter(p => p.stockItemId === item.id);
     const itemUsages = sortedUsages.filter(u => u.stockItemId === item.id);
 
-    // Track active timeline to compute rolling average and funding
-    let pIdx = 0;
-    let uIdx = 0;
-
     const timeline: { type: 'purchase' | 'usage'; date: number; data: any }[] = [
       ...itemPurchases.map(p => ({ type: 'purchase' as const, date: new Date(p.date).getTime(), data: p })),
       ...itemUsages.map(u => ({ type: 'usage' as const, date: new Date(u.date).getTime(), data: u }))
@@ -192,7 +188,7 @@ export function calculateAllocations(
 
   if (rule === 'manual' && manualAmounts) {
     let distributed = 0;
-    return targetSeasons.map((s, idx) => {
+    return targetSeasons.map((s) => {
       const key = `${s.fieldId}_${s.seasonId}`;
       const assetAmt = Number((manualAmounts[key] || 0).toFixed(2));
       distributed += assetAmt;
@@ -250,7 +246,6 @@ export function buildSettlementLedger(
   const safeStockItems = stockItems || [];
   const safePurchases = purchases || [];
   const safeSelectedSeasonIds = selectedSeasonIds || [];
-  const safeCreditAccounts = creditAccounts || [];
   const safeCreditRepayments = creditRepayments || [];
 
   const activeSeasons = safeSeasons.filter(s => safeSelectedSeasonIds.includes(s.id));

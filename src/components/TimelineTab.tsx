@@ -111,8 +111,6 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
     // Chronological order: newest activities first
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const activeSeasons = seasons.filter(s => !s.isClosed);
-
   return (
     <div className="space-y-6">
       {/* Tab Header Banner with Add Activity Action */}

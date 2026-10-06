@@ -72,8 +72,6 @@ export const DATABASE_COLLECTIONS = [
   'settlementClearances'
 ] as const;
 
-export type DatabaseCollection = typeof DATABASE_COLLECTIONS[number];
-
 const STORAGE_KEY = 'farm_ledger_database';
 
 /**

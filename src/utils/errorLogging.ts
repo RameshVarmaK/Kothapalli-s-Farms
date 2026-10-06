@@ -100,23 +100,3 @@ export function logWarning(
   // Send to backend asynchronously
   sendErrorToBackend(errorLog);
 }
-
-// Get locally stored error logs (for debugging)
-export function getErrorLogs(): ErrorLog[] {
-  return getLocalErrorLogs();
-}
-
-// Clear error logs
-export function clearErrorLogs(): void {
-  try {
-    localStorage.removeItem(ERROR_LOG_KEY);
-  } catch (err) {
-    console.warn('Failed to clear error logs:', err);
-  }
-}
-
-// Export error logs as JSON (for user to send to support)
-export function exportErrorLogs(): string {
-  const logs = getLocalErrorLogs();
-  return JSON.stringify(logs, null, 2);
-}

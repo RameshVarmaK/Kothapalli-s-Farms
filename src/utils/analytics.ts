@@ -1,4 +1,3 @@
-import { Expense, Labour, HarvestRevenue, Field, Season, Member } from '../types';
 import { LocalDatabase } from './database';
 
 export interface CropProfitability {
@@ -304,14 +303,6 @@ export function calculateYieldTrends(db: LocalDatabase): YieldTrend[] {
  */
 export function formatCurrency(amount: number, currency: string = '₹'): string {
   return `${currency}${Math.round(amount).toLocaleString()}`;
-}
-
-/**
- * Calculate percentage
- */
-export function percentChange(current: number, previous: number): number {
-  if (previous === 0) return 0;
-  return ((current - previous) / Math.abs(previous)) * 100;
 }
 
 /**

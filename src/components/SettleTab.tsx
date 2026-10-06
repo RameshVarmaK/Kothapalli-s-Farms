@@ -19,7 +19,7 @@ import {
   SettlementSummary,
   SettlementClearance,
 } from '../types';
-import { buildSettlementLedger, computeStockLevels, simplifySeasonDebts } from '../utils/calculations';
+import { buildSettlementLedger, simplifySeasonDebts } from '../utils/calculations';
 import { CheckCircle2, AlertOctagon, Download, Share2, Printer, ClipboardCheck } from 'lucide-react';
 import { convertToCSV, downloadFile } from '../utils/database';
 import { useLanguage } from '../hooks/useLanguage';

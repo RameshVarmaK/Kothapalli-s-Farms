@@ -31,7 +31,6 @@ interface SettingsTabProps {
   members: Member[];
   onSaveSettings: (settings: Settings) => void;
   onImportDatabase: (data: any) => void;
-  onTriggerSync: (accessToken: string, spreadsheetId: string) => Promise<void>;
   onTriggerPull: (accessToken: string, spreadsheetId: string) => Promise<void>;
   /** Ask how to set up a ledger, when there is none to sync with yet. */
   onRequestSheetSetup: () => void;
@@ -50,7 +49,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   members,
   onSaveSettings,
   onImportDatabase,
-  onTriggerSync,
   onTriggerPull,
   onRequestSheetSetup,
   localData,
@@ -179,7 +177,6 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     return merged;
   };
   const [areaUnit, setAreaUnit] = useState(settings.areaUnit);
-  const [customClientId, setCustomClientId] = useState('');
   const [customAccessToken, setCustomAccessToken] = useState('');
   // Starts blank rather than showing the legacy placeholder id, which reads
   // as "you are already linked to something" when nothing is linked yet.
@@ -194,10 +191,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   useEffect(() => {
     // Attempt to read custom credentials stored in localstorage
-    const cid = safeStorageGet('farmledger_custom_client_id') || '';
     const token = safeStorageGet('farmledger_custom_access_token') || '';
     const fconf = safeStorageGet('farmledger_custom_firebase_config') || '';
-    setCustomClientId(cid);
     setCustomAccessToken(token);
     setCustomFirebaseConfig(fconf);
   }, []);

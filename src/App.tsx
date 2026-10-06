@@ -29,7 +29,7 @@ import {
   validateSeasonShares
 } from './utils/validation';
 import { logError, logWarning } from './utils/errorLogging';
-import { sendBulkNotifications, getNotificationDeliveries } from './utils/notifications';
+import { sendBulkNotifications } from './utils/notifications';
 import {
   Member,
   Field,
@@ -247,7 +247,6 @@ function AppShell() {
   // guards against overlapping pushes.
   const isSyncingRef = useRef(false);
   const syncQueueRef = useRef<LocalDatabase | null>(null);
-  const processSyncQueue = useRef<(() => Promise<void>) | null>(null);
   const isReconcilingRef = useRef(false);
 
   const syncDatabaseAcrossCloud = async (currentDb?: LocalDatabase) => {
@@ -1855,10 +1854,6 @@ function AppShell() {
     }
   };
 
-  const handleTriggerSync = async (accessToken: string, spreadsheetId: string) => {
-    // Synchronize spreadsheet - custom REST handler in settings itself
-  };
-
   const handleResolveConflict = (resolution: 'local' | 'cloud' | 'merge') => {
     const cloudData = conflictData.cloudData;
     if (!cloudData || !db) {
@@ -2295,7 +2290,6 @@ function AppShell() {
               members={members}
               onSaveSettings={handleSaveSettings}
               onImportDatabase={handleImportDatabase}
-              onTriggerSync={handleTriggerSync}
               onTriggerPull={handleTriggerPull}
               onRequestSheetSetup={() => setNeedsSheetSetup(true)}
               localData={db}

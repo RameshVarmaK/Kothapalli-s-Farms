@@ -443,7 +443,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
               <p className="text-slate-400 text-xs italic">{t('No crop activity timeline logs registered for this season cycle.')}</p>
             ) : (
               <div className="space-y-3">
-                {sAct.map((a, i) => (
+                {sAct.map((a) => (
                   <div key={a.id} className="text-xs flex items-start gap-2.5">
                     <span className="text-slate-400 font-bold font-mono">[{a.date}]</span>
                     <div>

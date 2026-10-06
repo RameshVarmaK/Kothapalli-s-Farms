@@ -11,8 +11,7 @@ import {
   calculateFieldPerformance,
   calculateSeasonalTrends,
   calculateYieldTrends,
-  formatCurrency,
-  percentChange
+  formatCurrency
 } from '../utils/analytics';
 import { TrendingUp, BarChart3, Users, Leaf } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';

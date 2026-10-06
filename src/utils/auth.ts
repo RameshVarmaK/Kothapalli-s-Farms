@@ -139,10 +139,6 @@ export const googleSignInRedirect = async (): Promise<void> => {
   }
 };
 
-export const getAccessToken = (): string | null => {
-  return cachedAccessToken;
-};
-
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;

@@ -20,7 +20,7 @@ import {
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
 import { useLanguage } from '../hooks/useLanguage';
-import { TrendingUp, TrendingDown, IndianRupee, Layers, Sprout, Coins } from 'lucide-react';
+import { Sprout, Coins } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -69,7 +69,6 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
   const [statusFilter, setStatusFilter] = useState<'active' | 'closed' | 'all'>('active');
 
   // Get all season IDs to compute overall totals
-  const openSeasonIds = seasons.filter(s => !s.isClosed).map(s => s.id);
   const allSeasonIds = seasons.map(s => s.id);
 
   // Compute stats for all seasons. Memoised so each render of a sibling

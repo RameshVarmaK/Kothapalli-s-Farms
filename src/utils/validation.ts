@@ -1,5 +1,4 @@
-import { z } from 'zod';
-import { Expense, Member, Field, Season, Labour, HarvestRevenue, StockPurchase, StockUsage } from '../types';
+import { Expense, Field, Season, Labour, HarvestRevenue, StockPurchase, StockUsage } from '../types';
 
 const TOLERANCE = 0.01; // Floating point tolerance for amount comparisons
 
@@ -257,65 +256,4 @@ export const validateUsage = (usage: StockUsage): { valid: boolean; errors: stri
   if (!dateCheck.valid) errors.push(dateCheck.error!);
 
   return { valid: errors.length === 0, errors };
-};
-
-// Schema for validating data pulled from Google Sheets
-const ShareSchema = z.object({
-  memberId: z.string(),
-  share: z.number().min(0).max(100)
-});
-
-const SeasonShareSchema = z.object({
-  memberId: z.string(),
-  share: z.number().min(0).max(100)
-});
-
-const AllocationSchema = z.object({
-  fieldId: z.string(),
-  seasonId: z.string(),
-  amount: z.number().positive()
-});
-
-const ExpenseSchema = z.object({
-  id: z.string(),
-  date: z.string(),
-  category: z.string().min(1),
-  amount: z.number().positive(),
-  paidByMemberId: z.string(),
-  targetType: z.enum(['single', 'common']),
-  targetFieldId: z.string().optional(),
-  targetSeasonId: z.string().optional(),
-  allocations: z.array(AllocationSchema).optional(),
-  isCredit: z.boolean().optional(),
-  creditAccountId: z.string().optional(),
-  linkedActivityId: z.string().optional()
-});
-
-// Validate and coerce data from Google Sheets
-export const validateExpenseFromSheet = (data: any): { valid: boolean; expense?: Expense; error?: string } => {
-  try {
-    const parsed = ExpenseSchema.parse(data);
-    return { valid: true, expense: parsed as Expense };
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      const messages = err.issues.map(e => `${e.path.join('.')}: ${e.message}`).join('; ');
-      return { valid: false, error: `Invalid expense data from sheet: ${messages}` };
-    }
-    return { valid: false, error: `Failed to validate expense data` };
-  }
-};
-
-// Helper to safely parse JSON from sheet cells
-export const safeParseSheetJSON = (value: any): { success: boolean; data?: any; error?: string } => {
-  if (typeof value !== 'string') return { success: true, data: value };
-
-  if (!value.startsWith('[') && !value.startsWith('{')) {
-    return { success: true, data: value };
-  }
-
-  try {
-    return { success: true, data: JSON.parse(value) };
-  } catch (err) {
-    return { success: false, error: `Failed to parse JSON: ${err instanceof Error ? err.message : String(err)}` };
-  }
 };

@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { CreditAccount, CreditRepayment, Expense, Labour, Member, Season, Field } from '../types';
-import { Plus, Pencil, Trash2, CreditCard, ChevronRight, Calculator, Calendar, User, Search, RefreshCw, AlertCircle, Coins, ArrowUpRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, CreditCard, Calculator, User, Search, AlertCircle, Coins, ArrowUpRight } from 'lucide-react';
 import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
 

@@ -16,7 +16,7 @@ import {
   CreditAccount,
   Attachment
 } from '../types';
-import { Plus, Filter, Trash2, ArrowUpRight, ArrowDownLeft, Users, Receipt, Calendar, Pencil, AlertTriangle, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Receipt, Pencil, AlertTriangle, Check } from 'lucide-react';
 import { calculateAllocations, allocationDiscrepancy } from '../utils/calculations';
 import { AttachmentUploader } from './AttachmentUploader';
 import { Toast } from './Toast';
