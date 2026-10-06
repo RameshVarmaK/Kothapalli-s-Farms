@@ -185,4 +185,10 @@ export const teMembers: Record<string, string> = {
     'అప్పుపై తీసుకున్న బిల్లులు ఇక్కడ లేవు: వాటిని ఏ భాగస్వామీ చెల్లించలేదు. భాగస్వామి అప్పు తీర్చినప్పుడు అవి లెక్కలోకి వస్తాయి. సరుకు వాడినప్పుడు, దాన్ని కొన్న డబ్బులో ఈ భాగస్వామి వాటా మేరకు లెక్కించబడుతుంది.',
   'For reference. Purchases go into the shared store; they count toward a crop cycle only when the stock is used there (see “Stock used” above).':
     'సమాచారం కోసం మాత్రమే. కొన్న సరుకు ఉమ్మడి నిల్వలోకి వెళ్తుంది; అది ఏ పంట కాలంలో వాడితే అక్కడే లెక్కలోకి వస్తుంది (పైన “వాడిన సరుకు” చూడండి).',
+
+  // Season report: print without partnership terms
+  'Include partner shares & settlement': 'భాగస్వాముల వాటాలు & లెక్క తేల్చడం చేర్చండి',
+  'Section 6: Spending by Partner': 'విభాగం 6: భాగస్వామి వారీగా ఖర్చు',
+  'Includes expenses, labour and stock each partner paid for, and credit they repaid.':
+    'ప్రతి భాగస్వామి చెల్లించిన ఖర్చులు, కూలీ, సరుకు మరియు తీర్చిన అప్పు ఇందులో ఉన్నాయి.',
 };

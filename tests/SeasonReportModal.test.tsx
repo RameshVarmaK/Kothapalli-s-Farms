@@ -270,3 +270,50 @@ describe('SeasonReportModal - Save as PDF', () => {
     expect(keeps.length).toBeGreaterThan(5);
   });
 });
+
+describe('SeasonReportModal - print without partnership details', () => {
+  const toggle = () => screen.getByLabelText('Include partner shares & settlement');
+
+  it('includes partnership details by default', () => {
+    renderWithPartners();
+    expect((toggle() as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText(/Partner Contributions/)).toBeTruthy();
+    expect(screen.queryByText(/Spending by Partner/)).toBeNull();
+  });
+
+  it('shows only who spent how much when switched off', () => {
+    // Ramesh paid 5000, Shyam 1500; shares (70/30), fair shares and the
+    // settlement must all disappear.
+    renderWithPartners();
+    fireEvent.click(toggle());
+    expect(screen.getByText(/Spending by Partner/)).toBeTruthy();
+    expect(screen.queryByText(/Partner Contributions/)).toBeNull();
+    expect(screen.queryByText(/70%/)).toBeNull();
+    expect(screen.queryByText(/Share of cost/)).toBeNull();
+    expect(screen.queryByText(/Receives|Pays/)).toBeNull();
+    const section = screen.getByText(/Spending by Partner/).closest('div[data-print-keep]')!;
+    expect(section.textContent).toContain('Ramesh');
+    expect(section.textContent).toContain('₹5,000');
+    expect(section.textContent).toContain('Shyam');
+    expect(section.textContent).toContain('₹1,500');
+    expect(section.textContent).toContain('₹6,500');
+  });
+
+  it('keeps partnership terms out of the copied text report too', async () => {
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    renderWithPartners();
+    fireEvent.click(toggle());
+    fireEvent.click(screen.getByText('Export & Copy Report'));
+    const text = writeText.mock.calls[0][0] as string;
+    expect(text).toContain('SPENDING BY PARTNER');
+    expect(text).toContain('Ramesh: ₹5,000');
+    expect(text).not.toContain('NET POSITION');
+    expect(text).not.toContain('% share');
+  });
+
+  it('does not offer the switch when there are no partner figures', () => {
+    renderReport();
+    expect(screen.queryByLabelText('Include partner shares & settlement')).toBeNull();
+  });
+});

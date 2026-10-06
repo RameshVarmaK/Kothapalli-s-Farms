@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Member,
   Field,
@@ -70,6 +70,15 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   setCopiedReportText,
 }) => {
   const { t } = useLanguage();
+
+  // Off: the report (screen, PDF and copied text) drops shares, fair shares
+  // and settlement, and shows only how much each partner spent — for handing
+  // to someone who should see the costs but not the partnership terms.
+  // Every report opens with it on.
+  const [showPartnership, setShowPartnership] = useState(true);
+  useEffect(() => {
+    setShowPartnership(true);
+  }, [seasonId]);
 
   // Flags the document while a report is open so the print stylesheet can
   // hide everything else on the page. Declared above the early returns to
@@ -211,6 +220,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
     .sort((a, b) => b.paidAmount - a.paidAmount);
 
   const totalPaidByPartners = partnerRows.reduce((sum, r) => sum + r.paidAmount, 0);
+  const spenders = partnerRows.filter(r => Math.round(r.paidAmount) > 0);
   const totalCostShares = partnerRows.reduce((sum, r) => sum + r.costShare, 0);
 
   const money = (v: number) => `${currency}${Math.round(v).toLocaleString('en-IN')}`;
@@ -301,7 +311,16 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       });
     }
 
-    if (partnerRows.length > 0) {
+    if (!showPartnership && spenders.length > 0) {
+      text  += `\nSECTION 6: SPENDING BY PARTNER\n`;
+      spenders.forEach((r, i) => {
+        text += `${i + 1}. ${r.memberName}: ${money(r.paidAmount)}\n`;
+      });
+      text  += `   ----------------------------------------------\n`;
+      text  += `   TOTAL SPENT BY PARTNERS : ${money(totalPaidByPartners)}\n`;
+    }
+
+    if (showPartnership && partnerRows.length > 0) {
       text  += `\nSECTION 6: PARTNER CONTRIBUTIONS & SETTLEMENT\n`;
       partnerRows.forEach((r, i) => {
         const b = r.paidBreakdown;
@@ -601,8 +620,33 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           </div>
 
 
+          {/* Section 6, without partnership terms: just who spent how much. */}
+          {!showPartnership && spenders.length > 0 && (
+            <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
+              <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
+                <Users size={13} className="text-slate-500" />
+                <span>{t('Section 6: Spending by Partner')}</span>
+              </h4>
+              <div className="space-y-2">
+                {spenders.map(r => (
+                  <div key={r.memberId} className="flex justify-between text-xs">
+                    <span className="font-bold text-slate-700">{r.memberName}</span>
+                    <span className="font-mono font-bold text-slate-800">{money(r.paidAmount)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-slate-300 flex justify-between text-xs">
+                <span className="font-bold text-slate-600 uppercase text-[10px] tracking-widest">{t('Total')}</span>
+                <span className="font-mono font-extrabold text-slate-800">{money(totalPaidByPartners)}</span>
+              </div>
+              <p className="mt-2 text-[10px] text-slate-400 font-medium leading-normal">
+                {t('Includes expenses, labour and stock each partner paid for, and credit they repaid.')}
+              </p>
+            </div>
+          )}
+
           {/* Section 6: Partner Contributions & Settlement */}
-          {partnerRows.length > 0 && (
+          {showPartnership && partnerRows.length > 0 && (
             <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
               <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
                 <Scale size={13} className="text-slate-500" />
@@ -718,6 +762,17 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
         {/* Modal Footer */}
         <div data-print-hide className="p-6 border-t border-slate-200 bg-slate-50/60 flex flex-wrap items-center justify-end gap-3.5">
+          {partnerRows.length > 0 && (
+            <label className="mr-auto flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={showPartnership}
+                onChange={e => setShowPartnership(e.target.checked)}
+                className="w-4 h-4 accent-emerald-600 cursor-pointer"
+              />
+              {t('Include partner shares & settlement')}
+            </label>
+          )}
           <button
             type="button"
             onClick={onClose}
