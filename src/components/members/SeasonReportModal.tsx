@@ -352,10 +352,10 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
     <div data-print-root className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
       <div data-print-card className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] animate-in fade-in zoom-in-95 duration-150 border border-slate-100">
         {/* Modal Header */}
-        <div className="p-6 border-b border-slate-150 flex justify-between items-center bg-slate-50/50">
+        <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-150 font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider">
+              <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider">
                 {t('Crop General Report')}
               </span>
               <span className="text-slate-300">|</span>
@@ -435,7 +435,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 1: Timelines Activity Logs */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Calendar size={13} className="text-slate-500" />
               <span>{t('Section 1: Timelines Activity Logs')}</span>
             </h4>
@@ -461,7 +461,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 2: Cash Outlays & Direct Expenses */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <DollarSign size={13} className="text-slate-500" />
               <span>{t('Section 2: Cash Outlays & Direct Expenses')}</span>
             </h4>
@@ -478,7 +478,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                       <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{e.date}]</span>
                         <span className="font-bold text-slate-705">{e.category}</span>
-                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
+                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-200 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
                       <div className="sm:text-right">
                         <span className="font-bold font-mono text-slate-800 block">
@@ -495,7 +495,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 3: Constituent Stock Inventory Consumed */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Package size={13} className="text-slate-500" />
               <span>{t('Section 3: Stock Materials Consumed')}</span>
             </h4>
@@ -514,7 +514,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                       <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{u.date}]</span>
                         <span className="font-bold text-slate-705">{item ? item.name : t('Unknown Item')}</span>
-                        {isCommon && <span className="text-[9px] bg-purple-50 text-purple-750 border border-purple-150 font-bold px-1.5 rounded uppercase">{t('Split')}</span>}
+                        {isCommon && <span className="text-[9px] bg-purple-50 text-purple-750 border border-purple-200 font-bold px-1.5 rounded uppercase">{t('Split')}</span>}
                       </div>
                       <div className="sm:text-right">
                         <span className="font-mono font-bold text-slate-800 block">
@@ -535,7 +535,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 4: Hired Labor Manpower Utilized */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <Users size={13} className="text-slate-500" />
               <span>{t('Section 4: Hired Labor Manpower Utilized')}</span>
             </h4>
@@ -552,7 +552,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                       <div className="flex gap-2 flex-wrap">
                         <span className="font-mono text-slate-400">[{l.date}]</span>
                         <span className="font-bold text-slate-705">{l.workersCount} {t('worker(s) at')} {currency}{l.wageRate}/{t('worker')}</span>
-                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-150 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
+                        {isCommon && <span className="text-[9px] bg-amber-50 text-amber-705 border border-amber-200 font-bold px-1.5 rounded-md uppercase">{t('Common Allocated split')}</span>}
                       </div>
                       <div className="sm:text-right">
                         <span className="font-mono font-bold text-slate-800 block">
@@ -569,7 +569,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
 
           {/* Section 5: Harvest Yield Earnings */}
           <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
+            <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
               <CheckCircle size={13} className="text-slate-500" />
               <span>{t('Section 5: Harvest Yield Earnings')}</span>
             </h4>
@@ -599,7 +599,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
           {/* Section 6: Partner Contributions & Settlement */}
           {partnerRows.length > 0 && (
             <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-              <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-250 pb-2">
+              <h4 className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
                 <Scale size={13} className="text-slate-500" />
                 <span>{t('Section 6: Partner Contributions & Settlement')}</span>
               </h4>
@@ -611,7 +611,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                   return (
                     <div key={r.memberId} data-print-keep className="p-4 rounded-2xl bg-white border border-slate-200">
                       {/* Partner name + the one number that matters */}
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pb-3 border-b border-slate-150">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pb-3 border-b border-slate-200">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-slate-800 text-xs">{r.memberName}</span>
                           <span className="text-[9px] bg-slate-100 text-slate-500 border border-slate-200 font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
@@ -658,7 +658,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                         </div>
 
                         {/* Fair share, and the two gaps that make up the net */}
-                        <div className="space-y-1 sm:border-l sm:border-slate-150 sm:pl-6 pt-2 sm:pt-0">
+                        <div className="space-y-1 sm:border-l sm:border-slate-200 sm:pl-6 pt-2 sm:pt-0">
                           <div className="flex justify-between">
                             <span className="text-slate-500">{t('Share of cost')}</span>
                             <span className="font-mono text-slate-700">{money(r.costShare)}</span>
@@ -712,7 +712,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div data-print-hide className="p-6 border-t border-slate-150 bg-slate-50/60 flex flex-wrap items-center justify-end gap-3.5">
+        <div data-print-hide className="p-6 border-t border-slate-200 bg-slate-50/60 flex flex-wrap items-center justify-end gap-3.5">
           <button
             type="button"
             onClick={onClose}
