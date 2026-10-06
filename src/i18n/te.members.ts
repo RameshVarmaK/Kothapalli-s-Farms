@@ -146,4 +146,43 @@ export const teMembers: Record<string, string> = {
   'cycle and freeze its ledger records.': 'చక్రాన్ని ముగించి దాని లెడ్జర్ నమోదులను స్థిరపరచండి.',
   'Harvesting End Date': 'కోత ముగింపు తేదీ',
   'Confirm Harvest': 'కోతను నిర్ధారించండి',
+
+  // Partner ledger report
+  'Partner Ledger': 'భాగస్వామి ఖాతా పుస్తకం',
+  'View ledger & export PDF': 'ఖాతా చూసి PDF గా సేవ్ చేయండి',
+  'Covers': 'పరిధి',
+  'Generated on': 'తయారు చేసిన తేదీ',
+  'Report covers': 'నివేదిక పరిధి',
+  'All crop cycles': 'అన్ని పంట కాలాలు',
+  'Paid in, by kind': 'చెల్లించినది, రకం వారీగా',
+  'Section 1: Crop Cycles': 'విభాగం 1: పంట కాలాలు',
+  'Section 2: Settlement': 'విభాగం 2: లెక్క తేల్చడం',
+  'Section 3: Transactions': 'విభాగం 3: లావాదేవీలు',
+  'Section 4: Stock Bought': 'విభాగం 4: కొన్న నిల్వ సరుకు',
+  'Crop cycle': 'పంట కాలం',
+  'Share': 'వాటా',
+  'Net': 'నికరం',
+  'Total': 'మొత్తం',
+  'Received': 'అందుకున్నది',
+  'Expense': 'ఖర్చు',
+  'Stock used': 'వాడిన సరుకు',
+  'Sale received': 'అమ్మకం డబ్బు',
+  'workers': 'కూలీలు',
+  'share of split': 'పంపిణీ వాటా',
+  'Pays to': 'చెల్లించాలి —',
+  'Receives from': 'అందుకోవాలి —',
+  'Transferred': 'చెల్లించబడింది',
+  'Pending': 'బాకీ ఉంది',
+  'This partner has no share and no money in the selected cycles.':
+    'ఎంచుకున్న పంట కాలాల్లో ఈ భాగస్వామికి వాటా గానీ డబ్బు గానీ లేదు.',
+  'Nothing to settle for this partner in the selected cycles.':
+    'ఎంచుకున్న పంట కాలాల్లో ఈ భాగస్వామికి తేల్చాల్సిన లెక్క ఏమీ లేదు.',
+  'No payments or receipts by this partner in the selected cycles.':
+    'ఎంచుకున్న పంట కాలాల్లో ఈ భాగస్వామి చెల్లింపులు గానీ వసూళ్లు గానీ లేవు.',
+  'Net = (paid in − share of cost) + (share of revenue − revenue taken). It is the same balance shown on the Settle screen.':
+    'నికరం = (చెల్లించినది − ఖర్చులో వాటా) + (ఆదాయంలో వాటా − తీసుకున్న ఆదాయం). ఇది లెక్క తేల్చే స్క్రీన్‌లో చూపే బ్యాలెన్స్‌తో సమానం.',
+  'Bills taken on credit are not listed: no partner paid them. They count when a partner repays the creditor. Stock counts when it is used, at this partner’s share of the money that bought it.':
+    'అప్పుపై తీసుకున్న బిల్లులు ఇక్కడ లేవు: వాటిని ఏ భాగస్వామీ చెల్లించలేదు. భాగస్వామి అప్పు తీర్చినప్పుడు అవి లెక్కలోకి వస్తాయి. సరుకు వాడినప్పుడు, దాన్ని కొన్న డబ్బులో ఈ భాగస్వామి వాటా మేరకు లెక్కించబడుతుంది.',
+  'For reference. Purchases go into the shared store; they count toward a crop cycle only when the stock is used there (see “Stock used” above).':
+    'సమాచారం కోసం మాత్రమే. కొన్న సరుకు ఉమ్మడి నిల్వలోకి వెళ్తుంది; అది ఏ పంట కాలంలో వాడితే అక్కడే లెక్కలోకి వస్తుంది (పైన “వాడిన సరుకు” చూడండి).',
 };

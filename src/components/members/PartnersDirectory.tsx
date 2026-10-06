@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { Member, SettlementSummary } from '../../types';
-import { Users, Pencil, Trash2 } from 'lucide-react';
+import { Users, Pencil, Trash2, FileText } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { useLanguage } from '../../hooks/useLanguage';
 
@@ -16,6 +16,7 @@ interface PartnersDirectoryProps {
   onAddFirst: () => void;
   onEditMember: (member: Member) => void;
   onDeleteMember: (id: string, name: string) => void;
+  onViewReport: (memberId: string) => void;
 }
 
 export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
@@ -25,6 +26,7 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
   onAddFirst,
   onEditMember,
   onDeleteMember,
+  onViewReport,
 }) => {
   const { t } = useLanguage();
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
@@ -77,6 +79,14 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                       </span>
                     </div>
                     <button
+                      onClick={(e) => { e.stopPropagation(); onViewReport(member.id); }}
+                      className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
+                      title={t('Partner Ledger')}
+                      aria-label={t('Partner Ledger')}
+                    >
+                      <FileText size={14} />
+                    </button>
+                    <button
                       onClick={(e) => { e.stopPropagation(); onEditMember(member); }}
                       className="p-2.5 rounded-lg text-slate-350 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
                       title={t('Edit Partner Details')}
@@ -94,7 +104,8 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
 
                 {/* Detailed sub-ledgers on click */}
                 {isUnderDetail && totalStatement && (
-                  <div className="bg-slate-50/50 p-5 border-t border-slate-100 text-xs text-slate-600 grid grid-cols-3 gap-4 text-center animate-in slide-in-from-top-1">
+                  <div className="bg-slate-50/50 border-t border-slate-100 animate-in slide-in-from-top-1">
+                  <div className="p-5 pb-3 text-xs text-slate-600 grid grid-cols-3 gap-4 text-center">
                     <div className="p-3 bg-white rounded-xl border border-slate-200">
                       <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-widest">{t('Entitled Profit')}</span>
                       <span className="text-sm font-bold text-slate-800 font-mono mt-1 block">
@@ -113,6 +124,17 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                         {currency}{Math.round(totalStatement.receivedAmount).toLocaleString('en-IN')}
                       </span>
                     </div>
+                  </div>
+                  <div className="px-5 pb-5 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => onViewReport(member.id)}
+                      className="flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-700 cursor-pointer"
+                    >
+                      <FileText size={13} />
+                      {t('View ledger & export PDF')}
+                    </button>
+                  </div>
                   </div>
                 )}
               </div>

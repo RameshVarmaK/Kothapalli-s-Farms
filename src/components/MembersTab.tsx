@@ -29,6 +29,7 @@ import { FieldsList } from './members/FieldsList';
 import { SeasonsList } from './members/SeasonsList';
 import { AddRecordModal } from './members/AddRecordModal';
 import { SeasonReportModal } from './members/SeasonReportModal';
+import { PartnerReportModal } from './members/PartnerReportModal';
 import { CloseSeasonModal } from './members/CloseSeasonModal';
 
 interface MembersTabProps {
@@ -92,6 +93,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [editingSeason, setEditingSeason] = useState<Season | null>(null);
   const [selectedReportSeasonId, setSelectedReportSeasonId] = useState<string | null>(null);
+  const [reportMemberId, setReportMemberId] = useState<string | null>(null);
   const [copiedReportText, setCopiedReportText] = useState(false);
 
   // Closing season pop-up instead of window.prompt
@@ -453,6 +455,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           onAddFirst={() => setIsOpenAddModal(true)}
           onEditMember={handleOpenEditMember}
           onDeleteMember={handleDeleteMember}
+          onViewReport={setReportMemberId}
         />
       )}
 
@@ -544,6 +547,25 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         currency={currency}
         copiedReportText={copiedReportText}
         setCopiedReportText={setCopiedReportText}
+      />
+
+      <PartnerReportModal
+        memberId={reportMemberId}
+        onClose={() => setReportMemberId(null)}
+        summary={summary}
+        members={members}
+        fields={fields}
+        seasons={seasons}
+        expenses={expenses}
+        labours={labours}
+        revenues={revenues}
+        usages={usages}
+        stockItems={stockItems}
+        purchases={purchases}
+        creditAccounts={creditAccounts}
+        creditRepayments={creditRepayments}
+        settlementClearances={settlementClearances}
+        currency={currency}
       />
 
       <CloseSeasonModal
