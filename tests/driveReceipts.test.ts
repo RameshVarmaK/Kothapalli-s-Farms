@@ -9,10 +9,16 @@ import {
   migrateLegacyReceipts,
   resetReceiptFolderCache,
   RECEIPTS_FOLDER_NAME,
+  stashInlineReceipts,
+  stripInlineReceiptData,
+  cleanupStoredReceipts,
+  ORPHAN_RECEIPT_TTL_MS,
 } from '../src/utils/driveReceipts';
 import { keepPendingReceiptData, normalizeAttachment, receiptCount } from '../src/utils/attachments';
 import { SHEET_COLUMNS, toSheetRows, parseSheetRows, pushDataToSpreadsheet, ensureSheetsExist } from '../src/utils/googleSheets';
 import { Attachment, Expense } from '../src/types';
+import { createMemoryReceiptStore, setReceiptStoreBackend } from '../src/utils/receiptStore';
+import { saveDatabase, LocalDatabase } from '../src/utils/database';
 
 type Call = { url: string; method: string; body?: any; headers?: any };
 
@@ -92,7 +98,13 @@ function stubDrive(opts: DriveStubOptions = {}) {
   return calls;
 }
 
-beforeEach(() => resetReceiptFolderCache());
+let store: ReturnType<typeof createMemoryReceiptStore>;
+beforeEach(() => {
+  resetReceiptFolderCache();
+  store = createMemoryReceiptStore();
+  setReceiptStoreBackend(store);
+});
+afterEach(() => setReceiptStoreBackend(undefined));
 afterEach(() => vi.unstubAllGlobals());
 
 describe('receipts folder', () => {
@@ -187,7 +199,7 @@ describe('offline receipts', () => {
   it('keeps a receipt pending, with its file, when the upload fails', async () => {
     stubDrive({ existingFolder: 'folder_old', uploadFails: true });
     const expenses = [expense([pending()])];
-    const work = collectPendingReceipts(expenses);
+    const work = await collectPendingReceipts(expenses);
     expect(work).toHaveLength(1);
 
     const { uploaded, failed } = await uploadPendingReceipts('tok', 'sheet_1', work);
@@ -196,18 +208,18 @@ describe('offline receipts', () => {
 
     const after = applyUploadedReceipts(expenses, uploaded);
     expect(after[0].attachments![0]).toEqual(pending());
-    expect(collectPendingReceipts(after)).toHaveLength(1);
+    expect(await collectPendingReceipts(after)).toHaveLength(1);
   });
 
   it('applies a finished upload to the latest expenses', async () => {
     stubDrive({ existingFolder: 'folder_old' });
     const expenses = [expense([pending()])];
-    const { uploaded } = await uploadPendingReceipts('tok', null, collectPendingReceipts(expenses));
+    const { uploaded } = await uploadPendingReceipts('tok', null, await collectPendingReceipts(expenses));
     const after = applyUploadedReceipts(expenses, uploaded);
     expect(after[0].attachments![0].driveFileId).toBe('file_1');
     expect(after[0].attachments![0].data).toBeUndefined();
     expect(after[0].attachments![0].pending).toBeUndefined();
-    expect(collectPendingReceipts(after)).toHaveLength(0);
+    expect(await collectPendingReceipts(after)).toHaveLength(0);
   });
 
   it('puts the local file back on pending receipts after a pull', () => {
@@ -281,7 +293,7 @@ describe('receipts in the sheet', () => {
 });
 
 describe('legacy receipts', () => {
-  it('turns receiptPhoto and old-shape attachments into pending attachments', () => {
+  it('turns receiptPhoto and old-shape attachments into pending attachments', async () => {
     const legacyAttachment: any = { id: 'att_old', type: 'document', fileName: 'bill.pdf', size: 3, uploadedAt: 'x', base64Data: 'QUJD' };
     const [migrated] = migrateLegacyReceipts([expense([legacyAttachment], { receiptPhoto: 'WFlaWg==' })]);
     expect(migrated.receiptPhoto).toBeUndefined();
@@ -289,7 +301,7 @@ describe('legacy receipts', () => {
       { id: 'att_old', fileName: 'bill.pdf', mimeType: 'application/pdf', size: 3, uploadedAt: 'x', pending: true, data: 'QUJD' },
       expect.objectContaining({ id: 'att_receipt_exp_1', mimeType: 'image/jpeg', pending: true, data: 'WFlaWg==' }),
     ]);
-    expect(collectPendingReceipts([migrated])).toHaveLength(2);
+    expect(await collectPendingReceipts([migrated])).toHaveLength(2);
     expect(receiptCount(migrated)).toBe(2);
   });
 
@@ -298,8 +310,69 @@ describe('legacy receipts', () => {
     expect(migrateLegacyReceipts(list)).toBe(list);
   });
 
-  it('treats a partner-pulled pending receipt (no file here) as nothing to upload', () => {
+  it('treats a partner-pulled pending receipt (no file here) as nothing to upload', async () => {
     const pulled = normalizeAttachment({ id: 'a', fileName: 'x.jpg', mimeType: 'image/jpeg', size: 1, uploadedAt: 'x', pending: true });
-    expect(collectPendingReceipts([expense([pulled])])).toHaveLength(0);
+    expect(await collectPendingReceipts([expense([pulled])])).toHaveLength(0);
+  });
+});
+
+describe('pending receipt bytes live outside the saved database', () => {
+  function stored(id = 'att_1'): Attachment {
+    const { data: _data, ...meta } = pending(id);
+    return meta;
+  }
+
+  it('moves inline bytes to the receipt store so the saved JSON never holds them', async () => {
+    const expenses = [expense([pending()])];
+    const moved = await stashInlineReceipts(expenses);
+    expect([...moved]).toEqual(['att_1']);
+    expect(store.entries.get('att_1')?.data).toBe(DATA);
+
+    const stripped = stripInlineReceiptData(expenses, moved);
+    expect(stripped[0].attachments![0]).toEqual(stored());
+
+    expect(saveDatabase({ expenses: stripped } as unknown as LocalDatabase)).toBe(true);
+    const saved = localStorage.getItem('farm_ledger_database')!;
+    expect(saved).toContain('att_1');
+    expect(saved).not.toContain(DATA);
+  });
+
+  it('reads the bytes back from the store for the upload, then clears the entry', async () => {
+    store.entries.set('att_1', { id: 'att_1', data: DATA, savedAt: Date.now() });
+    const calls = stubDrive({ existingFolder: 'folder_old' });
+    const work = await collectPendingReceipts([expense([stored()])]);
+    expect(work[0].attachment.data).toBe(DATA);
+
+    const { uploaded } = await uploadPendingReceipts('tok', null, work);
+    expect(uploaded.get('att_1')?.driveFileId).toBe('file_1');
+    expect(calls.find(c => c.url.includes('/upload/'))!.body).toContain('hello');
+    expect(store.entries.has('att_1')).toBe(false);
+  });
+
+  it('keeps the store entry when the upload fails', async () => {
+    store.entries.set('att_1', { id: 'att_1', data: DATA, savedAt: Date.now() });
+    stubDrive({ existingFolder: 'folder_old', uploadFails: true });
+    await uploadPendingReceipts('tok', null, await collectPendingReceipts([expense([stored()])]));
+    expect(store.entries.get('att_1')?.data).toBe(DATA);
+  });
+
+  it('clears entries of removed receipts and stale unsaved ones, keeping the rest', async () => {
+    const now = Date.now();
+    store.entries.set('kept', { id: 'kept', data: DATA, savedAt: now });
+    store.entries.set('removed', { id: 'removed', data: DATA, savedAt: now });
+    store.entries.set('form_open', { id: 'form_open', data: DATA, savedAt: now });
+    store.entries.set('abandoned', { id: 'abandoned', data: DATA, savedAt: now - ORPHAN_RECEIPT_TTL_MS - 1 });
+
+    const removed = await cleanupStoredReceipts([expense([stored('kept')])], new Set(['kept', 'removed']), now);
+    expect(removed.sort()).toEqual(['abandoned', 'removed']);
+    expect([...store.entries.keys()].sort()).toEqual(['form_open', 'kept']);
+  });
+
+  it('keeps bytes inline when there is no receipt store', async () => {
+    setReceiptStoreBackend(null);
+    const expenses = [expense([pending()])];
+    expect((await stashInlineReceipts(expenses)).size).toBe(0);
+    expect(stripInlineReceiptData(expenses, new Set())).toBe(expenses);
+    expect((await collectPendingReceipts(expenses))[0].attachment.data).toBe(DATA);
   });
 });

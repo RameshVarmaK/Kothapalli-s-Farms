@@ -39,6 +39,10 @@ export const teShell: Record<string, string> = {
   'change not yet in the Google Sheet': 'మార్పు ఇంకా గూగుల్ షీట్‌లో లేదు',
   'changes not yet in the Google Sheet': 'మార్పులు ఇంకా గూగుల్ షీట్‌లో లేవు',
   'Retrying now...': 'మళ్లీ ప్రయత్నిస్తోంది...',
+  'Entries on this device could not be saved — storage is full':
+    'ఈ పరికరంలో నమోదులు సేవ్ కాలేదు — నిల్వ నిండిపోయింది',
+  "Don't close or reload this page. Stay online so your entries reach the Google Sheet, and free up space on this device (browser site data).":
+    'ఈ పేజీని మూసివేయవద్దు లేదా రీలోడ్ చేయవద్దు. మీ నమోదులు గూగుల్ షీట్‌కి చేరేలా ఇంటర్నెట్‌లో ఉండండి, ఈ పరికరంలో స్థలం ఖాళీ చేయండి (బ్రౌజర్ సైట్ డేటా).',
   'Retrying in': 'మళ్లీ ప్రయత్నించడానికి',
   'Details': 'వివరాలు',
   'Sign in again': 'మళ్లీ సైన్ ఇన్ చేయండి',

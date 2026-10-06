@@ -4,6 +4,8 @@ import { Attachment } from '../types';
 import { createAttachment, formatFileSize, isImageAttachment, validateAttachments } from '../utils/attachments';
 import { logError } from '../utils/errorLogging';
 import { useLanguage } from '../hooks/useLanguage';
+import { useLocalReceiptSrc } from '../hooks/useLocalReceiptSrc';
+import { stashReceiptData } from '../utils/receiptStore';
 
 interface AttachmentUploaderProps {
   attachments: Attachment[] | undefined;
@@ -11,9 +13,20 @@ interface AttachmentUploaderProps {
   maxAttachments?: number;
 }
 
+function ReceiptThumb({ attachment }: { attachment: Attachment }) {
+  const src = useLocalReceiptSrc(attachment);
+  return src ? (
+    <img src={src} alt={attachment.fileName} className="w-10 h-10 object-cover rounded" />
+  ) : (
+    <div className="w-10 h-10 bg-slate-200 rounded flex items-center justify-center text-lg">
+      {isImageAttachment(attachment) ? '🖼️' : '📄'}
+    </div>
+  );
+}
+
 /**
  * Picks receipt photos / PDFs for the expense form. New files are compressed
- * and held as pending; they go to Google Drive after the expense is saved
+ * and held as pending (bytes in the device's receipt store); they go to Google Drive after the expense is saved
  * (see useReceiptUploads), so saving never waits on the network.
  */
 export function AttachmentUploader({
@@ -43,7 +56,15 @@ export function AttachmentUploader({
         }
 
         try {
-          newAttachments.push(await createAttachment(files[i]));
+          const att = await createAttachment(files[i]);
+          // The file waits in the device's receipt store, not on the expense:
+          // the saved database must stay small. Inline only without a store.
+          if (att.data && await stashReceiptData(att.id, att.data)) {
+            const { data: _data, ...meta } = att;
+            newAttachments.push(meta);
+          } else {
+            newAttachments.push(att);
+          }
         } catch (err) {
           logError('attachment_upload_failed', err, { fileName: files[i].name });
           setError(`${t('Could not add this file (5 MB at most):')} ${files[i].name}`);
@@ -125,17 +146,7 @@ export function AttachmentUploader({
                 className="flex items-center justify-between p-2 bg-slate-50 border border-slate-200 rounded-lg"
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {isImageAttachment(attachment) && attachment.data ? (
-                    <img
-                      src={`data:${attachment.mimeType};base64,${attachment.data}`}
-                      alt={attachment.fileName}
-                      className="w-10 h-10 object-cover rounded"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 bg-slate-200 rounded flex items-center justify-center text-lg">
-                      {isImageAttachment(attachment) ? '🖼️' : '📄'}
-                    </div>
-                  )}
+                  <ReceiptThumb attachment={attachment} />
 
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-slate-800 truncate">{attachment.fileName}</p>

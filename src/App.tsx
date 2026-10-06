@@ -63,6 +63,7 @@ import { LayoutDashboard, FileText, PackageOpen, CalendarDays, Coins, Users, Wre
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
 import { SheetSetupModal } from './components/SheetSetupModal';
 import { SyncStatusBanner } from './components/SyncStatusBanner';
+import { LocalSaveBanner } from './components/LocalSaveBanner';
 import { isPickerAvailable, pickSpreadsheet } from './utils/googlePicker';
 import { MobileNavDrawer } from './components/MobileNavDrawer';
 import { ViewModeProvider, useViewMode } from './hooks/useViewMode';
@@ -2024,6 +2025,8 @@ function AppShell() {
           )}
         </div>
       </header>
+
+      <LocalSaveBanner />
 
       {/* Stays up through a retry (syncing) and clears only once a sync
           succeeds, so it doesn't flicker away and back on every attempt. */}

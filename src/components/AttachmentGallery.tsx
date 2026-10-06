@@ -4,6 +4,7 @@ import { Attachment } from '../types';
 import { formatFileSize, isImageAttachment } from '../utils/attachments';
 import { fetchReceiptObjectUrl } from '../utils/driveReceipts';
 import { useLanguage } from '../hooks/useLanguage';
+import { useLocalReceiptSrc } from '../hooks/useLocalReceiptSrc';
 
 interface AttachmentGalleryProps {
   attachments: Attachment[];
@@ -16,13 +17,13 @@ interface AttachmentGalleryProps {
 function ReceiptItem({ attachment, accessToken }: { attachment: Attachment; accessToken?: string | null }) {
   const { t } = useLanguage();
   const isImage = isImageAttachment(attachment);
-  const [src, setSrc] = useState<string | null>(
-    isImage && attachment.data ? `data:${attachment.mimeType};base64,${attachment.data}` : null
-  );
+  const localSrc = useLocalReceiptSrc(attachment);
+  const [driveSrc, setSrc] = useState<string | null>(null);
+  const src = localSrc || driveSrc;
   const [state, setState] = useState<'idle' | 'loading' | 'failed'>('idle');
 
   useEffect(() => {
-    if (!isImage || attachment.data || !attachment.driveFileId || !accessToken) return;
+    if (!isImage || !attachment.driveFileId || !accessToken) return;
     let objectUrl: string | null = null;
     let cancelled = false;
     setState('loading');
@@ -43,7 +44,7 @@ function ReceiptItem({ attachment, accessToken }: { attachment: Attachment; acce
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [attachment.driveFileId, attachment.data, accessToken, isImage]);
+  }, [attachment.driveFileId, accessToken, isImage]);
 
   const driveLink = attachment.webViewLink
     || (attachment.driveFileId ? `https://drive.google.com/file/d/${attachment.driveFileId}/view` : null);

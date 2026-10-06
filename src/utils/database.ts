@@ -290,8 +290,29 @@ export function getInitialDatabase(): LocalDatabase {
   return db;
 }
 
-export function saveDatabase(db: LocalDatabase): void {
-  safeStorageSet(STORAGE_KEY, JSON.stringify(db));
+// Whether the last save of the database to this device failed (storage full,
+// or blocked). Kept here so every caller of saveDatabase reports to the same
+// place, and the app can show it instead of losing entries silently.
+let localSaveFailed = false;
+const saveStatusListeners = new Set<(failed: boolean) => void>();
+
+/** Calls `listener` now and whenever local saving starts or stops failing.
+ * Returns the unsubscribe function. */
+export function onLocalSaveStatus(listener: (failed: boolean) => void): () => void {
+  saveStatusListeners.add(listener);
+  listener(localSaveFailed);
+  return () => { saveStatusListeners.delete(listener); };
+}
+
+/** Saves the database on this device. Returns false when it could not be
+ * written; listeners registered with onLocalSaveStatus hear about it. */
+export function saveDatabase(db: LocalDatabase): boolean {
+  const ok = safeStorageSet(STORAGE_KEY, JSON.stringify(db));
+  if (localSaveFailed === ok) {
+    localSaveFailed = !ok;
+    saveStatusListeners.forEach(listener => listener(localSaveFailed));
+  }
+  return ok;
 }
 
 /**

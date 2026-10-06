@@ -7,8 +7,12 @@ import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
 import { LocalDatabase, saveDatabase, isPlaceholderSpreadsheetId } from '../utils/database';
 import {
   applyUploadedReceipts,
+  cleanupStoredReceipts,
   collectPendingReceipts,
   migrateLegacyReceipts,
+  pendingReceiptIds,
+  stashInlineReceipts,
+  stripInlineReceiptData,
   uploadPendingReceipts,
 } from '../utils/driveReceipts';
 
@@ -18,9 +22,10 @@ const RETRY_INTERVAL_MS = 2 * 60 * 1000;
  * Moves receipts waiting on this device into Google Drive.
  *
  * Runs after every change to the database (so right after an expense is
- * saved) and again whenever the device comes back online. Saving an expense
- * never waits on this: a receipt that can't be uploaded stays pending, with
- * its file kept locally, until a later attempt succeeds.
+ * saved), whenever the device comes back online, and every two minutes.
+ * Saving an expense never waits on this: a receipt that can't be uploaded
+ * stays pending, its file kept in the device's receipt store (not in the
+ * saved database), until a later attempt succeeds.
  */
 export function useReceiptUploads(
   db: LocalDatabase | null,
@@ -29,6 +34,8 @@ export function useReceiptUploads(
 ): void {
   const runningRef = useRef(false);
   const rerunRef = useRef(false);
+  const stashingRef = useRef(false);
+  const pendingBeforeRef = useRef<Set<string>>(new Set());
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -44,24 +51,55 @@ export function useReceiptUploads(
   }, []);
 
   // Old-shape receipts (base64 receiptPhoto) become pending attachments,
-  // whether or not anyone is signed in, so the sheet never sees them.
+  // whether or not anyone is signed in, so the sheet never sees them. Then
+  // any bytes held inline move to the receipt store, out of the database
+  // that has to fit in localStorage. Without a store they stay inline.
   useEffect(() => {
     if (!db?.expenses) return;
     const migrated = migrateLegacyReceipts(db.expenses);
-    if (migrated === db.expenses) return;
-    setDb(prev => {
-      if (!prev) return prev;
-      const next = { ...prev, expenses: migrateLegacyReceipts(prev.expenses || []) };
-      saveDatabase(next);
-      return next;
-    });
+    if (migrated !== db.expenses) {
+      setDb(prev => {
+        if (!prev) return prev;
+        const next = { ...prev, expenses: migrateLegacyReceipts(prev.expenses || []) };
+        saveDatabase(next);
+        return next;
+      });
+      return;
+    }
+    const hasInline = db.expenses.some(e => e?.attachments?.some(a => a.pending && a.data));
+    if (!hasInline || stashingRef.current) return;
+    stashingRef.current = true;
+    (async () => {
+      try {
+        const moved = await stashInlineReceipts(db.expenses);
+        if (moved.size > 0) {
+          setDb(prev => {
+            if (!prev) return prev;
+            const next = { ...prev, expenses: stripInlineReceiptData(prev.expenses || [], moved) };
+            saveDatabase(next);
+            return next;
+          });
+        }
+      } finally {
+        stashingRef.current = false;
+      }
+    })();
+  }, [db?.expenses]);
+
+  // Clear stored files nothing needs any more (uploaded, removed, deleted).
+  useEffect(() => {
+    if (!db?.expenses) return;
+    const before = pendingBeforeRef.current;
+    pendingBeforeRef.current = new Set([...before, ...pendingReceiptIds(db.expenses)]);
+    cleanupStoredReceipts(db.expenses, pendingBeforeRef.current)
+      .then(removed => removed.forEach(id => pendingBeforeRef.current.delete(id)))
+      .catch(() => { /* retried on the next change */ });
   }, [db?.expenses]);
 
   useEffect(() => {
     if (!accessToken || !db) return;
-    const work = collectPendingReceipts(db.expenses);
-    if (work.length === 0) return;
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    if (pendingReceiptIds(db.expenses).size === 0) return;
     if (runningRef.current) {
       rerunRef.current = true;
       return;
@@ -72,6 +110,8 @@ export function useReceiptUploads(
     runningRef.current = true;
     (async () => {
       try {
+        const work = await collectPendingReceipts(db.expenses);
+        if (work.length === 0) return;
         const { uploaded } = await uploadPendingReceipts(accessToken, shareWith, work);
         if (uploaded.size > 0) {
           setDb(prev => {

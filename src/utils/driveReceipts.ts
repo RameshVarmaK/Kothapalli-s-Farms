@@ -19,6 +19,7 @@
 
 import { Attachment, Expense } from '../types';
 import { expenseAttachments, hasLegacyReceipt } from './attachments';
+import { dropReceiptData, listStoredReceipts, loadReceiptData, stashReceiptData } from './receiptStore';
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink';
@@ -185,16 +186,91 @@ export async function uploadPendingAttachment(
   };
 }
 
-/** Pending attachments (with local data) across all expenses. */
-export function collectPendingReceipts(expenses: Expense[] | undefined): { expenseId: string; attachment: Attachment }[] {
-  const out: { expenseId: string; attachment: Attachment }[] = [];
+/** Ids of every attachment still waiting for upload. */
+export function pendingReceiptIds(expenses: Expense[] | undefined): Set<string> {
+  const ids = new Set<string>();
   (expenses || []).forEach(exp => {
     if (!exp) return;
-    expenseAttachments(exp).forEach(att => {
-      if (att.pending && att.data) out.push({ expenseId: exp.id, attachment: att });
-    });
+    expenseAttachments(exp).forEach(att => { if (att.pending) ids.add(att.id); });
   });
+  return ids;
+}
+
+/**
+ * Pending attachments whose file this device holds, inline or in the
+ * receipt store, with the bytes filled in for upload. A pending receipt
+ * pulled from a partner's device has no file here and is skipped.
+ */
+export async function collectPendingReceipts(expenses: Expense[] | undefined): Promise<{ expenseId: string; attachment: Attachment }[]> {
+  const out: { expenseId: string; attachment: Attachment }[] = [];
+  for (const exp of expenses || []) {
+    if (!exp) continue;
+    for (const att of expenseAttachments(exp)) {
+      if (!att.pending) continue;
+      const data = att.data || await loadReceiptData(att.id);
+      if (data) out.push({ expenseId: exp.id, attachment: { ...att, data } });
+    }
+  }
   return out;
+}
+
+/**
+ * Moves file bytes still held inline on pending attachments (old receipts,
+ * or ones added while the store was unavailable) into the receipt store.
+ * Returns the ids moved, for stripInlineReceiptData.
+ */
+export async function stashInlineReceipts(expenses: Expense[] | undefined): Promise<Set<string>> {
+  const moved = new Set<string>();
+  for (const exp of expenses || []) {
+    for (const att of exp?.attachments || []) {
+      if (att.pending && att.data && !att.driveFileId && await stashReceiptData(att.id, att.data)) {
+        moved.add(att.id);
+      }
+    }
+  }
+  return moved;
+}
+
+/** Drops the inline bytes of the given (now stored) attachments. */
+export function stripInlineReceiptData(expenses: Expense[], ids: Set<string>): Expense[] {
+  if (ids.size === 0) return expenses;
+  return expenses.map(exp => {
+    if (!exp.attachments?.some(a => ids.has(a.id) && a.data)) return exp;
+    return {
+      ...exp,
+      attachments: exp.attachments.map(a => {
+        if (!ids.has(a.id) || !a.data) return a;
+        const { data: _data, ...rest } = a;
+        return rest;
+      }),
+    };
+  });
+}
+
+/** A stored file never referenced by a saved expense (the form was
+ * cancelled) is kept this long before it is cleared away. */
+export const ORPHAN_RECEIPT_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Clears stored files no pending attachment needs any more: those that were
+ * pending before (`previouslyPending`) and no longer are — uploaded, removed
+ * from the expense, or the expense deleted — and old ones never saved at all.
+ */
+export async function cleanupStoredReceipts(
+  expenses: Expense[] | undefined,
+  previouslyPending: Set<string>,
+  now: number = Date.now()
+): Promise<string[]> {
+  const stillPending = pendingReceiptIds(expenses);
+  const removed: string[] = [];
+  for (const { id, savedAt } of await listStoredReceipts()) {
+    if (stillPending.has(id)) continue;
+    if (previouslyPending.has(id) || now - savedAt > ORPHAN_RECEIPT_TTL_MS) {
+      await dropReceiptData(id);
+      removed.push(id);
+    }
+  }
+  return removed;
 }
 
 /**
@@ -243,6 +319,8 @@ export async function uploadPendingReceipts(
   for (const { attachment } of work) {
     try {
       uploaded.set(attachment.id, await uploadPendingAttachment(accessToken, spreadsheetId, attachment));
+      // In Drive now; this device no longer needs its copy.
+      await dropReceiptData(attachment.id);
     } catch (err) {
       failed++;
       console.warn(`Receipt ${attachment.fileName} not uploaded yet:`, err);
