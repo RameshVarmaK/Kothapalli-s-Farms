@@ -20,7 +20,7 @@ import {
   LEGACY_CLEARANCE_KEYS,
   normalizeClearanceKeys
 } from './utils/database';
-import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges } from './utils/syncConflict';
+import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges, collectionsToPush } from './utils/syncConflict';
 import { classifySyncError, isRetryable, retryDelayMs, SyncErrorKind } from './utils/syncErrors';
 import {
   moneyEntryRejection,
@@ -287,10 +287,12 @@ function AppShell() {
           // block the push (fails open) so a transient network hiccup on the
           // check itself can't stall normal saving.
           let shouldPush = true;
+          let cloudBeforePush: LocalDatabase | null = null;
           try {
             const cloudSnapshot = await pullDataFromSpreadsheet(accessToken, targetSheetId);
             if (cloudSnapshot) {
               const normalizedCloud = normalizeCloudDb(cloudSnapshot, nextDb, targetSheetId);
+              cloudBeforePush = normalizedCloud;
               const decision = classifySync(normalizedCloud, nextDb, getLastSyncedFingerprint());
 
               if (decision === 'conflict') {
@@ -329,7 +331,14 @@ function AppShell() {
             continue;
           }
 
-          await pushDataToSpreadsheet(accessToken, targetSheetId, nextDb);
+          // Write only the tabs that changed since the last sync (or that
+          // differ from what the check just read), not all fifteen.
+          await pushDataToSpreadsheet(
+            accessToken,
+            targetSheetId,
+            nextDb,
+            collectionsToPush(nextDb, getLastSyncedFingerprint(), cloudBeforePush)
+          );
           setLastSyncedFingerprint(nextDb);
           setSyncErrorKind(null);
           retryAttemptRef.current = 0;

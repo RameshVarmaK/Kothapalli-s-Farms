@@ -246,12 +246,38 @@ export function toSheetRows<T extends object>(data: T[], headers: string[]): any
   return rows;
 }
 
+/** Spreadsheet column letter for a 1-based column number: 1 → A, 27 → AA. */
+export function columnLetter(n: number): string {
+  let letters = '';
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    letters = String.fromCharCode(65 + rem) + letters;
+    n = Math.floor((n - 1) / 26);
+  }
+  return letters;
+}
+
+/** Spare rows added whenever a tab has to grow, so a ledger that is adding
+ * entries steadily doesn't need another resize on every push, and the
+ * trailing clear below the data still starts inside the grid. */
+const ROW_HEADROOM = 500;
+
 /**
  * Ensures that all required tabs/sheets exist in the spreadsheet.
  * If any sheets are missing, it sends a batchUpdate request to create them.
+ *
+ * `rowsNeeded` maps a tab title to the rows about to be written to it
+ * (header included). A tab whose grid is shorter is grown first: Sheets
+ * rejects a write that runs past the grid's last row, and before this every
+ * push failed for good once a collection outgrew the size its tab was
+ * created with.
  */
-export async function ensureSheetsExist(accessToken: string, spreadsheetId: string): Promise<void> {
-  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties(title,sheetId,gridProperties.columnCount)`;
+export async function ensureSheetsExist(
+  accessToken: string,
+  spreadsheetId: string,
+  rowsNeeded: Record<string, number> = {}
+): Promise<void> {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties(title,sheetId,gridProperties(columnCount,rowCount))`;
   const res = await fetch(url, {
     method: 'GET',
     headers: {
@@ -265,7 +291,7 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
 
   const metadata = await res.json();
   const existingTitles = new Set<string>();
-  const existingTabs = new Map<string, { sheetId: number; columnCount: number }>();
+  const existingTabs = new Map<string, { sheetId: number; columnCount: number; rowCount: number }>();
   if (metadata.sheets) {
     metadata.sheets.forEach((sheet: any) => {
       if (sheet.properties?.title) {
@@ -273,6 +299,7 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
         existingTabs.set(sheet.properties.title, {
           sheetId: sheet.properties.sheetId,
           columnCount: sheet.properties.gridProperties?.columnCount ?? 0,
+          rowCount: sheet.properties.gridProperties?.rowCount ?? 0,
         });
       }
     });
@@ -304,7 +331,13 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
     .map(s => ({ required: s, existing: existingTabs.get(s.title) }))
     .filter(({ required, existing }) => existing && existing.columnCount > 0 && existing.columnCount < required.columnCount);
 
-  if (missingSheets.length > 0 || narrowSheets.length > 0) {
+  // Likewise a tab with more records than rows. An unknown row count (0)
+  // is left alone rather than guessed at.
+  const shortSheets = requiredSheets
+    .map(s => ({ existing: existingTabs.get(s.title), needed: rowsNeeded[s.title] ?? 0 }))
+    .filter(({ existing, needed }) => existing && existing.rowCount > 0 && existing.rowCount < needed);
+
+  if (missingSheets.length > 0 || narrowSheets.length > 0 || shortSheets.length > 0) {
     const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`;
     const widenRequests = narrowSheets.map(({ required, existing }) => ({
       appendDimension: {
@@ -313,17 +346,27 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
         length: required.columnCount - existing!.columnCount,
       },
     }));
-    const addRequests = missingSheets.map(sheet => ({
-      addSheet: {
-        properties: {
-          title: sheet.title,
-          gridProperties: {
-            columnCount: sheet.columnCount,
-            rowCount: sheet.rowCount,
-          },
-        },
+    const lengthenRequests = shortSheets.map(({ existing, needed }) => ({
+      appendDimension: {
+        sheetId: existing!.sheetId,
+        dimension: 'ROWS',
+        length: needed - existing!.rowCount + ROW_HEADROOM,
       },
     }));
+    const addRequests = missingSheets.map(sheet => {
+      const needed = rowsNeeded[sheet.title] ?? 0;
+      return {
+        addSheet: {
+          properties: {
+            title: sheet.title,
+            gridProperties: {
+              columnCount: sheet.columnCount,
+              rowCount: needed > sheet.rowCount ? needed + ROW_HEADROOM : sheet.rowCount,
+            },
+          },
+        },
+      };
+    });
 
     const updateRes = await fetch(updateUrl, {
       method: 'POST',
@@ -331,12 +374,12 @@ export async function ensureSheetsExist(accessToken: string, spreadsheetId: stri
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ requests: [...addRequests, ...widenRequests] }),
+      body: JSON.stringify({ requests: [...addRequests, ...widenRequests, ...lengthenRequests] }),
     });
 
     if (!updateRes.ok) {
       const errText = await updateRes.text();
-      throw new Error(`Failed to create or widen sheet tabs in spreadsheet: ${errText}`);
+      throw new Error(`Failed to create or resize sheet tabs in spreadsheet: ${errText}`);
     }
   }
 }
@@ -367,6 +410,11 @@ export const SHEET_COLUMNS: Record<string, string[]> = {
 
 /**
  * Synchronizes local data object to the specified Google Spreadsheet.
+ *
+ * `collections` limits the write to those collections' tabs (by collection
+ * name, e.g. 'expenses'); leave it out to write every tab. The autosave
+ * passes only what changed since the last sync, so one new expense doesn't
+ * resend the whole ledger.
  */
 export async function pushDataToSpreadsheet(
   accessToken: string,
@@ -387,80 +435,57 @@ export async function pushDataToSpreadsheet(
     creditRepayments?: any[];
     settlementClearances?: any[];
     notificationPreferences?: any[];
-  }
+  },
+  collections?: Iterable<string>
 ): Promise<void> {
-  // Gracefully ensure all relevant sheet tabs exist beforehand
-  await ensureSheetsExist(accessToken, spreadsheetId);
+  const wanted = collections ? new Set(collections) : null;
+  const allTabs = [
+    { collection: 'members', tab: 'Members', rows: data.members },
+    { collection: 'fields', tab: 'Fields', rows: data.fields },
+    // 'shares' holds the season-level ownership override. Leaving it out of
+    // the Seasons columns meant an edited split was saved locally but never
+    // pushed, so the next pull handed back a season with no shares and the
+    // UI silently fell back to the field-level split.
+    { collection: 'seasons', tab: 'Seasons', rows: data.seasons },
+    { collection: 'activities', tab: 'Activities', rows: data.activities },
+    { collection: 'expenses', tab: 'Expenses', rows: data.expenses },
+    { collection: 'labours', tab: 'Labor', rows: data.labours },
+    { collection: 'stockItems', tab: 'StockItems', rows: data.stockItems },
+    { collection: 'purchases', tab: 'StockPurchases', rows: data.purchases },
+    { collection: 'usages', tab: 'StockUsage', rows: data.usages },
+    { collection: 'revenues', tab: 'HarvestRevenue', rows: data.revenues },
+    { collection: 'auditLogs', tab: 'AuditLogs', rows: data.auditLogs },
+    { collection: 'creditAccounts', tab: 'CreditAccounts', rows: data.creditAccounts },
+    { collection: 'creditRepayments', tab: 'CreditRepayments', rows: data.creditRepayments },
+    { collection: 'settlementClearances', tab: 'SettlementClearances', rows: data.settlementClearances },
+    // Keyed by memberId, not id: there is exactly one preference row per member.
+    { collection: 'notificationPreferences', tab: 'NotificationPreferences', rows: data.notificationPreferences },
+  ];
+  const tabs = allTabs
+    .filter(t => !wanted || wanted.has(t.collection))
+    .map(t => ({
+      tab: t.tab,
+      columns: SHEET_COLUMNS[t.collection],
+      values: toSheetRows(t.rows || [], SHEET_COLUMNS[t.collection]),
+    }));
+
+  if (tabs.length === 0) return;
+
+  // Gracefully ensure all relevant sheet tabs exist beforehand, with room
+  // for every row about to be written.
+  const rowsNeeded: Record<string, number> = {};
+  tabs.forEach(t => { rowsNeeded[t.tab] = t.values.length; });
+  await ensureSheetsExist(accessToken, spreadsheetId, rowsNeeded);
 
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate`;
 
-  const batchData = [
-    {
-      range: 'Members!A1:J100',
-      values: toSheetRows(data.members, SHEET_COLUMNS.members),
-    },
-    {
-      range: 'Fields!A1:J100',
-      values: toSheetRows(data.fields, SHEET_COLUMNS.fields),
-    },
-    {
-      range: 'Seasons!A1:J150',
-      // 'shares' holds the season-level ownership override. Leaving it out of
-      // this list meant an edited split was saved locally but never pushed, so
-      // the next pull handed back a season with no shares and the UI silently
-      // fell back to the field-level split.
-      values: toSheetRows(data.seasons, SHEET_COLUMNS.seasons),
-    },
-    {
-      range: 'Activities!A1:J1000',
-      values: toSheetRows(data.activities, SHEET_COLUMNS.activities),
-    },
-    {
-      range: 'Expenses!A1:Q1000',
-      values: toSheetRows(data.expenses, SHEET_COLUMNS.expenses),
-    },
-    {
-      range: 'Labor!A1:O1000',
-      values: toSheetRows(data.labours, SHEET_COLUMNS.labours),
-    },
-    {
-      range: 'StockItems!A1:J200',
-      values: toSheetRows(data.stockItems, SHEET_COLUMNS.stockItems),
-    },
-    {
-      range: 'StockPurchases!A1:L1000',
-      values: toSheetRows(data.purchases, SHEET_COLUMNS.purchases),
-    },
-    {
-      range: 'StockUsage!A1:J1000',
-      values: toSheetRows(data.usages, SHEET_COLUMNS.usages),
-    },
-    {
-      range: 'HarvestRevenue!A1:J1000',
-      values: toSheetRows(data.revenues, SHEET_COLUMNS.revenues),
-    },
-    {
-      range: 'AuditLogs!A1:J5000',
-      values: toSheetRows(data.auditLogs, SHEET_COLUMNS.auditLogs),
-    },
-    {
-      range: 'CreditAccounts!A1:E500',
-      values: toSheetRows(data.creditAccounts || [], SHEET_COLUMNS.creditAccounts),
-    },
-    {
-      range: 'CreditRepayments!A1:F1000',
-      values: toSheetRows(data.creditRepayments || [], SHEET_COLUMNS.creditRepayments),
-    },
-    {
-      range: 'SettlementClearances!A1:D1000',
-      values: toSheetRows(data.settlementClearances || [], SHEET_COLUMNS.settlementClearances),
-    },
-    {
-      // Keyed by memberId, not id: there is exactly one preference row per member.
-      range: 'NotificationPreferences!A1:D200',
-      values: toSheetRows(data.notificationPreferences || [], SHEET_COLUMNS.notificationPreferences),
-    },
-  ];
+  // Each range is exactly as tall and wide as the data. A fixed range
+  // ('Expenses!A1:Q1000') made the write fail on every push once a
+  // collection outgrew it, with no way to recover from inside the app.
+  const batchData = tabs.map(t => ({
+    range: `${t.tab}!A1:${columnLetter(t.columns.length)}${t.values.length}`,
+    values: t.values,
+  }));
 
   // Google Sheets batch update requires clearing old cells or batch overwriting them.
   // SAFETY NOTE: Previous versions cleared every tab BEFORE writing. If the
@@ -490,16 +515,18 @@ export async function pushDataToSpreadsheet(
   // Now that the write succeeded, clean up any leftover stale rows that
   // sit below the data we just wrote. We compute the safe starting row per
   // tab (header row + data rows + 1) so we never erase rows we just wrote.
-  const trailingClears: { tab: string; startRow: number }[] = batchData.map(b => {
-    const tab = b.range.split('!')[0];
-    const startRow = (b.values?.length || 0) + 1; // 1-indexed; +1 to start AFTER the last data row
-    return { tab, startRow };
+  const trailingClears: { tab: string; startRow: number }[] = tabs.map(t => {
+    const startRow = (t.values?.length || 0) + 1; // 1-indexed; +1 to start AFTER the last data row
+    return { tab: t.tab, startRow };
   });
 
+  // The range is left open at the bottom ('A12:Z' runs to the grid's last
+  // row) so a tab that has grown past any fixed bound is still cleared all
+  // the way down.
   await Promise.all(trailingClears.map(async ({ tab, startRow }) => {
     try {
       await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${tab}!A${startRow}:Z5000:clear`,
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${tab}!A${startRow}:Z:clear`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${accessToken}` },
@@ -625,7 +652,9 @@ export async function pullDataFromSpreadsheet(
     'NotificationPreferences',
   ];
 
-  const ranges = tabNames.map(name => `${name}!A1:Z5000`).join('&ranges=');
+  // Open-ended ('A:Z' runs to the last row) so a tab past any fixed bound
+  // is read in full rather than silently cut short.
+  const ranges = tabNames.map(name => `${name}!A:Z`).join('&ranges=');
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?ranges=${ranges}`;
 
   try {

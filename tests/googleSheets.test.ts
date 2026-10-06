@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { parseSheetRows, toSheetRows, findExistingSpreadsheet, DriveSearchError, extractSpreadsheetId, spreadsheetUrl, fetchSpreadsheetTitle, SHEET_COLUMNS, ensureSheetsExist } from '../src/utils/googleSheets';
+import { parseSheetRows, toSheetRows, findExistingSpreadsheet, DriveSearchError, extractSpreadsheetId, spreadsheetUrl, fetchSpreadsheetTitle, SHEET_COLUMNS, ensureSheetsExist, pushDataToSpreadsheet, columnLetter } from '../src/utils/googleSheets';
+import { collectionsToPush, makeSyncFingerprint } from '../src/utils/syncConflict';
+import { LocalDatabase } from '../src/utils/database';
 
 describe('parseSheetRows', () => {
   it('parses lowercase true/false into booleans', () => {
@@ -385,5 +387,156 @@ describe('ensureSheetsExist', () => {
     const calls = stubSheets(15);
     await ensureSheetsExist('token', 'sheet');
     expect(calls.some(c => c.url.endsWith(':batchUpdate'))).toBe(false);
+  });
+});
+
+describe('columnLetter', () => {
+  it('names single and double letter columns', () => {
+    expect(columnLetter(1)).toBe('A');
+    expect(columnLetter(14)).toBe('N');
+    expect(columnLetter(26)).toBe('Z');
+    expect(columnLetter(27)).toBe('AA');
+    expect(columnLetter(52)).toBe('AZ');
+  });
+});
+
+function makeDb(overrides: Partial<LocalDatabase> = {}): LocalDatabase {
+  return {
+    members: [],
+    fields: [],
+    seasons: [],
+    activities: [],
+    expenses: [],
+    labours: [],
+    stockItems: [],
+    purchases: [],
+    usages: [],
+    revenues: [],
+    auditLogs: [],
+    settings: { currency: '₹', areaUnit: 'acres', googleDriveLinked: true },
+    ...overrides,
+  };
+}
+
+function makeExpenses(count: number): any[] {
+  return Array.from({ length: count }, (_, i) => ({ id: `e${i}`, date: '2026-01-01', amount: 100 + i }));
+}
+
+describe('sheet sizes follow the data', () => {
+  const allTabs = [
+    'Members', 'Fields', 'Seasons', 'Activities', 'Expenses', 'Labor', 'StockItems', 'StockPurchases',
+    'StockUsage', 'HarvestRevenue', 'AuditLogs', 'CreditAccounts', 'CreditRepayments',
+    'SettlementClearances', 'NotificationPreferences',
+  ];
+
+  // Every tab 20 columns wide and 1000 rows tall, as an older sheet would be.
+  function stubSheets() {
+    const calls: { url: string; body?: any }[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: any) => {
+      calls.push({ url, body: init?.body ? JSON.parse(init.body) : undefined });
+      if (!init || init.method === 'GET') {
+        return {
+          ok: true,
+          json: async () => ({
+            sheets: allTabs.map((title, i) => ({
+              properties: { title, sheetId: 100 + i, gridProperties: { columnCount: 20, rowCount: 1000 } },
+            })),
+          }),
+        } as any;
+      }
+      return { ok: true, json: async () => ({}), text: async () => '' } as any;
+    }));
+    return calls;
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('grows a tab that is too short for the rows about to be written', async () => {
+    const calls = stubSheets();
+    await ensureSheetsExist('token', 'sheet', { Expenses: 1501, Members: 3 });
+    const update = calls.find(c => c.url.endsWith(':batchUpdate'))!;
+    expect(update.body.requests).toEqual([
+      { appendDimension: { sheetId: 104, dimension: 'ROWS', length: 1001 } },
+    ]);
+  });
+
+  it('leaves tabs with enough rows untouched', async () => {
+    const calls = stubSheets();
+    await ensureSheetsExist('token', 'sheet', { Expenses: 1000 });
+    expect(calls.some(c => c.url.endsWith(':batchUpdate'))).toBe(false);
+  });
+
+  it('writes past 1000 rows with a range sized from the data', async () => {
+    const calls = stubSheets();
+    await pushDataToSpreadsheet('token', 'sheet', makeDb({ expenses: makeExpenses(1500) }));
+
+    const grow = calls.find(c => c.url.endsWith('sheet:batchUpdate'))!;
+    expect(grow.body.requests).toContainEqual({ appendDimension: { sheetId: 104, dimension: 'ROWS', length: 1001 } });
+
+    const write = calls.find(c => c.url.endsWith('/values:batchUpdate'))!;
+    const expenses = write.body.data.find((d: any) => d.range.startsWith('Expenses!'));
+    expect(expenses.range).toBe(`Expenses!A1:${columnLetter(SHEET_COLUMNS.expenses.length)}1501`);
+    expect(expenses.values).toHaveLength(1501);
+    expect(write.body.data.find((d: any) => d.range.startsWith('Members!')).range).toBe('Members!A1:D1');
+
+    // The resize has to land before the write, or the write runs off the grid.
+    expect(calls.indexOf(grow)).toBeLessThan(calls.indexOf(write));
+  });
+
+  it('clears stale rows below the data all the way to the end of the tab', async () => {
+    const calls = stubSheets();
+    await pushDataToSpreadsheet('token', 'sheet', makeDb({ expenses: makeExpenses(1500) }));
+    expect(calls.some(c => c.url.endsWith('/values/Expenses!A1502:Z:clear'))).toBe(true);
+  });
+
+  it('writes and clears only the tabs it is asked to', async () => {
+    const calls = stubSheets();
+    await pushDataToSpreadsheet('token', 'sheet', makeDb({ expenses: makeExpenses(2) }), ['expenses']);
+    const write = calls.find(c => c.url.endsWith('/values:batchUpdate'))!;
+    expect(write.body.data.map((d: any) => d.range)).toEqual(['Expenses!A1:N3']);
+    const clears = calls.filter(c => c.url.endsWith(':clear'));
+    expect(clears.map(c => c.url.split('/values/')[1])).toEqual(['Expenses!A4:Z:clear']);
+  });
+
+  it('sends nothing when asked to write no tabs', async () => {
+    const calls = stubSheets();
+    await pushDataToSpreadsheet('token', 'sheet', makeDb(), []);
+    expect(calls).toHaveLength(0);
+  });
+});
+
+describe('collectionsToPush', () => {
+  const untracked = ['auditLogs', 'settlementClearances', 'notificationPreferences'];
+
+  it('pushes everything when there is no baseline', () => {
+    expect(collectionsToPush(makeDb(), null)).toBeUndefined();
+  });
+
+  it('picks only the collections that changed since the last sync, plus the untracked ones', () => {
+    const synced = makeDb({ expenses: makeExpenses(3), members: [{ id: 'm1', name: 'Ravi' }] });
+    const baseline = makeSyncFingerprint(synced);
+    const edited = { ...synced, expenses: [...synced.expenses.slice(0, 2), { ...synced.expenses[2], amount: 999 }] };
+    expect(collectionsToPush(edited, baseline)).toEqual(['expenses', ...untracked]);
+  });
+
+  it('notices an added or deleted record, not just an edit', () => {
+    const synced = makeDb({ expenses: makeExpenses(3) });
+    const baseline = makeSyncFingerprint(synced);
+    expect(collectionsToPush({ ...synced, expenses: makeExpenses(2) }, baseline)).toEqual(['expenses', ...untracked]);
+    expect(collectionsToPush({ ...synced, labours: [{ id: 'l1' } as any] }, baseline)).toEqual(['labours', ...untracked]);
+  });
+
+  it('also pushes a collection the sheet no longer matches, even if unchanged here', () => {
+    const synced = makeDb({ expenses: makeExpenses(3), members: [{ id: 'm1', name: 'Ravi' }] });
+    const baseline = makeSyncFingerprint(synced);
+    const cloud = { ...synced, members: [] };
+    expect(collectionsToPush(synced, baseline, cloud)).toEqual(['members', ...untracked]);
+  });
+
+  it('pushes a collection the baseline has no record of', () => {
+    const synced = makeDb();
+    const baseline = makeSyncFingerprint(synced);
+    delete (baseline.sigs as any).creditRepayments;
+    expect(collectionsToPush(synced, baseline)).toEqual(['creditRepayments', ...untracked]);
   });
 });

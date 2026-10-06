@@ -182,6 +182,34 @@ export function countUnsyncedChanges(db: LocalDatabase, baseline: SyncFingerprin
   return changed;
 }
 
+// Pushed collections the fingerprint does not track. With nothing to compare
+// them against, every push writes them.
+const UNTRACKED_PUSH_KEYS = ['auditLogs', 'settlementClearances', 'notificationPreferences'];
+
+/**
+ * The collections a push has to write: each tracked one whose records differ
+ * from the baseline — or from the sheet, when a fresh pull of it is at hand —
+ * plus every untracked one. Anything the sheet might not already hold is
+ * written; a collection is skipped only when it provably has not moved.
+ *
+ * Returns undefined, meaning "write every tab", when there is no baseline.
+ */
+export function collectionsToPush(
+  db: LocalDatabase,
+  baseline: SyncFingerprint | null,
+  cloud?: LocalDatabase | null
+): string[] | undefined {
+  if (!baseline) return undefined;
+  const local = makeSyncFingerprint(db);
+  const cloudFp = cloud ? makeSyncFingerprint(cloud) : null;
+  const changed = DIFF_KEYS.filter(key => {
+    const before = baseline.sigs?.[key];
+    if (!before || !sameIds(local.sigs[key], before)) return true;
+    return !!cloudFp && !sameIds(local.sigs[key], cloudFp.sigs[key]);
+  });
+  return [...changed, ...UNTRACKED_PUSH_KEYS];
+}
+
 export type SyncDecision = 'adopt-cloud' | 'keep-local' | 'conflict';
 
 /**
