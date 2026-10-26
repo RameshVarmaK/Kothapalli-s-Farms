@@ -544,3 +544,39 @@ describe('SeasonReportModal - credit lines speak about the bill, never the accou
     expect(screen.getByText('bill still owes ₹200 · repaid by Ganapathi ₹200')).toBeTruthy();
   });
 });
+
+describe('SeasonReportModal - split entries are marked once, by the note under the amount', () => {
+  const members: Member[] = [{ id: 'm1', name: 'Ramesh' }];
+  const twoSeasons: Season[] = [
+    ...seasons,
+    { id: 's2', fieldId: 'f1', cropName: 'Maize', startDate: '2024-01-01', isClosed: false },
+  ];
+  const splitExpense = {
+    id: 'e1', date: '2024-02-01', amount: 2400, paidByMemberId: 'm1', category: 'Tractor hire',
+    targetType: 'common', commonAllocationRule: 'equal',
+    allocations: [{ fieldId: 'f1', seasonId: 's1', amount: 1200 }, { fieldId: 'f1', seasonId: 's2', amount: 1200 }],
+  } as any;
+  const splitLabour = {
+    id: 'l1', date: '2024-02-02', targetType: 'common', description: 'Weeding', workersCount: 4, wageRate: 300,
+    totalCost: 1200, paidByMemberId: 'm1',
+    allocations: [{ fieldId: 'f1', seasonId: 's1', amount: 600 }, { fieldId: 'f1', seasonId: 's2', amount: 600 }],
+  } as any;
+
+  it('has no separate "Common Allocated split" tag, only the entry-total note', () => {
+    renderReport({ members, seasons: twoSeasons, expenses: [splitExpense], labours: [splitLabour] });
+    expect(screen.queryByText('Common Allocated split')).toBeNull();
+    expect(screen.getByText('Entry total ₹2,400 split across 2 crop cycles')).toBeTruthy();
+    expect(screen.getByText('Entry total ₹1,200 split across 2 crop cycles')).toBeTruthy();
+  });
+
+  it('says it once in the copied report as well', () => {
+    const writeText = vi.fn((_text: string) => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    renderReport({ members, seasons: twoSeasons, expenses: [splitExpense], labours: [splitLabour] });
+    fireEvent.click(screen.getByText('Export & Copy Report'));
+    const text = writeText.mock.calls[0][0];
+    expect(text).toContain('[Entry total ₹2,400 split across 2 crop cycles]');
+    expect(text).toContain('[Entry total ₹1,200 split across 2 crop cycles]');
+    expect(text).not.toContain('Allocated split:');
+  });
+});

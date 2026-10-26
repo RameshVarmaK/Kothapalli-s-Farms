@@ -98,7 +98,6 @@ export const teMembers: Record<string, string> = {
     'ఈ సీజన్ చక్రానికి పంట కార్యకలాపాల నమోదులు లేవు.',
   'Section 2: Cash Outlays & Direct Expenses': 'విభాగం 2: నగదు ఖర్చులు & ప్రత్యక్ష వ్యయాలు',
   'No cash expenses associated with this cycle.': 'ఈ చక్రానికి నగదు ఖర్చులు ఏవీ లేవు.',
-  'Common Allocated split': 'పంచుకున్న కేటాయింపు విభజన',
   'Funded by:': 'నిధులు సమకూర్చినవారు:',
   'Credit:': 'అరువు:',
   'Creditor': 'అరువు ఇచ్చినవారు',
