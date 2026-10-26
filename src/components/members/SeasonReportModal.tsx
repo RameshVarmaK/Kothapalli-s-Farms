@@ -112,23 +112,8 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   // A credit bill is not funded by any partner: the creditor financed it, and
   // partners are credited only as they repay. So name the creditor rather than
   // leaving the blank paidByMemberId to resolve as "Unknown".
-  //
-  // Repayments are made against a creditor account, not against a particular
-  // bill, so the status shown alongside a line is that ACCOUNT's balance — it
-  // cannot say what proportion of this one bill has been settled.
-  const creditorStatus = (creditAccountId: string | undefined) => {
-    const account = creditAccounts.find(c => c.id === creditAccountId);
-    if (!account) return { name: t('Creditor'), incurred: 0, outstanding: 0, known: false };
-
-    const incurred =
-      expenses.filter(e => e.isCredit && e.creditAccountId === account.id).reduce((sum, e) => sum + e.amount, 0) +
-      labours.filter(l => l.isCredit && l.creditAccountId === account.id).reduce((sum, l) => sum + l.totalCost, 0);
-    const repaid = creditRepayments
-      .filter(r => r.creditAccountId === account.id)
-      .reduce((sum, r) => sum + r.amount, 0);
-
-    return { name: account.name, incurred, outstanding: Number((incurred - repaid).toFixed(2)), known: true };
-  };
+  const creditorName = (creditAccountId: string | undefined) =>
+    creditAccounts.find(c => c.id === creditAccountId)?.name || t('Creditor');
 
   // Who has paid what towards each of a creditor's bills (see creditBills.ts):
   // what a payer ticked goes to those bills, the rest is spread over the
@@ -173,22 +158,22 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       return { label: describePayers(record, recordTotal, members, currency, t('Unknown'), lineAmount), note: '' };
     }
 
-    const { name, outstanding } = creditorStatus(record.creditAccountId);
     const repayers = repaidBy(record.creditAccountId, key, lineAmount);
 
-    // Once any payment on the account has been ticked against bills, each bill
-    // has a standing of its own. Before that the app only knows the account's.
+    // Where this bill stands, scaled to what the line shows (a split bill
+    // appears once per cycle, at that cycle's share). The creditor's account
+    // balance is deliberately not shown here: it says nothing about this bill.
     const { bills, attribution } = accountAttribution(record.creditAccountId || '');
     const bill = bills.find(b => b.key === key);
-    const ticked = creditRepayments.some(r => r.creditAccountId === record.creditAccountId && r.billAllocations?.length);
-    const standing = ticked && bill
-      ? (billOutstanding(bill, attribution) > 0.005
-          ? `${t('bill still owes')} ${currency}${Math.round(billOutstanding(bill, attribution)).toLocaleString('en-IN')}`
-          : t('bill fully repaid'))
-      : outstanding > 0.005
-        ? `${t('account still owes')} ${currency}${Math.round(outstanding).toLocaleString('en-IN')}`
-        : t('account fully repaid');
-    const note = repayers ? `${standing} · ${t('repaid by')} ${repayers}` : standing;
+    let standing = '';
+    if (bill && bill.amount > 0) {
+      const stillOwed = (billOutstanding(bill, attribution) * lineAmount) / bill.amount;
+      standing = stillOwed > 0.5
+        ? `${t('bill still owes')} ${currency}${Math.round(stillOwed).toLocaleString('en-IN')}`
+        : t('bill fully repaid');
+    }
+    const note = [standing, repayers && `${t('repaid by')} ${repayers}`].filter(Boolean).join(' · ');
+    const name = creditorName(record.creditAccountId);
 
     return { label: `${t('Credit:')} ${name}`, note };
   };

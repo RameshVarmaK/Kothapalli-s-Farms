@@ -352,16 +352,16 @@ describe('SeasonReportModal - credit and shared-cost lines', () => {
       ],
     });
 
-    expect(screen.getByText(/account fully repaid · repaid by Ramesh ₹1,000, Ganapathi ₹1,400/)).toBeTruthy();
+    expect(screen.getByText(/bill fully repaid · repaid by Ramesh ₹1,000, Ganapathi ₹1,400/)).toBeTruthy();
   });
 
-  it('says who has repaid so far while the account still owes', () => {
+  it('says who has repaid so far while the bill still owes', () => {
     renderReport({
       members, creditAccounts, labours: [labourOnCredit],
       creditRepayments: [{ id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 1000, date: '2024-03-10' }],
     });
 
-    expect(screen.getByText(/account still owes ₹1,400 · repaid by Ramesh ₹1,000/)).toBeTruthy();
+    expect(screen.getByText(/bill still owes ₹1,400 · repaid by Ramesh ₹1,000/)).toBeTruthy();
   });
 
   it('shows only a line\u2019s own portion of what was repaid on an account with many bills', () => {
@@ -379,7 +379,7 @@ describe('SeasonReportModal - credit and shared-cost lines', () => {
       ],
     });
 
-    expect(screen.getByText('account fully repaid · repaid by Ramesh ₹2,400')).toBeTruthy();
+    expect(screen.getByText('bill fully repaid · repaid by Ramesh ₹2,400')).toBeTruthy();
     expect(screen.queryByText(/₹5,000/)).toBeNull();
   });
 
@@ -398,11 +398,11 @@ describe('SeasonReportModal - credit and shared-cost lines', () => {
       creditRepayments: [{ id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 2400, date: '2024-03-10' }],
     });
 
-    expect(screen.getByText(/account fully repaid · repaid by Ramesh ₹600/)).toBeTruthy();
+    expect(screen.getByText(/bill fully repaid · repaid by Ramesh ₹600/)).toBeTruthy();
   });
 
   it('keeps the plain wording when nothing has been repaid', () => {    renderReport({ members, creditAccounts, labours: [labourOnCredit] });
-    expect(screen.getByText('account still owes ₹2,400')).toBeTruthy();
+    expect(screen.getByText('bill still owes ₹2,400')).toBeTruthy();
   });
 
   it('shows the whole entry’s total beside this cycle’s share of a split cost', () => {
@@ -474,13 +474,13 @@ describe('SeasonReportModal - credit bills a payment was ticked against', () => 
     expect(screen.getByText('bill still owes ₹1,400 · repaid by Ganapathi ₹1,000')).toBeTruthy();
   });
 
-  it('keeps the account wording for an account where nothing was ticked', () => {
+  it('reports the bill, not the account, even where no payment was ticked', () => {
     renderReport({
       members, creditAccounts, labours: [bill('first', 's1', 2400)],
       creditRepayments: [{ id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 2400, date: '2024-03-10' }],
     });
 
-    expect(screen.getByText('account fully repaid · repaid by Ramesh ₹2,400')).toBeTruthy();
+    expect(screen.getByText('bill fully repaid · repaid by Ramesh ₹2,400')).toBeTruthy();
   });
 });
 
@@ -501,5 +501,46 @@ describe('SeasonReportModal - a credit bill paid by several partners', () => {
     });
 
     expect(screen.getByText('bill fully repaid · repaid by Ramesh ₹1,500, Ganapathi ₹900')).toBeTruthy();
+  });
+});
+
+describe('SeasonReportModal - credit lines speak about the bill, never the account balance', () => {
+  const members: Member[] = [{ id: 'm1', name: 'Ramesh' }, { id: 'm2', name: 'Ganapathi' }];
+  const twoSeasons: Season[] = [
+    ...seasons,
+    { id: 's2', fieldId: 'f1', cropName: 'Maize', startDate: '2024-01-01', isClosed: false },
+  ];
+  const creditAccounts = [{ id: 'c1', name: 'Palem labour', type: 'Labour Union' }] as any[];
+  const splitBill = {
+    id: 'lab1', date: '2024-02-01', targetType: 'common', description: 'Weeding', workersCount: 3, wageRate: 300,
+    totalCost: 900, paidByMemberId: '', isCredit: true, creditAccountId: 'c1',
+    allocations: [{ fieldId: 'f1', seasonId: 's1', amount: 400 }, { fieldId: 'f1', seasonId: 's2', amount: 500 }],
+  } as any;
+
+  it('says a split bill\u2019s cycle share is repaid even when the creditor is still owed a lot on other bills', () => {
+    // The ₹900 bill is the oldest on the account and a ₹900 payment covers it;
+    // the account also carries a big unpaid bill. The line must not mention
+    // the account's ₹5,000 balance.
+    const bigLaterBill = {
+      id: 'lab2', date: '2024-03-01', targetType: 'single', fieldId: 'f1', seasonId: 's2', description: 'Harvest', workersCount: 20,
+      wageRate: 300, totalCost: 5000, paidByMemberId: '', isCredit: true, creditAccountId: 'c1',
+    } as any;
+    renderReport({
+      members, seasons: twoSeasons, creditAccounts, labours: [splitBill, bigLaterBill],
+      creditRepayments: [{ id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 900, date: '2024-02-10' }],
+    });
+
+    expect(screen.getByText('bill fully repaid · repaid by Ramesh ₹400')).toBeTruthy();
+    expect(screen.queryByText(/account/i)).toBeNull();
+    expect(screen.queryByText(/5,000/)).toBeNull();
+  });
+
+  it('scales what a part-repaid split bill still owes to the share the line shows', () => {
+    renderReport({
+      members, seasons: twoSeasons, creditAccounts, labours: [splitBill],
+      creditRepayments: [{ id: 'r1', creditAccountId: 'c1', memberId: 'm2', amount: 450, date: '2024-02-10' }],
+    });
+    // Half of the ₹900 is repaid, so half of this cycle's ₹400 is still owed.
+    expect(screen.getByText('bill still owes ₹200 · repaid by Ganapathi ₹200')).toBeTruthy();
   });
 });
