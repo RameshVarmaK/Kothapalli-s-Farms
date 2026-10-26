@@ -14,7 +14,7 @@ This document comprehensively reviews all calculations, business logic, and edge
 - Stock management with weighted-average costing
 - Labour tracking
 - Harvest revenue distribution
-- Credit management with proportional repayment
+- Credit management with oldest-bill-first repayment (or the bills a payer ticks)
 - Automatic debt simplification
 - Full audit trail with real-time sync
 
@@ -113,7 +113,7 @@ Paid Amount =
   + Allocated common expenses paid by member
   + Labour wages paid by member
   + Stock funded by member (pro rata consumption)
-  + Credit repayments attributed to member (proportional to usage)
+  + Credit repayments attributed to member (to the bills they were ticked against, else oldest bill first)
 
 Received Amount = Revenue collected by member
 
@@ -145,7 +145,7 @@ Invariant: Sum of all Net Positions ≈ 0 (within ₹0.10 tolerance)
 - ✅ Season-level shares override field shares
 - ✅ Empty inputs
 - ✅ Orphaned shares (member deleted)
-- ✅ Multi-creditor proportional repayment
+- ✅ Multi-creditor oldest-bill-first repayment (or the bills a payer ticks)
 - ✅ Bad share data (sum ≠ 100%, still balanced=false)
 - ✅ Season share = 0 (member removed)
 - ✅ Sub-rupee float noise tolerance (±₹0.10)
@@ -458,7 +458,7 @@ Priority matrix:
 - [x] Expense allocation (area, equal, manual)
 - [x] Settlement ledger (complete formula)
 - [x] Debt simplification (greedy matching)
-- [x] Credit management (proportional repayment)
+- [x] Credit management (oldest-bill-first repayment (or the bills a payer ticks))
 
 ### Edge Case Handling ✅
 - [x] Empty inputs

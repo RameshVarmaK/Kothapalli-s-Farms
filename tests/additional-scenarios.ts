@@ -1,6 +1,6 @@
 /**
  * Additional test scenarios for production robustness.
- * Run with: npm run test:calculations (includes these tests)
+ * Run with: npm test (via calculations.test.ts)
  *
  * These cover scenarios identified in FUNCTIONALITY_REVIEW.md
  */

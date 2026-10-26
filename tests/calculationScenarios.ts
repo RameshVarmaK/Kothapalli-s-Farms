@@ -1,10 +1,9 @@
 /**
- * Lightweight standalone test harness for the FarmLedger calculation engine.
+ * FarmLedger calculation-engine scenarios.
  *
- * Run with:   npm run test
- * Implementation note: no third-party test framework is required. Each test
- * registers itself with `test(name, fn)` and assertions throw with a clear
- * message; the runner prints a summary and exits non-zero on failure.
+ * Each scenario registers itself with `test(name, fn)` and assertions throw
+ * with a clear message. They are executed by vitest through
+ * `calculations.test.ts`, so `npm test` runs them with everything else.
  */
 
 import {
@@ -680,37 +679,4 @@ test('paidBreakdown: rolled-up totals across seasons match the per-season parts'
   approxEqual(total.paidAmount, 1700, 0.01, 'rolled-up paidAmount');
 });
 
-// ---------- Runner -------------------------------------------------------
-
-(async function main() {
-  // Combine core tests and additional scenario tests
-  const allTests = [...tests, ...additionalTests];
-
-  let pass = 0;
-  let fail = 0;
-  const failures: { name: string; err: any }[] = [];
-
-  for (const t of allTests) {
-    try {
-      await t.fn();
-      console.log(`  ✓ ${t.name}`);
-      pass++;
-    } catch (err: any) {
-      console.error(`  ✗ ${t.name}`);
-      console.error(`      ${err.message || err}`);
-      failures.push({ name: t.name, err });
-      fail++;
-    }
-  }
-
-  console.log('');
-  console.log(`Total: ${pass + fail}   Passed: ${pass}   Failed: ${fail}`);
-  if (fail > 0) {
-    console.log('');
-    console.log('FAILURES:');
-    failures.forEach(f => {
-      console.log(`  - ${f.name}: ${f.err.message || f.err}`);
-    });
-    process.exit(1);
-  }
-})();
+export const allTests: TestCase[] = [...tests, ...additionalTests];

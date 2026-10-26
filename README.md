@@ -1,22 +1,35 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Kothapalli's Farms
 
-# Run and deploy your AI Studio app
+A collaborative farm ledger and partner settlement tool. Partners record
+expenses, labour, stock purchases and usage, harvest revenue and credit; the
+app allocates costs across fields and seasons, simplifies who owes whom, and
+keeps everything in a shared Google Sheet. The interface is available in
+English and Telugu.
 
-This contains everything you need to run your app locally.
+## Run locally
 
-View your app in AI Studio: https://ai.studio/apps/9d0c17fe-c7f5-4200-b60a-11d8f078a252
+Requires Node.js 20+.
 
-## Run Locally
+```bash
+npm install
+npm run dev        # http://localhost:3000
+```
 
-**Prerequisites:**  Node.js
+Copy `.env.example` to `.env.local` and fill it in if you need the optional
+settings.
 
+## Scripts
 
-1. Install dependencies:
-   `npm install`
-2. Run the app:
-   `npm run dev`
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the Vite dev server |
+| `npm run lint` | Type-check (`tsc --noEmit`) and ESLint |
+| `npm test` | Run the full test suite once (vitest) |
+| `npm run test:watch` | Run vitest in watch mode |
+| `npm run build` | Production build into `dist/` |
+| `npm run check` | Lint, test and build, the same as CI |
+
+CI runs `npm run check` on every push and pull request.
 
 ## Sharing a ledger with a farm partner
 
