@@ -6,6 +6,7 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { Dialog } from '../shell/Dialog';
 
 interface PullConfirmModalProps {
   onCancel: () => void;
@@ -15,7 +16,7 @@ interface PullConfirmModalProps {
 export const PullConfirmModal: React.FC<PullConfirmModalProps> = ({ onCancel, onConfirm }) => {
   const { t } = useLanguage();
   return (
-    <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-100">
+    <Dialog label={t('Force Overwrite Local Database?')} onClose={onCancel} className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-100">
       <div className="bg-white rounded-2xl max-w-sm w-full shadow-xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
         <div className="p-6">
           <div className="flex items-center gap-3 text-amber-600 mb-3">
@@ -43,6 +44,6 @@ export const PullConfirmModal: React.FC<PullConfirmModalProps> = ({ onCancel, on
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

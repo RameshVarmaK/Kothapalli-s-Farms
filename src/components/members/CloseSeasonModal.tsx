@@ -7,6 +7,7 @@ import React from 'react';
 import { Season } from '../../types';
 import { X } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { Dialog } from '../shell/Dialog';
 
 interface CloseSeasonModalProps {
   seasonId: string | null;
@@ -31,7 +32,7 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
   if (!season) return null;
 
   return (
-    <div className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
+    <Dialog label={t('Mark Crop Harvested')} onClose={onClose} className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-6 border border-slate-100 space-y-4 animate-in fade-in zoom-in-95 duration-150">
         <div className="flex justify-between items-start">
           <div>
@@ -41,7 +42,7 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
             <h3 className="text-sm font-extrabold text-slate-800 mt-2">{t('Mark Crop Harvested')}</h3>
             <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{t('Conclude')} "{season.cropName}" {t('cycle and freeze its ledger records.')}</p>
           </div>
-          <button
+          <button aria-label={t('Close')}
             onClick={onClose}
             className="p-1 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 cursor-pointer"
           >
@@ -79,6 +80,6 @@ export const CloseSeasonModal: React.FC<CloseSeasonModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { User } from 'firebase/auth';
 import { Settings, AuditLog, Member, NotificationPreferences, NotificationDelivery } from '../types';
 import {
@@ -20,6 +20,7 @@ import { NotificationDeliveryLog } from './NotificationDeliveryLog';
 import { getNotificationDeliveries, clearNotificationDeliveries } from '../utils/notifications';
 import { LocalizationPreferencesCard } from './settings/LocalizationPreferencesCard';
 import { BackupRestoreCard } from './settings/BackupRestoreCard';
+import { downloadSafetyCopy, listSafetyCopies } from '../utils/safetyBackup';
 import { GoogleSheetsSyncPanel } from './settings/GoogleSheetsSyncPanel';
 import { AuditLogTable } from './settings/AuditLogTable';
 import { PullConfirmModal } from './settings/PullConfirmModal';
@@ -219,6 +220,9 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     });
     setPreferencesMessage({ text: 'General preferences updated successfully!', isError: false });
   };
+
+  // Re-read when the database changes: a restore or pull takes a copy first.
+  const safetyCopies = useMemo(() => listSafetyCopies(), [localData]);
 
   const handleJSONExport = () => {
     exportDatabaseJSON(localData);
@@ -528,6 +532,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           backupMessage={backupMessage}
           onExport={handleJSONExport}
           onImport={handleJSONImport}
+          safetyCopies={safetyCopies}
+          onDownloadSafetyCopy={downloadSafetyCopy}
         />
       </div>
 

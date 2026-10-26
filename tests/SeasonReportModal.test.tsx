@@ -325,3 +325,181 @@ describe('SeasonReportModal - print without partnership details', () => {
     expect(screen.queryByLabelText('Include partner shares & settlement')).toBeNull();
   });
 });
+
+describe('SeasonReportModal - credit and shared-cost lines', () => {
+  const members: Member[] = [
+    { id: 'm1', name: 'Ramesh' },
+    { id: 'm2', name: 'Ganapathi' },
+  ];
+  const twoSeasons: Season[] = [
+    ...seasons,
+    { id: 's2', fieldId: 'f1', cropName: 'Maize', startDate: '2024-01-01', isClosed: false },
+  ];
+  const creditAccounts = [{ id: 'c1', name: 'Palem labour', type: 'Labour Union' }] as any[];
+
+  const labourOnCredit = {
+    id: 'lab1', date: '2024-03-01', targetType: 'single', fieldId: 'f1', seasonId: 's1',
+    description: 'Weeding', workersCount: 8, wageRate: 300, totalCost: 2400,
+    paidByMemberId: '', isCredit: true, creditAccountId: 'c1',
+  } as any;
+
+  it('names the partners who repaid a fully settled creditor account', () => {
+    renderReport({
+      members, creditAccounts, labours: [labourOnCredit],
+      creditRepayments: [
+        { id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 1000, date: '2024-03-10' },
+        { id: 'r2', creditAccountId: 'c1', memberId: 'm2', amount: 1400, date: '2024-03-12' },
+      ],
+    });
+
+    expect(screen.getByText(/account fully repaid · repaid by Ramesh ₹1,000, Ganapathi ₹1,400/)).toBeTruthy();
+  });
+
+  it('says who has repaid so far while the account still owes', () => {
+    renderReport({
+      members, creditAccounts, labours: [labourOnCredit],
+      creditRepayments: [{ id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 1000, date: '2024-03-10' }],
+    });
+
+    expect(screen.getByText(/account still owes ₹1,400 · repaid by Ramesh ₹1,000/)).toBeTruthy();
+  });
+
+  it('shows only a line\u2019s own portion of what was repaid on an account with many bills', () => {
+    // The account carries this ₹2,400 bill plus a ₹7,600 one in another cycle
+    // (₹10,000 in all), fully repaid by two partners at ₹5,000 each. Ramesh
+    // paid first, which clears this older bill (₹2,400) and starts the next;
+    // Ganapathi's payment finishes that one. So this line shows Ramesh's
+    // ₹2,400, not the ₹5,000 he put into the account.
+    const otherCycleBill = { ...labourOnCredit, id: 'lab2', seasonId: 's2', totalCost: 7600 };
+    renderReport({
+      members, seasons: twoSeasons, creditAccounts, labours: [labourOnCredit, otherCycleBill],
+      creditRepayments: [
+        { id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 5000, date: '2024-03-10' },
+        { id: 'r2', creditAccountId: 'c1', memberId: 'm2', amount: 5000, date: '2024-03-12' },
+      ],
+    });
+
+    expect(screen.getByText('account fully repaid · repaid by Ramesh ₹2,400')).toBeTruthy();
+    expect(screen.queryByText(/₹5,000/)).toBeNull();
+  });
+
+  it('apportions a split credit bill by the share this cycle carries', () => {
+    // ₹2,400 split ₹600 here, ₹1,800 in another cycle, repaid in full by one
+    // partner: this cycle's line shows the ₹600 they paid towards it.
+    renderReport({
+      members, seasons: twoSeasons, creditAccounts,
+      labours: [{
+        ...labourOnCredit, targetType: 'common', fieldId: undefined, seasonId: undefined,
+        allocations: [
+          { fieldId: 'f1', seasonId: 's1', amount: 600 },
+          { fieldId: 'f1', seasonId: 's2', amount: 1800 },
+        ],
+      }],
+      creditRepayments: [{ id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 2400, date: '2024-03-10' }],
+    });
+
+    expect(screen.getByText(/account fully repaid · repaid by Ramesh ₹600/)).toBeTruthy();
+  });
+
+  it('keeps the plain wording when nothing has been repaid', () => {    renderReport({ members, creditAccounts, labours: [labourOnCredit] });
+    expect(screen.getByText('account still owes ₹2,400')).toBeTruthy();
+  });
+
+  it('shows the whole entry’s total beside this cycle’s share of a split cost', () => {
+    renderReport({
+      members, seasons: twoSeasons,
+      expenses: [{
+        id: 'e1', date: '2024-02-01', amount: 2400, paidByMemberId: 'm1', category: 'Tractor hire',
+        targetType: 'common', commonAllocationRule: 'equal',
+        allocations: [
+          { fieldId: 'f1', seasonId: 's1', amount: 1200 },
+          { fieldId: 'f1', seasonId: 's2', amount: 1200 },
+        ],
+      }],
+    });
+
+    expect(screen.getByText('Entry total ₹2,400 split across 2 crop cycles')).toBeTruthy();
+  });
+
+  it('shows no total note on an entry that was not split', () => {
+    renderReport({
+      members,
+      expenses: [{
+        id: 'e1', date: '2024-02-01', amount: 500, paidByMemberId: 'm1', category: 'Seed',
+        targetType: 'single', targetFieldId: 'f1', targetSeasonId: 's1',
+      }],
+    });
+
+    expect(screen.queryByText(/Entry total/)).toBeNull();
+  });
+});
+
+describe('SeasonReportModal - credit bills a payment was ticked against', () => {
+  const members: Member[] = [{ id: 'm1', name: 'Ramesh' }, { id: 'm2', name: 'Ganapathi' }];
+  const twoSeasons: Season[] = [
+    ...seasons,
+    { id: 's2', fieldId: 'f1', cropName: 'Maize', startDate: '2024-01-01', isClosed: false },
+  ];
+  const creditAccounts = [{ id: 'c1', name: 'Palem labour', type: 'Labour Union' }] as any[];
+  const bill = (id: string, seasonId: string, totalCost: number) => ({
+    id, date: '2024-03-01', targetType: 'single', fieldId: 'f1', seasonId, description: id,
+    workersCount: 4, wageRate: 100, totalCost, paidByMemberId: '', isCredit: true, creditAccountId: 'c1',
+  }) as any;
+
+  it('names exactly who paid this bill, and calls it settled on its own', () => {
+    // Two bills on one account. Ramesh paid the first (this cycle's) in full;
+    // nothing has gone towards the second, so the account itself still owes.
+    renderReport({
+      members, seasons: twoSeasons, creditAccounts,
+      labours: [bill('first', 's1', 2400), bill('second', 's2', 3600)],
+      creditRepayments: [{
+        id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 2400, date: '2024-03-10',
+        billAllocations: [{ billKey: 'labour:first', amount: 2400 }],
+      }],
+    });
+
+    expect(screen.getByText('bill fully repaid · repaid by Ramesh ₹2,400')).toBeTruthy();
+    expect(screen.queryByText(/account still owes/)).toBeNull();
+  });
+
+  it('shows what is still owed on a bill that was only part paid', () => {
+    renderReport({
+      members, creditAccounts, labours: [bill('first', 's1', 2400)],
+      creditRepayments: [{
+        id: 'r1', creditAccountId: 'c1', memberId: 'm2', amount: 1000, date: '2024-03-10',
+        billAllocations: [{ billKey: 'labour:first', amount: 1000 }],
+      }],
+    });
+
+    expect(screen.getByText('bill still owes ₹1,400 · repaid by Ganapathi ₹1,000')).toBeTruthy();
+  });
+
+  it('keeps the account wording for an account where nothing was ticked', () => {
+    renderReport({
+      members, creditAccounts, labours: [bill('first', 's1', 2400)],
+      creditRepayments: [{ id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 2400, date: '2024-03-10' }],
+    });
+
+    expect(screen.getByText('account fully repaid · repaid by Ramesh ₹2,400')).toBeTruthy();
+  });
+});
+
+describe('SeasonReportModal - a credit bill paid by several partners', () => {
+  it('lists each partner with what they paid towards this bill', () => {
+    const members: Member[] = [{ id: 'm1', name: 'Ramesh' }, { id: 'm2', name: 'Ganapathi' }];
+    renderReport({
+      members,
+      creditAccounts: [{ id: 'c1', name: 'Palem labour', type: 'Labour Union' }],
+      labours: [{
+        id: 'lab1', date: '2024-03-01', targetType: 'single', fieldId: 'f1', seasonId: 's1', description: 'Weeding',
+        workersCount: 8, wageRate: 300, totalCost: 2400, paidByMemberId: '', isCredit: true, creditAccountId: 'c1',
+      }],
+      creditRepayments: [
+        { id: 'r1', creditAccountId: 'c1', memberId: 'm1', amount: 1500, date: '2024-03-10', billAllocations: [{ billKey: 'labour:lab1', amount: 1500 }] },
+        { id: 'r2', creditAccountId: 'c1', memberId: 'm2', amount: 900, date: '2024-03-12', billAllocations: [{ billKey: 'labour:lab1', amount: 900 }] },
+      ],
+    });
+
+    expect(screen.getByText('bill fully repaid · repaid by Ramesh ₹1,500, Ganapathi ₹900')).toBeTruthy();
+  });
+});

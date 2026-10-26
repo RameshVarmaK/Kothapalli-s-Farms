@@ -53,7 +53,7 @@ describe('partner ledger: payments to creditors', () => {
     expect(creditPayments.find(p => p.creditorName === 'Agro Store')!.countedInScope).toBeCloseTo(800, 2);
   });
 
-  it('shows the section in the report even with shares hidden', () => {
+  it('shows each payment once in the report, with its note, whether or not shares are shown', () => {
     render(
       <LanguageProvider>
         <PartnerReportModal memberId="m1" onClose={vi.fn()} summary={summary} members={members} fields={fields} seasons={seasons}
@@ -61,10 +61,11 @@ describe('partner ledger: payments to creditors', () => {
           creditAccounts={creditAccounts} creditRepayments={creditRepayments} currency="₹" />
       </LanguageProvider>
     );
-    expect(screen.getByText('Section 2: Payments to Creditors')).toBeTruthy();
-    expect(screen.getByText('Cleared pesticide bill')).toBeTruthy();
+    expect(screen.queryByText(/Payments to Creditors/)).toBeNull();
+    expect(screen.getAllByText('Cleared pesticide bill')).toHaveLength(1);
     fireEvent.click(screen.getByLabelText('Include shares & settlement'));
-    expect(screen.getByText('Section 4: Payments to Creditors')).toBeTruthy();
+    expect(screen.getAllByText('Cleared pesticide bill')).toHaveLength(1);
+    expect(screen.getAllByText('Agro Store').length).toBeGreaterThan(0);
   });
 });
 

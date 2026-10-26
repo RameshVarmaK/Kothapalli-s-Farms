@@ -4,16 +4,20 @@
  */
 
 import React from 'react';
-import { Download, Upload } from 'lucide-react';
+import { Download, Upload, ShieldCheck } from 'lucide-react';
+import { SafetyCopyInfo } from '../../utils/safetyBackup';
 import { useLanguage } from '../../hooks/useLanguage';
 
 interface BackupRestoreCardProps {
   backupMessage: { text: string; isError: boolean } | null;
   onExport: () => void;
   onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Copies of data an earlier action overwrote, newest first. */
+  safetyCopies?: SafetyCopyInfo[];
+  onDownloadSafetyCopy?: (id: string) => void;
 }
 
-export const BackupRestoreCard: React.FC<BackupRestoreCardProps> = ({ backupMessage, onExport, onImport }) => {
+export const BackupRestoreCard: React.FC<BackupRestoreCardProps> = ({ backupMessage, onExport, onImport, safetyCopies = [], onDownloadSafetyCopy }) => {
   const { t } = useLanguage();
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -50,6 +54,38 @@ export const BackupRestoreCard: React.FC<BackupRestoreCardProps> = ({ backupMess
           />
         </label>
       </div>
+
+      {safetyCopies.length > 0 && onDownloadSafetyCopy && (
+        <div className="mt-5 pt-5 border-t border-slate-100">
+          <h4 className="flex items-center gap-1.5 text-xs font-bold text-slate-700 mb-1">
+            <ShieldCheck size={14} className="text-emerald-600" />
+            {t('Safety copies')}
+          </h4>
+          <p className="text-[11px] text-slate-400 leading-relaxed mb-3 font-medium">
+            {t('Saved on this device just before something was overwritten. Download one and use Restore Backup to go back.')}
+          </p>
+          <ul className="space-y-2">
+            {safetyCopies.map(copy => (
+              <li key={copy.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-slate-700 truncate">{t(copy.reason)}</p>
+                  <p className="text-[10px] text-slate-400 font-medium">
+                    {new Date(copy.savedAt).toLocaleString()} · {copy.records} {t('records')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onDownloadSafetyCopy(copy.id)}
+                  aria-label={`${t('Download safety copy')}: ${t(copy.reason)}`}
+                  className="shrink-0 p-2 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 cursor-pointer"
+                >
+                  <Download size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

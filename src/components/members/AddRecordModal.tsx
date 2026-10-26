@@ -7,6 +7,7 @@ import React from 'react';
 import { Field, Member } from '../../types';
 import { AlertTriangle } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { Dialog } from '../shell/Dialog';
 
 interface AddRecordModalProps {
   isOpen: boolean;
@@ -94,7 +95,7 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
   }, 0);
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
+    <Dialog label={isEditingMember ? t('Edit Partner Details') : t('Add Sown Partner Record')} onClose={onClose} className="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {activeTab === 'directory' && (
           <form onSubmit={onSubmitMember} className="p-6 space-y-4">
@@ -362,6 +363,6 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
           </form>
         )}
       </div>
-    </div>
+    </Dialog>
   );
 };

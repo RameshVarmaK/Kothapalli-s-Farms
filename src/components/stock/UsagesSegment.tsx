@@ -98,7 +98,7 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
                   <button
                     onClick={() => onEditUsage(u)}
                     className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
-                    title={t('Edit Usage')}
+                    title={t('Edit Usage')} aria-label={t('Edit Usage')}
                   >
                     <Pencil size={13} />
                   </button>

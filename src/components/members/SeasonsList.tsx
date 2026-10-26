@@ -62,10 +62,10 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
       <table className="w-full text-left text-xs border-collapse">
         <thead>
           <tr className="border-b border-slate-200 text-slate-400 bg-slate-50/50 font-bold text-[10px] uppercase tracking-widest">
-            <th className="px-6 py-4">{t('Sown Field')}</th>
-            <th className="px-6 py-4">{t('Crop Name')}</th>
-            <th className="px-6 py-4">{t('Sown Date')}</th>
-            <th className="px-6 py-4 text-right">{t('Actions / Status')}</th>
+            <th className="px-3 sm:px-6 py-4">{t('Sown Field')}</th>
+            <th className="px-3 sm:px-6 py-4">{t('Crop Name')}</th>
+            <th className="px-3 sm:px-6 py-4">{t('Sown Date')}</th>
+            <th className="px-3 sm:px-6 py-4 text-right">{t('Actions / Status')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -73,10 +73,11 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
             const f = fields.find(field => field.id === s.fieldId)!;
             return (
               <tr key={s.id} className="hover:bg-slate-50/50 font-medium pb-2">
-                <td className="px-6 py-4 font-bold text-slate-800">{f ? f.name : t('Unknown')}</td>
-                <td className="px-6 py-4 font-bold text-emerald-800">{s.cropName}</td>
-                <td className="px-6 py-4 mono-num text-slate-500 font-mono">{s.startDate}</td>
-                <td className="px-6 py-4 text-right flex items-center justify-end gap-2.5">
+                <td className="px-3 sm:px-6 py-4 font-bold text-slate-800">{f ? f.name : t('Unknown')}</td>
+                <td className="px-3 sm:px-6 py-4 font-bold text-emerald-800">{s.cropName}</td>
+                <td className="px-3 sm:px-6 py-4 mono-num text-slate-500 font-mono">{s.startDate}</td>
+                <td className="px-3 sm:px-6 py-4 text-right">
+                  <div className="flex flex-wrap items-center justify-end gap-2.5">
                   <button
                     onClick={() => onViewReport(s.id)}
                     className="text-[10px] text-slate-700 hover:text-emerald-800 bg-slate-100 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 font-bold px-3 py-1.5 rounded-lg border-slate-200 hover:border-slate-400 cursor-pointer transition-all flex items-center gap-1.5 shadow-2xs"
@@ -87,7 +88,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                   <button
                     onClick={() => onEditSeason(s)}
                     className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
-                    title={t('Edit Season & Ownership Shares')}
+                    title={t('Edit Season & Ownership Shares')} aria-label={t('Edit Season & Ownership Shares')}
                   >
                     <Pencil size={13} />
                   </button>
@@ -100,7 +101,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                         <button
                           onClick={() => onDeleteSeason(s.id)}
                           className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-300 hover:border-red-200 transition-colors cursor-pointer"
-                          title={t('Delete Season (Fully Settled)')}
+                          title={t('Delete Season (Fully Settled)')} aria-label={t('Delete Season (Fully Settled)')}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -118,6 +119,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                       {t('Mark Harvested')}
                     </button>
                   )}
+                  </div>
                 </td>
               </tr>
             );

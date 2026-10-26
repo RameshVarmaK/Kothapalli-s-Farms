@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { Cloud, Link2, FilePlus2, Loader2, AlertTriangle, FolderOpen } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
+import { Dialog } from './shell/Dialog';
 
 interface SheetSetupModalProps {
   /** Link the ledger the user pastes. Rejects with a message fit to show. */
@@ -54,7 +55,7 @@ export const SheetSetupModal: React.FC<SheetSetupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] bg-slate-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
+    <Dialog label={t('Set up your farm ledger')} className="fixed inset-0 z-[80] bg-slate-900/60 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto">
       <div className="bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-6 space-y-5 max-h-[92vh] overflow-y-auto">
         <div className="flex items-center gap-3">
           <span className="p-3 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 shrink-0">
@@ -169,6 +170,6 @@ export const SheetSetupModal: React.FC<SheetSetupModalProps> = ({
           {t('Decide later — keep this device offline')}
         </button>
       </div>
-    </div>
+    </Dialog>
   );
 };

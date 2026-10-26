@@ -89,11 +89,11 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                     <button
                       onClick={(e) => { e.stopPropagation(); onEditMember(member); }}
                       className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
-                      title={t('Edit Partner Details')}
+                      title={t('Edit Partner Details')} aria-label={t('Edit Partner Details')}
                     >
                       <Pencil size={14} />
                     </button>
-                    <button
+                    <button aria-label={`${t('Delete')} ${member.name}`}
                       onClick={(e) => { e.stopPropagation(); onDeleteMember(member.id, member.name); }}
                       className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
                     >

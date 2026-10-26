@@ -92,7 +92,7 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
                     <button
                       onClick={() => onEditItem(item)}
                       className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
-                      title={t('Edit Input Type')}
+                      title={t('Edit Input Type')} aria-label={t('Edit Input Type')}
                     >
                       <Pencil size={13} />
                     </button>

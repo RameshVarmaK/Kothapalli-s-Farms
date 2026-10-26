@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { describePayers } from '../utils/payers';
 import React, { useState } from 'react';
 import {
   Activity,
@@ -16,6 +17,7 @@ import {
 } from '../types';
 import { Calendar, Filter, Users, Package, DollarSign, CloudSun, Plus, X, Sprout } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
+import { Dialog } from './shell/Dialog';
 
 interface TimelineTabProps {
   activities: Activity[];
@@ -134,7 +136,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
 
       {/* Manual Activity Creation Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <Dialog label={t('Record Farm Activity')} onClose={() => setShowAddForm(false)} className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
             {/* Header */}
             <div className="p-5 border-b border-slate-100 bg-slate-50/60 flex justify-between items-center">
@@ -142,7 +144,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                 <Sprout className="text-emerald-600" size={18} />
                 <h3 className="font-extrabold text-slate-800 text-sm">{t('Record Manual Activity')}</h3>
               </div>
-              <button
+              <button aria-label={t('Close')}
                 onClick={() => setShowAddForm(false)}
                 className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 cursor-pointer"
               >
@@ -261,7 +263,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
               </div>
             </form>
           </div>
-        </div>
+        </Dialog>
       )}
 
       {/* Filters bar */}
@@ -391,7 +393,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                     <div className="mt-4.5 pt-4.5 mb-1 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-3">
                       {/* Nested Expenses */}
                       {linkedExpenses.map(exp => {
-                        const payer = members.find(m => m.id === exp.paidByMemberId);
+                        const payerName = describePayers(exp, exp.amount, members, currency, t('Unknown'));
                         return (
                           <div key={exp.id} className="p-3 rounded-xl bg-rose-50 border border-rose-100 text-[11px] flex gap-2.5">
                             <span className="p-1 h-fit rounded-lg bg-rose-100 text-rose-700">
@@ -402,7 +404,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                               <p className="text-rose-900 font-extrabold font-mono text-xs mt-1">
                                 {currency}{exp.amount.toLocaleString('en-IN')}
                               </p>
-                              <p className="text-rose-500 font-semibold mt-1">{t('Paid by:')} {payer ? payer.name : t('Unknown')}</p>
+                              <p className="text-rose-500 font-semibold mt-1">{t('Paid by:')} {payerName}</p>
                             </div>
                           </div>
                         );
@@ -410,7 +412,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
 
                       {/* Nested Labour */}
                       {linkedLabour.map(lab => {
-                        const payer = members.find(m => m.id === lab.paidByMemberId);
+                        const payerName = describePayers(lab, lab.totalCost, members, currency, t('Unknown'));
                         return (
                           <div key={lab.id} className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-[11px] flex gap-2.5">
                             <span className="p-1 h-fit rounded-lg bg-amber-100 text-amber-700">
@@ -423,7 +425,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
                                 {currency}{lab.totalCost.toLocaleString('en-IN')}
                               </p>
                               <p className="text-amber-500 font-semibold mt-1">
-                                {lab.workersCount} {t('worker(s) • Paid:')} {payer ? payer.name : t('Unknown')}
+                                {lab.workersCount} {t('worker(s) • Paid:')} {payerName}
                               </p>
                             </div>
                           </div>

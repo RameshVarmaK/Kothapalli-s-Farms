@@ -6,6 +6,7 @@
 import { AlertTriangle } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
 import type { ConfirmDialogState } from '../../app/ledgerActions';
+import { Dialog } from './Dialog';
 
 interface ConfirmDialogProps {
   confirmDialog: ConfirmDialogState;
@@ -15,7 +16,7 @@ interface ConfirmDialogProps {
 export function ConfirmDialog({ confirmDialog, onCancel }: ConfirmDialogProps) {
   const { t } = useLanguage();
   return (
-    <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+    <Dialog label={confirmDialog.title} onClose={() => onCancel()} className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl max-w-md w-full shadow-xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="p-6">
           <div className="flex items-center gap-3 text-red-600 mb-3">
@@ -43,6 +44,6 @@ export function ConfirmDialog({ confirmDialog, onCancel }: ConfirmDialogProps) {
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

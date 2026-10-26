@@ -5,6 +5,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import type { AuthError } from '../../hooks/useGoogleAuth';
+import { Dialog } from './Dialog';
 
 interface AuthErrorModalProps {
   authError: AuthError;
@@ -14,7 +15,7 @@ interface AuthErrorModalProps {
 /** Deployment diagnostics for a failed Google sign-in inside the app. */
 export function AuthErrorModal({ authError, onDismiss }: AuthErrorModalProps) {
   return (
-    <div id="auth-error-modal" className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-55 animate-in fade-in duration-100">
+    <Dialog label={'Google Authorization Mismatch'} onClose={() => onDismiss()} id="auth-error-modal" className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-55 animate-in fade-in duration-100">
       <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
         <div className="p-6">
           <div className="flex items-center gap-3 text-red-600 mb-4 animate-pulse">
@@ -92,6 +93,6 @@ export function AuthErrorModal({ authError, onDismiss }: AuthErrorModalProps) {
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

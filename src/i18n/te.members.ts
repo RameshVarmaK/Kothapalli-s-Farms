@@ -104,6 +104,11 @@ export const teMembers: Record<string, string> = {
   'Creditor': 'అరువు ఇచ్చినవారు',
   'account still owes': 'ఖాతాలో ఇంకా బాకీ',
   'account fully repaid': 'ఖాతా పూర్తిగా చెల్లించబడింది',
+  'repaid by': 'చెల్లించినవారు',
+  'Entry total': 'మొత్తం ఎంట్రీ',
+  'split across': 'విభజన:',
+  'crop cycle': 'పంట చక్రం',
+  'crop cycles': 'పంట చక్రాలు',
   'on credit': 'అరువుపై',
   'Section 3: Stock Materials Consumed': 'విభాగం 3: ఉపయోగించిన నిల్వ సామాగ్రి',
   'No material seed/input inventory usage recorded.': 'విత్తనాలు/ఎరువుల నిల్వ ఉపయోగం ఏదీ నమోదు కాలేదు.',
@@ -206,4 +211,6 @@ export const teMembers: Record<string, string> = {
   'Counted in this report': 'ఈ నివేదికలో లెక్కించినది',
   'A payment to a creditor counts toward a crop cycle in proportion to how much of that creditor’s credit the cycle used. "Counted in this report" is the part that falls in the crop cycles shown.':
     'అప్పుదారుకు చేసిన చెల్లింపు, ఆ అప్పుదారు అప్పులో ఏ పంట కాలం ఎంత వాడిందో ఆ నిష్పత్తిలో లెక్కించబడుతుంది. "ఈ నివేదికలో లెక్కించినది" అంటే చూపిన పంట కాలాలకు వచ్చే భాగం.',
+  'paid by': 'చెల్లింపు:',
+  'held by': 'స్వీకర్త:',
 };

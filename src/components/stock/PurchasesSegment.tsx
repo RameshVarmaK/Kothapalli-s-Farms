@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { describePayers } from '../../utils/payers';
 import React from 'react';
 import { StockItem, StockPurchase, Member } from '../../types';
 import { Plus, Coins, Pencil } from 'lucide-react';
@@ -58,7 +59,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
         ) : (
           [...purchases].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(p => {
             const item = stockItems.find(i => i.id === p.stockItemId);
-            const payer = members.find(m => m.id === p.paidByMemberId)?.name || t('Unknown');
+            const payer = describePayers(p, p.totalCost, members, currency, t('Unknown'));
             const calculatedRate = p.quantity > 0 ? p.totalCost / p.quantity : 0;
             return (
               <div key={p.id} className="p-4.5 flex justify-between items-center text-xs hover:bg-slate-50/30">
@@ -84,7 +85,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
                   <button
                     onClick={() => onEditPurchase(p)}
                     className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
-                    title={t('Edit Purchase')}
+                    title={t('Edit Purchase')} aria-label={t('Edit Purchase')}
                   >
                     <Pencil size={13} />
                   </button>

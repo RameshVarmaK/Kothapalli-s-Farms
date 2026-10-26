@@ -5,7 +5,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Printer, Scale, Receipt, Sprout, Package, Landmark } from 'lucide-react';
+import { X, Printer, Scale, Receipt, Sprout, Package } from 'lucide-react';
 import {
   Member,
   Field,
@@ -23,6 +23,7 @@ import {
 } from '../../types';
 import { buildPartnerLedger, PartnerLineKind } from '../../utils/partnerLedger';
 import { useLanguage } from '../../hooks/useLanguage';
+import { Dialog } from '../shell/Dialog';
 
 interface PartnerReportModalProps {
   memberId: string | null;
@@ -52,6 +53,7 @@ const KIND_LABEL: Record<PartnerLineKind, string> = {
   labour: 'Labour',
   stock: 'Stock used',
   'credit-repayment': 'Credit repaid',
+  advance: 'Advance',
   revenue: 'Sale received',
 };
 
@@ -60,6 +62,7 @@ const KIND_STYLE: Record<PartnerLineKind, string> = {
   labour: 'bg-sky-50 text-sky-800 border-sky-200',
   stock: 'bg-purple-50 text-purple-800 border-purple-200',
   'credit-repayment': 'bg-slate-100 text-slate-700 border-slate-200',
+  advance: 'bg-amber-50 text-amber-800 border-amber-300',
   revenue: 'bg-emerald-50 text-emerald-800 border-emerald-200',
 };
 
@@ -165,15 +168,16 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
   const settlementsInScope = ledger.cycles.filter(c => c.settlements.length > 0);
   // Sections number from 1 in whatever is shown.
   const firstListSection = showShares ? 3 : 1;
-  const hasCreditPayments = ledger.creditPayments.length > 0;
-  const creditSection = firstListSection + 1;
-  const stockSection = firstListSection + (hasCreditPayments ? 2 : 1);
-  const creditPaid = ledger.creditPayments.reduce((sum, p) => sum + p.amount, 0);
-  const creditCounted = ledger.creditPayments.reduce((sum, p) => sum + p.countedInScope, 0);
+  const stockSection = firstListSection + 1;
+  // Money paid to creditors that no bill has claimed yet. Not charged to any
+  // crop cycle, so it is outside Net and Share of cost, but it is money this
+  // partner has put in, so it counts in Paid in.
+  const advancesTotal = ledger.advances.total > 0.5 ? ledger.advances.total : 0;
+  const paidInWithAdvances = totals.paidIn + advancesTotal;
   const generatedOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
   return createPortal(
-    <div data-print-root className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
+    <Dialog label={member.name} onClose={onClose} data-print-root className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
       <div data-print-card className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] animate-in fade-in zoom-in-95 duration-150 border border-slate-100">
         {/* Header */}
         <div className="p-6 border-b border-slate-200 flex justify-between items-start gap-4 bg-slate-50/50">
@@ -222,8 +226,13 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
             <div className={`grid grid-cols-2 gap-3 ${showShares ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
               <div className="p-4 rounded-2xl bg-amber-50/30 border border-amber-100">
                 <span className="text-[9px] text-amber-700 font-bold uppercase block tracking-wider">{t('Paid in')}</span>
-                <span className="text-md font-extrabold text-slate-800 font-mono mt-1.5 block">{money(totals.paidIn)}</span>
+                <span className="text-md font-extrabold text-slate-800 font-mono mt-1.5 block">{money(paidInWithAdvances)}</span>
                 {showShares && <span className="text-[10px] text-slate-500 block mt-0.5">{t('Share of cost')} {money(totals.costShare)}</span>}
+                {advancesTotal > 0 && (
+                  <span className="text-[10px] text-amber-700 font-semibold block mt-0.5">
+                    {t('incl.')} {money(advancesTotal)} {t('advances, not on any bill yet')}
+                  </span>
+                )}
               </div>
               <div className="p-4 rounded-2xl bg-sky-50/30 border border-sky-100">
                 <span className="text-[9px] text-sky-700 font-bold uppercase block tracking-wider">{t('Revenue taken')}</span>
@@ -237,6 +246,9 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
                   <div className="flex justify-between"><span>{t('Labour')}</span><span className="font-mono">{money(totals.breakdown.labour)}</span></div>
                   <div className="flex justify-between"><span>{t('Stock purchases')}</span><span className="font-mono">{money(totals.breakdown.stock)}</span></div>
                   <div className="flex justify-between"><span>{t('Credit repaid')}</span><span className="font-mono">{money(totals.breakdown.creditRepayments)}</span></div>
+                  {advancesTotal > 0 && (
+                    <div className="flex justify-between text-amber-800"><span>{t('Advances to creditors')}</span><span className="font-mono">{money(advancesTotal)}</span></div>
+                  )}
                 </div>
               </div>
               {showShares && (
@@ -311,6 +323,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
             )}
             <p className="mt-2 text-[10px] text-slate-400 leading-normal">
               {t('Net = (paid in − share of cost) + (share of revenue − revenue taken). It is the same balance shown on the Settle screen.')}
+              {advancesTotal > 0 && ` ${t('Paid in here is what sits on bills in these cycles; the Paid in at the top also includes advances, which are in no cycle yet and so not in Net.')}`}
             </p>
           </div>
 
@@ -381,6 +394,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
                             {t(KIND_LABEL[l.kind])}
                           </span>
                           <span className="text-slate-700 font-semibold">{l.detail}</span>
+                          {l.note && <span className="block text-[10px] text-slate-400">{l.note}</span>}
                           {l.workers && (
                             <span className="text-slate-500">
                               {l.detail ? ' · ' : ''}{l.workers.count} {t('workers')} × {currency}{l.workers.wageRate}
@@ -388,7 +402,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
                           )}
                         </td>
                         <td className="py-1.5 pr-2 text-slate-500">
-                          {l.cycles.join(', ')}
+                          {l.kind === 'advance' ? <span className="text-amber-700 font-semibold">{t('Not on a bill yet')}</span> : l.cycles.join(', ')}
                           {l.isSplit && <span className="text-[9px] text-slate-400"> ({t('share of split')})</span>}
                         </td>
                         <td className="py-1.5 text-right font-mono text-slate-800">{l.paidIn ? money(l.paidIn) : ''}</td>
@@ -407,54 +421,9 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
               </div>
             )}
             <p className="mt-2 text-[10px] text-slate-400 leading-normal">
-              {t('Bills taken on credit are not listed: no partner paid them. They count when a partner repays the creditor. Stock counts when it is used, at this partner’s share of the money that bought it.')}
+              {t('Bills taken on credit are not listed: no partner paid them. A payment to a creditor goes onto that creditor’s bills (the ones it was ticked against, otherwise the oldest first) and shows as "Credit repaid" in those bills’ cycles. Any part not on a bill yet shows as an "Advance": it counts in Paid in, and moves into the right cycles by itself once the bills are entered. Stock counts when it is used, at this partner’s share of the money that bought it.')}
             </p>
           </div>
-
-          {/* Payments to creditors, at full amount */}
-          {hasCreditPayments && (
-            <div data-print-keep className="p-5 rounded-2xl bg-slate-50/60 border border-slate-200">
-              <h4 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest mb-3.5 flex items-center gap-1.5 border-b border-slate-300 pb-2">
-                <Landmark size={13} className="text-slate-500" />
-                <span>{t(`Section ${creditSection}: Payments to Creditors`)}</span>
-              </h4>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[11px] min-w-[480px]">
-                  <thead>
-                    <tr className="text-[9px] uppercase tracking-wider text-slate-400">
-                      <th className="text-left font-bold pb-2">{t('Date')}</th>
-                      <th className="text-left font-bold pb-2">{t('Creditor')}</th>
-                      <th className="text-right font-bold pb-2">{t('Paid')}</th>
-                      <th className="text-right font-bold pb-2">{t('Counted in this report')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {ledger.creditPayments.map(p => (
-                      <tr key={p.id} className="align-top">
-                        <td className="py-1.5 pr-2 font-mono text-slate-500 whitespace-nowrap">{p.date}</td>
-                        <td className="py-1.5 pr-2">
-                          <span className="text-slate-700 font-semibold">{p.creditorName}</span>
-                          {p.notes && <span className="block text-[10px] text-slate-400">{p.notes}</span>}
-                        </td>
-                        <td className="py-1.5 text-right font-mono text-slate-800">{money(p.amount)}</td>
-                        <td className="py-1.5 text-right font-mono text-slate-500">{money(p.countedInScope)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="border-t-2 border-slate-300 font-bold text-slate-800">
-                    <tr>
-                      <td colSpan={2} className="py-2 text-[10px] uppercase tracking-widest text-slate-500">{t('Total')}</td>
-                      <td className="text-right font-mono">{money(creditPaid)}</td>
-                      <td className="text-right font-mono text-slate-500">{money(creditCounted)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <p className="mt-2 text-[10px] text-slate-400 leading-normal">
-                {t('A payment to a creditor counts toward a crop cycle in proportion to how much of that creditor’s credit the cycle used. "Counted in this report" is the part that falls in the crop cycles shown.')}
-              </p>
-            </div>
-          )}
 
           {/* Stock bought */}
           {ledger.stockPurchases.length > 0 && (
@@ -510,7 +479,7 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
           </button>
         </div>
       </div>
-    </div>,
+    </Dialog>,
     document.body
   );
 };

@@ -6,6 +6,7 @@
 import React from 'react';
 import { AlertTriangle, GitMerge, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { Dialog } from '../shell/Dialog';
 
 interface ConflictData {
   local: any;
@@ -30,7 +31,7 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
 }) => {
   const { t } = useLanguage();
   return (
-    <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-in fade-in duration-100">
+    <Dialog label={t('Google Sheets Conflict Detected')} onClose={onCancel} className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-in fade-in duration-100">
       <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="px-6 py-5 bg-amber-50 border-b border-amber-100 flex items-start gap-4">
@@ -211,6 +212,6 @@ export const SheetsConflictModal: React.FC<SheetsConflictModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

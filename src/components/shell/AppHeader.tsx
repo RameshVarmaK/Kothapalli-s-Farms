@@ -32,7 +32,7 @@ export function AppHeader({
   const { language, setLanguage, t } = useLanguage();
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 shrink-0 shadow-xs flex justify-between items-center print:hidden">
-      <button
+      <button aria-label={t('Menu')}
         onClick={() => onOpenMobileNav()}
         className="md:hidden p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
       >
@@ -78,7 +78,7 @@ export function AppHeader({
                   ? 'bg-slate-50 text-slate-400 border-slate-200 animate-pulse'
                   : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-400 active:scale-95'
               }`}
-              title={t('Force Synchronize with Google Sheet')}
+              title={t('Force Synchronize with Google Sheet')} aria-label={t('Force Synchronize with Google Sheet')}
             >
               <RefreshCw size={12} className={syncingState === 'syncing' ? 'animate-spin' : ''} />
               <span>{t('Sync Now')}</span>

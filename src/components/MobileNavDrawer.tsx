@@ -69,7 +69,7 @@ export function MobileNavDrawer({
                 </button>
               ))}
             </div>
-            <button
+            <button aria-label={t('Close')}
               onClick={onClose}
               className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
             >

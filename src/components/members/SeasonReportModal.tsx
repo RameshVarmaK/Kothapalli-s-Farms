@@ -4,6 +4,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { describePayers, describeReceivers, PaidRecord } from '../../utils/payers';
+import { creditBills, attributeRepayments, billKey, billOutstanding, CreditBill, RepaymentAttribution } from '../../utils/creditBills';
 import {
   Member,
   Field,
@@ -24,6 +26,7 @@ import { X, Copy, Check, Calendar, DollarSign, Package, Users, CheckCircle, Scal
 import { createPortal } from 'react-dom';
 import { useLanguage } from '../../hooks/useLanguage';
 import { receiptCount } from '../../utils/attachments';
+import { Dialog } from '../shell/Dialog';
 
 interface SeasonReportModalProps {
   seasonId: string | null;
@@ -98,6 +101,9 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   const field = fields.find(f => f.id === season.fieldId)!;
 
   const sExpenses = expenses.filter(e => e.targetType === 'single' && e.targetSeasonId === season.id);
+  // Whole entries and cycle shares of split ones, in the order they happened.
+  const byDate = (a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date);
+
   const sAllocations = expenses.filter(e => e.targetType === 'common' && e.allocations?.some(al => al.seasonId === season.id));
   const sLabours = labours.filter(l => l.targetType !== 'common' && l.seasonId === season.id);
   const sLabourAllocations = labours.filter(l => l.targetType === 'common' && l.allocations?.some(al => al.seasonId === season.id));
@@ -112,7 +118,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
   // cannot say what proportion of this one bill has been settled.
   const creditorStatus = (creditAccountId: string | undefined) => {
     const account = creditAccounts.find(c => c.id === creditAccountId);
-    if (!account) return { name: t('Creditor'), outstanding: 0, known: false };
+    if (!account) return { name: t('Creditor'), incurred: 0, outstanding: 0, known: false };
 
     const incurred =
       expenses.filter(e => e.isCredit && e.creditAccountId === account.id).reduce((sum, e) => sum + e.amount, 0) +
@@ -121,20 +127,68 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       .filter(r => r.creditAccountId === account.id)
       .reduce((sum, r) => sum + r.amount, 0);
 
-    return { name: account.name, outstanding: Number((incurred - repaid).toFixed(2)), known: true };
+    return { name: account.name, incurred, outstanding: Number((incurred - repaid).toFixed(2)), known: true };
+  };
+
+  // Who has paid what towards each of a creditor's bills (see creditBills.ts):
+  // what a payer ticked goes to those bills, the rest is spread over the
+  // unpaid ones. The settlement ledger uses the same figures, so a line here
+  // always agrees with the Settle tab.
+  const attributionCache = new Map<string, { bills: CreditBill[]; attribution: RepaymentAttribution }>();
+  const accountAttribution = (accountId: string) => {
+    let entry = attributionCache.get(accountId);
+    if (!entry) {
+      const bills = creditBills(accountId, expenses, labours);
+      entry = { bills, attribution: attributeRepayments(bills, creditRepayments.filter(r => r.creditAccountId === accountId)) };
+      attributionCache.set(accountId, entry);
+    }
+    return entry;
+  };
+
+  // What each partner has paid towards one bill, scaled to the part of it this
+  // line shows (a split bill appears once per crop cycle).
+  const repaidBy = (accountId: string | undefined, key: string, lineAmount: number): string => {
+    if (!accountId) return '';
+    const { bills, attribution } = accountAttribution(accountId);
+    const bill = bills.find(b => b.key === key);
+    if (!bill || bill.amount <= 0) return '';
+    return [...(attribution.get(key)?.entries() || [])]
+      .map(([memberId, amount]) => ({ memberId, portion: (amount * lineAmount) / bill.amount }))
+      .filter(p => p.portion >= 0.5)
+      .map(p => `${members.find(m => m.id === p.memberId)?.name || t('Unknown')} ${currency}${Math.round(p.portion).toLocaleString('en-IN')}`)
+      .join(', ');
+  };
+
+  // For an entry split across crop cycles, the line shows this cycle's share;
+  // this says what the whole entry came to and how many cycles carry it.
+  const splitNote = (total: number, allocations: { seasonId: string }[] | undefined): string => {
+    const cycles = new Set((allocations || []).map(a => a.seasonId)).size;
+    return `${t('Entry total')} ${currency}${Math.round(total).toLocaleString('en-IN')} ${t('split across')} ${cycles} ${t(cycles === 1 ? 'crop cycle' : 'crop cycles')}`;
   };
 
   // Who a cost line should be attributed to, and how it stands.
-  const describePayer = (record: { isCredit?: boolean; creditAccountId?: string; paidByMemberId?: string }) => {
+  const describePayer = (record: PaidRecord & { creditAccountId?: string }, lineAmount: number, key: string, recordTotal: number) => {
     if (!record.isCredit) {
-      return { label: members.find(m => m.id === record.paidByMemberId)?.name || t('Unknown'), note: '' };
+      // Several partners may have paid it; a split entry shows each one's part of this cycle's share.
+      return { label: describePayers(record, recordTotal, members, currency, t('Unknown'), lineAmount), note: '' };
     }
 
     const { name, outstanding } = creditorStatus(record.creditAccountId);
-    const note =
-      outstanding > 0.005
+    const repayers = repaidBy(record.creditAccountId, key, lineAmount);
+
+    // Once any payment on the account has been ticked against bills, each bill
+    // has a standing of its own. Before that the app only knows the account's.
+    const { bills, attribution } = accountAttribution(record.creditAccountId || '');
+    const bill = bills.find(b => b.key === key);
+    const ticked = creditRepayments.some(r => r.creditAccountId === record.creditAccountId && r.billAllocations?.length);
+    const standing = ticked && bill
+      ? (billOutstanding(bill, attribution) > 0.005
+          ? `${t('bill still owes')} ${currency}${Math.round(billOutstanding(bill, attribution)).toLocaleString('en-IN')}`
+          : t('bill fully repaid'))
+      : outstanding > 0.005
         ? `${t('account still owes')} ${currency}${Math.round(outstanding).toLocaleString('en-IN')}`
         : t('account fully repaid');
+    const note = repayers ? `${standing} · ${t('repaid by')} ${repayers}` : standing;
 
     return { label: `${t('Credit:')} ${name}`, note };
   };
@@ -257,21 +311,21 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       });
     }
     text    += `\nSECTION 2: CASH OUTLAYS & DIRECT EXPENSES\n`;
-    const combinedExps = [...sExpenses, ...sAllocations];
+    const combinedExps = [...sExpenses, ...sAllocations].sort(byDate);
     if (combinedExps.length === 0) {
       text  += `No cash outlays registered.\n`;
     } else {
       combinedExps.forEach((e, i) => {
-        const { label, note } = describePayer(e);
         const isCommon = e.targetType === 'common';
         const actualAmt = isCommon ? (e.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : e.amount;
+        const { label, note } = describePayer(e, actualAmt, billKey('expense', e.id), e.amount);
         const attribution = e.isCredit ? `${label}${note ? `, ${note}` : ''}` : `Paid by ${label}`;
-        text += `${i + 1}. [${e.date}] ${e.category}: ${currency}${Math.round(actualAmt).toLocaleString('en-IN')} (${attribution})${isCommon ? ' [Allocated split]' : ''}${receiptCount(e) > 0 ? ` [📎 ${receiptCount(e)}]` : ''}\n`;
+        text += `${i + 1}. [${e.date}] ${e.category}: ${currency}${Math.round(actualAmt).toLocaleString('en-IN')} (${attribution})${isCommon ? ` [Allocated split: ${splitNote(e.amount, e.allocations)}]` : ''}${receiptCount(e) > 0 ? ` [📎 ${receiptCount(e)}]` : ''}\n`;
       });
     }
 
     text    += `\nSECTION 3: CONSTITUENT STOCK INVENTORY CONSUMED\n`;
-    const combinedUsages = [...sUsagesDirect, ...sUsagesCommon];
+    const combinedUsages = [...sUsagesDirect, ...sUsagesCommon].sort(byDate);
     if (combinedUsages.length === 0) {
       text  += `No stock materials consumed.\n`;
     } else {
@@ -288,16 +342,16 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
     }
 
     text    += `\nSECTION 4: HIRED LABOR MANPOWER UTILIZED\n`;
-    const combinedLabours = [...sLabours, ...sLabourAllocations];
+    const combinedLabours = [...sLabours, ...sLabourAllocations].sort(byDate);
     if (combinedLabours.length === 0) {
       text  += `No hired labor shifts registered.\n`;
     } else {
       combinedLabours.forEach((l, i) => {
-        const { label, note } = describePayer(l);
         const isCommon = l.targetType === 'common';
         const actualCost = isCommon ? (l.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : l.totalCost;
+        const { label, note } = describePayer(l, actualCost, billKey('labour', l.id), l.totalCost);
         const attribution = l.isCredit ? `${label}${note ? `, ${note}` : ''}` : `Paid by ${label}`;
-        text += `${i + 1}. [${l.date}] ${l.description ? `${l.description} - ` : ''}${l.workersCount} workers at ${currency}${l.wageRate}/worker. Total Cost: ${currency}${Math.round(actualCost).toLocaleString('en-IN')} (${attribution})${isCommon ? ' [Allocated split]' : ''}\n`;
+        text += `${i + 1}. [${l.date}] ${l.description ? `${l.description} - ` : ''}${l.workersCount} workers at ${currency}${l.wageRate}/worker. Total Cost: ${currency}${Math.round(actualCost).toLocaleString('en-IN')} (${attribution})${isCommon ? ` [Allocated split: ${splitNote(l.totalCost, l.allocations)}]` : ''}\n`;
       });
     }
 
@@ -306,7 +360,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       text  += `No harvest yield sales registered.\n`;
     } else {
       sRevenues.forEach((r, i) => {
-        const rcvr = members.find(m => m.id === r.receivedByMemberId)?.name || 'Unknown';
+        const rcvr = describeReceivers(r, r.saleAmount, members, currency);
         text += `${i + 1}. [${r.date}] Sown crop ${r.crop}: sold ${r.quantity} to ${r.buyerName || 'Local Buyer'} for ${currency}${Math.round(r.saleAmount).toLocaleString('en-IN')} (Received holding by ${rcvr})\n`;
       });
     }
@@ -361,15 +415,15 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
       });
   };
 
-  const combinedExps = [...sExpenses, ...sAllocations];
-  const combinedUsages = [...sUsagesDirect, ...sUsagesCommon];
+  const combinedExps = [...sExpenses, ...sAllocations].sort(byDate);
+  const combinedUsages = [...sUsagesDirect, ...sUsagesCommon].sort(byDate);
 
-  const combinedLabours = [...sLabours, ...sLabourAllocations];
+  const combinedLabours = [...sLabours, ...sLabourAllocations].sort(byDate);
 
   // Portalled to <body> so the print stylesheet can hide every sibling in
   // one rule, instead of unwinding the overlay's ancestors one by one.
   return createPortal(
-    <div data-print-root className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
+    <Dialog label={t('Financial Reconciliation Summary')} onClose={onClose} data-print-root className="fixed inset-0 z-55 bg-slate-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
       <div data-print-card className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh] animate-in fade-in zoom-in-95 duration-150 border border-slate-100">
         {/* Modal Header */}
         <div className="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
@@ -383,7 +437,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             </div>
             <h3 className="text-base font-extrabold text-slate-800 mt-1.5">{season.cropName} {t('Cycle on')} {field ? field.name : t('Unknown Plot')}</h3>
           </div>
-          <button
+          <button aria-label={t('Close')}
             onClick={onClose}
             data-print-hide
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer transition-colors"
@@ -490,9 +544,9 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             ) : (
               <div className="space-y-2.5">
                 {combinedExps.map(e => {
-                  const { label, note } = describePayer(e);
                   const isCommon = e.targetType === 'common';
                   const actualAmt = isCommon ? (e.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : e.amount;
+                  const { label, note } = describePayer(e, actualAmt, billKey('expense', e.id), e.amount);
                   return (
                     <div key={e.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
                       <div className="flex gap-2 flex-wrap">
@@ -505,9 +559,10 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                       </div>
                       <div className="sm:text-right">
                         <span className="font-bold font-mono text-slate-800 block">
-                          {currency}{Math.round(actualAmt).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">{e.isCredit ? '' : 'by '}{label}</span>
+                          {currency}{Math.round(actualAmt).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">{e.isCredit ? '' : `${t('paid by')} `}{label}</span>
                         </span>
                         {note && <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{note}</span>}
+                        {isCommon && <span className="text-[10px] text-amber-700 font-semibold block mt-0.5">{splitNote(e.amount, e.allocations)}</span>}
                       </div>
                     </div>
                   );
@@ -567,9 +622,9 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             ) : (
               <div className="space-y-2.5">
                 {combinedLabours.map(l => {
-                  const { label, note } = describePayer(l);
                   const isCommon = l.targetType === 'common';
                   const actualCost = isCommon ? (l.allocations?.find(a => a.seasonId === season.id)?.amount || 0) : l.totalCost;
+                  const { label, note } = describePayer(l, actualCost, billKey('labour', l.id), l.totalCost);
                   return (
                     <div key={l.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1 text-xs">
                       <div className="flex gap-2 flex-wrap">
@@ -580,9 +635,10 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                       </div>
                       <div className="sm:text-right">
                         <span className="font-mono font-bold text-slate-800 block">
-                          {currency}{Math.round(actualCost).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">{l.isCredit ? '' : 'paid by '}{label}</span>
+                          {currency}{Math.round(actualCost).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">{l.isCredit ? '' : `${t('paid by')} `}{label}</span>
                         </span>
                         {note && <span className="text-[10px] text-slate-400 font-medium block mt-0.5">{note}</span>}
+                        {isCommon && <span className="text-[10px] text-amber-700 font-semibold block mt-0.5">{splitNote(l.totalCost, l.allocations)}</span>}
                       </div>
                     </div>
                   );
@@ -602,7 +658,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
             ) : (
               <div className="space-y-2.5">
                 {sRevenues.map(r => {
-                  const rcvr = members.find(m => m.id === r.receivedByMemberId)?.name || t('Unknown');
+                  const rcvr = describeReceivers(r, r.saleAmount, members, currency, t('Unknown'));
                   return (
                     <div key={r.id} className="flex justify-between items-center text-xs">
                       <div className="flex gap-2">
@@ -610,7 +666,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
                         <span className="font-bold text-slate-700">{r.crop} (Yield: {r.quantity} sold{r.buyerName ? ` to ${r.buyerName}` : ''})</span>
                       </div>
                       <span className="font-mono font-bold text-slate-800">
-                        {currency}{Math.round(r.saleAmount).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">held by {rcvr}</span>
+                        {currency}{Math.round(r.saleAmount).toLocaleString('en-IN')} <span className="text-[10px] text-slate-400 font-medium">{t('held by')} {rcvr}</span>
                       </span>
                     </div>
                   );
@@ -799,7 +855,7 @@ export const SeasonReportModal: React.FC<SeasonReportModalProps> = ({
         </div>
 
       </div>
-    </div>,
+    </Dialog>,
     document.body
   );
 };

@@ -111,4 +111,16 @@ export const teMoney: Record<string, string> = {
   'Open it in Google Drive to view.': 'చూడటానికి Google Drive‌లో తెరవండి.',
   "Can't show this receipt here. Open it in Google Drive — if you don't have access yet, ask there.":
     'ఈ రసీదును ఇక్కడ చూపించలేము. Google Drive‌లో తెరవండి — మీకు ఇంకా అనుమతి లేకపోతే, అక్కడే అడగండి.',
+
+  // --- Entries paid by several partners ---
+  'Paid by more than one partner': 'ఒకరి కంటే ఎక్కువ భాగస్వాములు చెల్లించారు',
+  'Who paid, and how much each': 'ఎవరు చెల్లించారు, ఎవరు ఎంత',
+  'Amount paid by': 'చెల్లించిన మొత్తం',
+  'still to assign': 'ఇంకా కేటాయించాలి',
+  'over by': 'ఎక్కువ',
+  'Split equally': 'సమానంగా పంచండి',
+  'Back to one payer': 'ఒక్కరే చెల్లించారు',
+  'Received by more than one partner': 'ఒకరి కంటే ఎక్కువ భాగస్వాములు అందుకున్నారు',
+  'Who received, and how much each': 'ఎవరు అందుకున్నారు, ఎవరు ఎంత',
+  'Amount received by': 'అందుకున్న మొత్తం',
 };

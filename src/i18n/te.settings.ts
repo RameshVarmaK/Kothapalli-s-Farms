@@ -35,7 +35,8 @@ export const teSettings: Record<string, string> = {
   'We analyzed Google Sheets and found no differences, but you can still run a manual refresh. This will':
     'మేము Google Sheets‌ను విశ్లేషించాము, తేడాలు కనబడలేదు. అయినప్పటికీ మీరు మాన్యువల్‌గా రిఫ్రెష్ చేయవచ్చు. ఇది',
   'OVERWRITE': 'మీ లోకల్ డేటాబేస్‌ను పూర్తిగా భర్తీ చేస్తుంది',
-  'your local database.': '',
+  // The Telugu predicate sits in the OVERWRITE span; a blank here would fall back to English.
+  'your local database.': '.',
   'Force Overwrite': 'బలవంతంగా భర్తీ చేయండి',
 
   // --- GoogleSheetsSyncPanel ---

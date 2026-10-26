@@ -23,6 +23,7 @@ import { StockLevelsSegment } from './stock/StockLevelsSegment';
 import { PurchasesSegment } from './stock/PurchasesSegment';
 import { UsagesSegment } from './stock/UsagesSegment';
 import { StockEntryModal } from './stock/StockEntryModal';
+import { PayerRow, resolvePayers } from '../utils/payers';
 
 interface StockTabProps {
   stockItems: StockItem[];
@@ -76,6 +77,9 @@ export const StockTab: React.FC<StockTabProps> = ({
   const [purchaseCost, setPurchaseCost] = useState('');
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0]);
   const [purchasePayer, setPurchasePayer] = useState(members[0]?.id || '');
+  // Paid for by several partners rather than one.
+  const [purchaseSplit, setPurchaseSplit] = useState(false);
+  const [purchasePayerRows, setPurchasePayerRows] = useState<PayerRow[]>([]);
 
   // Usage state
   const [usageQty, setUsageQty] = useState('');
@@ -148,6 +152,12 @@ export const StockTab: React.FC<StockTabProps> = ({
     const qty = parseFloat(purchaseQty);
     const cost = parseFloat(purchaseCost);
 
+    const who = resolvePayers({ split: purchaseSplit, rows: purchasePayerRows, single: purchasePayer, total: cost });
+    if (who.error) {
+      setErrorMessage(who.error);
+      return;
+    }
+
     const purchasePost: StockPurchase = {
       ...(editingPurchase || {}),
       id: editingPurchase ? editingPurchase.id : `purc_${Date.now()}`,
@@ -155,7 +165,8 @@ export const StockTab: React.FC<StockTabProps> = ({
       quantity: qty,
       totalCost: cost,
       date: purchaseDate,
-      paidByMemberId: purchasePayer
+      paidByMemberId: who.memberId,
+      payers: who.payers
     } as StockPurchase;
 
     const validation = validatePurchase(purchasePost);
@@ -181,6 +192,16 @@ export const StockTab: React.FC<StockTabProps> = ({
     setPurchaseCost(String(purchase.totalCost));
     setPurchaseDate(purchase.date);
     setPurchasePayer(purchase.paidByMemberId);
+    if (purchase.payers && purchase.payers.length > 1) {
+      setPurchaseSplit(true);
+      setPurchasePayerRows(members.map(m => {
+        const paid = purchase.payers!.find(p => p.memberId === m.id);
+        return { memberId: m.id, paid: !!paid, amount: paid ? String(paid.amount) : '' };
+      }));
+    } else {
+      setPurchaseSplit(false);
+      setPurchasePayerRows([]);
+    }
     setModalType('purchase');
     setIsOpenAddModal(true);
   };
@@ -333,6 +354,8 @@ export const StockTab: React.FC<StockTabProps> = ({
     setItemUnit('');
     setPurchaseQty('');
     setPurchaseCost('');
+    setPurchaseSplit(false);
+    setPurchasePayerRows([]);
     setSelectedItemId('');
     setUsageQty('');
     setUsageTargetType('single');
@@ -504,6 +527,10 @@ export const StockTab: React.FC<StockTabProps> = ({
           setPurchaseDate={setPurchaseDate}
           purchasePayer={purchasePayer}
           setPurchasePayer={setPurchasePayer}
+          purchaseSplit={purchaseSplit}
+          setPurchaseSplit={setPurchaseSplit}
+          purchasePayerRows={purchasePayerRows}
+          setPurchasePayerRows={setPurchasePayerRows}
           onSubmitPurchase={handleSavePurchase}
           computedStockList={computedStockList}
           seasons={seasons}

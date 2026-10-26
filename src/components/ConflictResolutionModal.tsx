@@ -1,11 +1,12 @@
 import { LocalDatabase } from '../utils/database';
 import { AlertTriangle, Check, X } from 'lucide-react';
+import { Dialog } from './shell/Dialog';
 
 interface ConflictResolutionModalProps {
   isOpen: boolean;
   localData: LocalDatabase;
   cloudData: LocalDatabase;
-  onResolve: (resolution: 'local' | 'cloud' | 'merge') => void;
+  onResolve: (resolution: 'local' | 'cloud' | 'merge') => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -47,7 +48,7 @@ export function ConflictResolutionModal({
   const conflicts = getConflictSummary();
 
   return (
-    <div className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+    <Dialog label={'Data Conflict Detected'} onClose={onCancel} className="fixed inset-0 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-100">
           <div className="flex items-center gap-3 mb-2">
@@ -125,6 +126,6 @@ export function ConflictResolutionModal({
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

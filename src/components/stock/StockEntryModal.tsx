@@ -14,6 +14,9 @@ import {
 } from '../../types';
 import { AlertTriangle, Check } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { PayersField } from '../money/PayersField';
+import { PayerRow } from '../../utils/payers';
+import { Dialog } from '../shell/Dialog';
 
 interface StockEntryModalProps {
   modalType: 'item' | 'purchase' | 'usage';
@@ -50,6 +53,10 @@ interface StockEntryModalProps {
   setPurchaseDate: (v: string) => void;
   purchasePayer: string;
   setPurchasePayer: (v: string) => void;
+  purchaseSplit: boolean;
+  setPurchaseSplit: (v: boolean) => void;
+  purchasePayerRows: PayerRow[];
+  setPurchasePayerRows: (rows: PayerRow[]) => void;
   onSubmitPurchase: (e: React.FormEvent) => void;
 
   // Usage form state
@@ -111,6 +118,10 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
   setPurchaseDate,
   purchasePayer,
   setPurchasePayer,
+  purchaseSplit,
+  setPurchaseSplit,
+  purchasePayerRows,
+  setPurchasePayerRows,
   onSubmitPurchase,
   computedStockList,
   seasons,
@@ -140,7 +151,7 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
 }) => {
   const { t } = useLanguage();
   return (
-    <div className="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
+    <Dialog label={t('Add Sown Material / Input Type')} onClose={onClose} className="fixed inset-0 z-50 bg-gray-900/60 backdrop-blur-subtle flex items-center justify-center p-4">
       <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header switcher */}
         <div className="border-b border-gray-200 bg-gray-50/50 p-2 flex">
@@ -291,19 +302,20 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
                 />
               </div>
-              <div>
-                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Funder (Who Funded?)')}</label>
-                <select
-                  value={purchasePayer}
-                  onChange={e => setPurchasePayer(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
-                >
-                  {members.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
             </div>
+
+            <PayersField
+              kind="funded"
+              members={members}
+              currency={currency}
+              total={parseFloat(purchaseCost) || 0}
+              paidBy={purchasePayer}
+              setPaidBy={setPurchasePayer}
+              split={purchaseSplit}
+              setSplit={setPurchaseSplit}
+              rows={purchasePayerRows}
+              setRows={setPurchasePayerRows}
+            />
 
             <div className="flex gap-3 pt-4 border-t border-gray-50">
               <button
@@ -544,6 +556,6 @@ export const StockEntryModal: React.FC<StockEntryModalProps> = ({
           </form>
         )}
       </div>
-    </div>
+    </Dialog>
   );
 };

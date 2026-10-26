@@ -58,11 +58,11 @@ export const FieldsList: React.FC<FieldsListProps> = ({
               <button
                 onClick={() => onEditField(field)}
                 className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
-                title={t('Edit Field & Ownership Shares')}
+                title={t('Edit Field & Ownership Shares')} aria-label={t('Edit Field & Ownership Shares')}
               >
                 <Pencil size={14} />
               </button>
-              <button
+              <button aria-label={`${t('Delete')} ${field.name}`}
                 onClick={() => onDeleteField(field.id, field.name)}
                 className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
               >

@@ -20,6 +20,7 @@ import {
   SettlementClearance,
 } from '../types';
 import { buildSettlementLedger, simplifySeasonDebts } from '../utils/calculations';
+import { advancesByPartner, unpaidCreditInSeasons } from '../utils/creditBills';
 import { CheckCircle2, AlertOctagon, Download, Share2, Printer, ClipboardCheck } from 'lucide-react';
 import { convertToCSV, downloadFile } from '../utils/database';
 import { useLanguage } from '../hooks/useLanguage';
@@ -150,6 +151,15 @@ export const SettleTab: React.FC<SettleTabProps> = ({
   );
 
   // Run per-season matching to get sub-entries (individual season simplified debts)
+  // Credit bills not yet paid for belong to no partner, so the positions
+  // below cannot sum to zero while any are outstanding. That is expected, not
+  // an error, as long as the shortfall is exactly what is owed to creditors.
+  const owedToCreditors = unpaidCreditInSeasons(expenses, labours, creditRepayments, selectedSeasonIds);
+  const gapIsUnpaidCredit =
+    !summary.isBalanced && owedToCreditors > 0 && Math.abs(Math.abs(summary.totalSettlementDiscrepancy) - owedToCreditors) < 0.5;
+  const advances = advancesByPartner(expenses, labours, creditRepayments);
+  const fmtMoney = (n: number) => `${currency}${Math.round(n).toLocaleString('en-IN')}`;
+
   const allSeasonDebts = summary.ledgers.flatMap(ledger =>
     simplifySeasonDebts(ledger).map(debt => ({
       seasonId: ledger.seasonId,
@@ -301,10 +311,16 @@ export const SettleTab: React.FC<SettleTabProps> = ({
           <div>
             <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">{t('Ledger Balances Check')}</span>
             <p className="text-sm font-bold text-slate-800 mt-0.5">
-              {summary.isBalanced ? t('✓ Settlement engine balances exactly to zero') : t('⚠ Balancing Discrepancy')}
+              {summary.isBalanced
+                ? t('✓ Settlement engine balances exactly to zero')
+                : gapIsUnpaidCredit
+                  ? t('Credit bills still unpaid')
+                  : t('⚠ Balancing Discrepancy')}
             </p>
             <span className="text-[10px] text-slate-400 font-bold block mt-0.5 mono-num uppercase">
-              {t('Difference')}: {currency}{summary.totalSettlementDiscrepancy}
+              {gapIsUnpaidCredit
+                ? `${t('Owed to creditors')}: ${fmtMoney(owedToCreditors)}`
+                : `${t('Difference')}: ${currency}${summary.totalSettlementDiscrepancy}`}
             </span>
           </div>
         </div>
@@ -319,7 +335,9 @@ export const SettleTab: React.FC<SettleTabProps> = ({
             <p className="text-sm font-bold text-slate-800 mt-0.5 font-mono">
               {currency}{Math.round(summary.ledgers.reduce((sum, l) => sum + l.totalExpense, 0)).toLocaleString('en-IN')}
             </p>
-            <span className="text-[10px] text-slate-500 font-bold block mt-0.5 uppercase">{t('100% purchases tracked')}</span>
+            <span className="text-[10px] text-slate-500 font-bold block mt-0.5 uppercase">
+              {owedToCreditors > 0 ? `${fmtMoney(owedToCreditors)} ${t('of it on credit, not yet paid')}` : t('100% purchases tracked')}
+            </span>
           </div>
         </div>
 
@@ -401,6 +419,30 @@ export const SettleTab: React.FC<SettleTabProps> = ({
         </div>
       </div>
 
+      {/* Money already paid to creditors that no bill has claimed yet */}
+      {advances.total > 0.5 && (
+        <div className="bg-white rounded-2xl border border-amber-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-4.5 border-b border-amber-100 bg-amber-50/50">
+            <h3 className="font-bold text-sm text-slate-800 uppercase tracking-wider">{t('Advances paid, not yet on any bill')}</h3>
+            <p className="text-[11px] text-slate-500 font-medium mt-1 leading-relaxed">
+              {t('Paid to creditors ahead of their bills, so not charged to any crop cycle yet and not in the positions above. It is added to the right cycles by itself as soon as the bills are entered.')}
+            </p>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {[...advances.byMember.entries()].map(([memberId, amount]) => (
+              <li key={memberId} className="px-6 py-3.5 flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-800">{members.find(m => m.id === memberId)?.name?.trim() || t('Unknown')}</span>
+                <span className="font-mono font-bold text-amber-700">{fmtMoney(amount)}</span>
+              </li>
+            ))}
+            <li className="px-6 py-3.5 flex items-center justify-between text-xs bg-slate-50/60">
+              <span className="font-extrabold text-slate-700 uppercase tracking-wider text-[10px]">{t('Total')}</span>
+              <span className="font-mono font-extrabold text-slate-900">{fmtMoney(advances.total)}</span>
+            </li>
+          </ul>
+        </div>
+      )}
+
       {/* MINIMIZED WHO-PAYS-WHOM DEBT CLEARING RECOMMENDATIONS */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-6 py-4.5 border-b border-slate-200 bg-slate-50/50 flex justify-between items-center">
@@ -410,10 +452,21 @@ export const SettleTab: React.FC<SettleTabProps> = ({
 
         <div className="p-6 space-y-4">
           {summary.debts.length === 0 ? (
-            <div className="text-center py-8 text-emerald-700 font-bold bg-emerald-50/30 rounded-xl border border-emerald-100 flex flex-col items-center justify-center gap-1.5">
-              <span className="text-2xl">🏆</span>
-              <span className="uppercase text-[11px] tracking-wider text-emerald-800">{t('All partner accounts are perfectly balanced. No clearing transfers needed!')}</span>
-            </div>
+            gapIsUnpaidCredit ? (
+              <div className="text-center py-8 px-4 text-slate-700 font-bold bg-amber-50/40 rounded-xl border border-amber-100 flex flex-col items-center justify-center gap-1.5">
+                <span className="text-[11px] tracking-wider text-amber-900">
+                  {t('No transfers are needed between partners.')}
+                </span>
+                <span className="text-[11px] font-semibold text-slate-600 max-w-md leading-relaxed">
+                  {fmtMoney(owedToCreditors)} {t('is still owed to creditors. Each partner’s share of it is already counted in their position above, and settles as the creditors are paid.')}
+                </span>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-emerald-700 font-bold bg-emerald-50/30 rounded-xl border border-emerald-100 flex flex-col items-center justify-center gap-1.5">
+                <span className="text-2xl">🏆</span>
+                <span className="uppercase text-[11px] tracking-wider text-emerald-800">{t('All partner accounts are perfectly balanced. No clearing transfers needed!')}</span>
+              </div>
+            )
           ) : (
             summary.debts.map((debt, idx) => {
               const debtKey = mainDebtKey(debt);

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { amountPaidBy } from '../utils/payers';
 import React, { useState, useMemo } from 'react';
 import {
   Field,
@@ -102,17 +103,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
 
   // Calculate member investment contribution data
   const memberContributions = members.map(m => {
-    const expenseTotal = expenses
-      .filter(e => e.paidByMemberId === m.id)
-      .reduce((sum, e) => sum + e.amount, 0);
+    const expenseTotal = expenses.reduce((sum, e) => sum + amountPaidBy(e, e.amount, m.id), 0);
 
-    const stockTotal = purchases
-      .filter(p => p.paidByMemberId === m.id)
-      .reduce((sum, p) => sum + p.totalCost, 0);
+    const stockTotal = purchases.reduce((sum, p) => sum + amountPaidBy(p, p.totalCost, m.id), 0);
 
-    const labourTotal = labours
-      .filter(l => l.paidByMemberId === m.id)
-      .reduce((sum, l) => sum + l.totalCost, 0);
+    const labourTotal = labours.reduce((sum, l) => sum + amountPaidBy(l, l.totalCost, m.id), 0);
 
     // A bill taken on credit has no partner payer; the partner's money goes
     // in when they repay the creditor. Leaving repayments out understated
