@@ -359,9 +359,9 @@ describe('offline receipts', () => {
 });
 
 describe('receipts in the sheet', () => {
-  it('adds attachments as the last Expenses column without moving the others', () => {
+  it('keeps attachments (then payers) as the last Expenses columns, without moving the others', () => {
     const cols = SHEET_COLUMNS.expenses;
-    expect(cols[cols.length - 1]).toBe('attachments');
+    expect(cols.slice(-2)).toEqual(['attachments', 'payers']);
     expect(cols.slice(0, 14)).toEqual([
       'id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType',
       'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto',
@@ -388,7 +388,7 @@ describe('receipts in the sheet', () => {
     expect(text).not.toContain(DATA);
     expect(text).not.toContain('QUJD');
     expect(text).not.toContain('WFlaWg');
-    expect(write.body.data[0].range).toBe('Expenses!A1:O2');
+    expect(write.body.data[0].range).toBe('Expenses!A1:P2');
 
     const [header, row] = write.body.data[0].values;
     const cell = row[header.indexOf('attachments')];
@@ -399,7 +399,7 @@ describe('receipts in the sheet', () => {
     expect(row[header.indexOf('receiptPhoto')]).toBe('');
   });
 
-  it('widens an Expenses tab too narrow for the attachments column', async () => {
+  it('widens an Expenses tab made before the attachments and payers columns existed', async () => {
     const calls: any[] = [];
     vi.stubGlobal('fetch', vi.fn(async (url: string, init?: any) => {
       calls.push({ url, body: init?.body ? JSON.parse(init.body) : undefined });
@@ -414,7 +414,7 @@ describe('receipts in the sheet', () => {
     }));
     await ensureSheetsExist('tok', 'sheet');
     const update = calls.find(c => c.url.endsWith(':batchUpdate'))!;
-    expect(update.body.requests).toEqual([{ appendDimension: { sheetId: 4, dimension: 'COLUMNS', length: 1 } }]);
+    expect(update.body.requests).toEqual([{ appendDimension: { sheetId: 4, dimension: 'COLUMNS', length: 6 } }]);
   });
 });
 

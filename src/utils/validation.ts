@@ -1,3 +1,4 @@
+import { payersProblem } from './payers';
 import { Expense, Field, Season, Labour, HarvestRevenue, StockPurchase, StockUsage } from '../types';
 
 const TOLERANCE = 0.01; // Floating point tolerance for amount comparisons
@@ -132,6 +133,9 @@ export const validateExpense = (expense: Expense): { valid: boolean; errors: str
     }
   } else if (!expense.paidByMemberId) {
     errors.push('Member who paid is required');
+  } else if (expense.payers && expense.payers.length > 0) {
+    const problem = payersProblem(expense.payers, expense.amount);
+    if (problem) errors.push(problem);
   }
 
   return { valid: errors.length === 0, errors };
@@ -160,6 +164,9 @@ export const validateLabour = (labour: Labour): { valid: boolean; errors: string
     }
   } else if (!labour.paidByMemberId) {
     errors.push('Member who paid is required');
+  } else if (labour.payers && labour.payers.length > 0) {
+    const problem = payersProblem(labour.payers, labour.totalCost);
+    if (problem) errors.push(problem);
   }
 
   if (labour.wageRate <= 0) {
@@ -188,6 +195,9 @@ export const validateRevenue = (revenue: HarvestRevenue): { valid: boolean; erro
 
   if (!revenue.receivedByMemberId) {
     errors.push('Member who received payment is required');
+  } else if (revenue.receivers && revenue.receivers.length > 0) {
+    const problem = payersProblem(revenue.receivers, revenue.saleAmount, 'received');
+    if (problem) errors.push(problem);
   }
 
   return { valid: errors.length === 0, errors };
@@ -240,6 +250,9 @@ export const validatePurchase = (purchase: StockPurchase): { valid: boolean; err
     }
   } else if (!purchase.paidByMemberId) {
     errors.push('Member who paid is required');
+  } else if (purchase.payers && purchase.payers.length > 0) {
+    const problem = payersProblem(purchase.payers, purchase.totalCost);
+    if (problem) errors.push(problem);
   }
 
   return { valid: errors.length === 0, errors };

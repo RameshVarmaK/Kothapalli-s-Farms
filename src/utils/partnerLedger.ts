@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { amountPaidBy, amountReceivedBy, shareOfPaymentBy } from './payers';
+import { attributeRepaymentsDetailed, creditBills, CreditBill, DetailedAttribution } from './creditBills';
 import {
   Member,
   Field,
@@ -35,7 +37,7 @@ export { simplifySeasonDebts };
  * own rules, so they add up to the same totals.
  */
 
-export type PartnerLineKind = 'expense' | 'labour' | 'stock' | 'credit-repayment' | 'revenue';
+export type PartnerLineKind = 'expense' | 'labour' | 'stock' | 'credit-repayment' | 'advance' | 'revenue';
 
 export interface PartnerLedgerLine {
   id: string;
@@ -49,6 +51,8 @@ export interface PartnerLedgerLine {
   isSplit: boolean;
   /** Labour lines only: the crew and rate behind the cost. */
   workers?: { count: number; wageRate: number };
+  /** Payment lines only: what was written when it was recorded. */
+  note?: string;
   paidIn: number;
   received: number;
 }
@@ -95,10 +99,21 @@ export interface PartnerCreditPayment {
   creditorName: string;
   notes?: string;
   amount: number;
-  /** The part of it this report counts toward the cycles in scope — the
-   * share of that creditor's credit those cycles used. Less than `amount`
-   * when the credit also covered other cycles; 0 when none of it did. */
+  /** The part of it this report counts toward the cycles in scope: what sits
+   * on bills belonging to those cycles. Less than `amount` when it also went
+   * to other cycles' bills or is still an advance; 0 when none of it did. */
   countedInScope: number;
+  /** The part no bill has claimed yet. It is charged to a cycle as soon as
+   * bills exist for it. Not tied to the cycles in scope. */
+  advance: number;
+  creditAccountId: string;
+}
+
+/** What this partner has paid to a creditor ahead of any bill, per creditor. */
+export interface PartnerAdvance {
+  creditAccountId: string;
+  creditorName: string;
+  amount: number;
 }
 
 export interface PartnerLedger {
@@ -111,6 +126,8 @@ export interface PartnerLedger {
   stockPurchases: PartnerStockPurchase[];
   /** Every payment the partner made to a creditor, newest last. */
   creditPayments: PartnerCreditPayment[];
+  /** Money paid to creditors that is not on any bill yet, so not in the figures above. */
+  advances: { total: number; byCreditor: PartnerAdvance[] };
   totals: {
     paidIn: number;
     costShare: number;
@@ -144,6 +161,18 @@ export interface PartnerLedgerInput {
  * pull could leave '' in a blank cell). */
 function asList<T>(value: T[] | undefined): T[] {
   return Array.isArray(value) ? value : [];
+}
+
+function summariseAdvances(payments: PartnerCreditPayment[]): PartnerLedger['advances'] {
+  const byCreditor = new Map<string, PartnerAdvance>();
+  payments.forEach(p => {
+    if (p.advance <= 0.005) return;
+    const entry = byCreditor.get(p.creditAccountId) ?? { creditAccountId: p.creditAccountId, creditorName: p.creditorName, amount: 0 };
+    entry.amount += p.advance;
+    byCreditor.set(p.creditAccountId, entry);
+  });
+  const list = [...byCreditor.values()];
+  return { total: Number(list.reduce((sum, a) => sum + a.amount, 0).toFixed(2)), byCreditor: list };
 }
 
 export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
@@ -237,23 +266,28 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
   };
 
   expenses
-    .filter(e => !e.isCredit && e.paidByMemberId === memberId)
+    .filter(e => amountPaidBy(e, e.amount, memberId) > 0)
     .forEach(e => {
-      const { amount, cycles: c, isSplit } = attribute(
+      // Of a split entry, only the part this partner paid is theirs.
+      const paidShare = shareOfPaymentBy(e, e.amount, memberId);
+      const { amount: cycleTotal, cycles: c, isSplit } = attribute(
         e.targetType === 'single' ? { seasonId: e.targetSeasonId, amount: e.amount } : null,
         e.allocations
       );
+      const amount = cycleTotal * paidShare;
       if (amount === 0) return;
       lines.push({ id: e.id, date: e.date, kind: 'expense', detail: e.category, cycles: c, isSplit, paidIn: amount, received: 0 });
     });
 
   labours
-    .filter(l => !l.isCredit && l.paidByMemberId === memberId)
+    .filter(l => amountPaidBy(l, l.totalCost, memberId) > 0)
     .forEach(l => {
-      const { amount, cycles: c, isSplit } = attribute(
+      const paidShare = shareOfPaymentBy(l, l.totalCost, memberId);
+      const { amount: cycleTotal, cycles: c, isSplit } = attribute(
         l.targetType !== 'common' ? { seasonId: l.seasonId, amount: l.totalCost } : null,
         l.allocations
       );
+      const amount = cycleTotal * paidShare;
       if (amount === 0) return;
       lines.push({
         id: l.id,
@@ -286,59 +320,93 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
     lines.push({ id: u.id, date: u.date, kind: 'stock', detail: item?.name || 'Unknown item', cycles: c, isSplit, paidIn: amount, received: 0 });
   });
 
-  // A repayment is made against a creditor, not a bill; the engine spreads it
-  // over cycles by how much of that creditor's credit each cycle used.
+  // A payment goes to the creditor's bills (the ones it was ticked against,
+  // otherwise the oldest first), exactly as the engine places it, so what is
+  // counted here adds up to the engine's total for this partner. Whatever no
+  // bill has claimed yet is an advance.
   const creditPayments: PartnerCreditPayment[] = [];
+  const attributionByAccount = new Map<string, { bills: CreditBill[]; detail: DetailedAttribution }>();
+  const attributionFor = (accountId: string) => {
+    let entry = attributionByAccount.get(accountId);
+    if (!entry) {
+      const bills = creditBills(accountId, expenses, labours);
+      entry = { bills, detail: attributeRepaymentsDetailed(bills, creditRepayments.filter(r => r.creditAccountId === accountId)) };
+      attributionByAccount.set(accountId, entry);
+    }
+    return entry;
+  };
+
   creditRepayments
     .filter(r => r.memberId === memberId)
     .forEach(rep => {
       const creditor = input.creditAccounts?.find(c => c.id === rep.creditAccountId);
-      const payment: PartnerCreditPayment = {
+      const { bills, detail } = attributionFor(rep.creditAccountId);
+      const perBill = detail.byRepayment.get(rep.id) ?? new Map<string, number>();
+
+      let onBills = 0;
+      let countedInScope = 0;
+      let outsideScope = 0;
+      const perSeason = new Map<string, number>();
+      perBill.forEach((amount, key) => {
+        onBills += amount;
+        const bill = bills.find(b => b.key === key);
+        if (!bill || bill.amount <= 0) return;
+        let inThisBill = 0;
+        seasons.forEach(season => {
+          const portion = (amount * bill.amountInSeason(season.id)) / bill.amount;
+          if (portion <= 0 || !inScope.has(season.id)) return;
+          inThisBill += portion;
+          perSeason.set(season.id, (perSeason.get(season.id) || 0) + portion);
+        });
+        countedInScope += inThisBill;
+        outsideScope += amount - inThisBill;
+      });
+
+      creditPayments.push({
         id: rep.id,
         date: rep.date,
+        creditAccountId: rep.creditAccountId,
         creditorName: creditor?.name || 'Creditor',
         notes: rep.notes || undefined,
         amount: rep.amount,
-        countedInScope: 0,
-      };
-      creditPayments.push(payment);
-
-      const credExp = expenses.filter(e => e.isCredit && e.creditAccountId === rep.creditAccountId);
-      const credLab = labours.filter(l => l.isCredit && l.creditAccountId === rep.creditAccountId);
-      const totalCredit =
-        credExp.reduce((sum, e) => sum + e.amount, 0) + credLab.reduce((sum, l) => sum + l.totalCost, 0);
-      if (totalCredit <= 0) return;
-
-      const perSeason = new Map<string, number>();
-      const add = (seasonId: string | undefined, amount: number) => {
-        if (!seasonId || !inScope.has(seasonId)) return;
-        perSeason.set(seasonId, (perSeason.get(seasonId) || 0) + amount);
-      };
-      credExp.forEach(e =>
-        e.targetType === 'single' ? add(e.targetSeasonId, e.amount) : asList(e.allocations).forEach(a => add(a.seasonId, a.amount))
-      );
-      credLab.forEach(l =>
-        l.targetType !== 'common' ? add(l.seasonId, l.totalCost) : asList(l.allocations).forEach(a => add(a.seasonId, a.amount))
-      );
-
-      const inScopeCredit = [...perSeason.values()].reduce((sum, v) => sum + v, 0);
-      const amount = rep.amount * (inScopeCredit / totalCredit);
-      payment.countedInScope = amount;
-      if (Math.abs(amount) < 0.005) return;
-      lines.push({
-        id: rep.id,
-        date: rep.date,
-        kind: 'credit-repayment',
-        detail: creditor?.name || 'Creditor',
-        cycles: [...perSeason.keys()].map(seasonLabel),
-        isSplit: perSeason.size > 1 || inScopeCredit < totalCredit,
-        paidIn: amount,
-        received: 0,
+        countedInScope,
+        advance: Math.max(0, Number((rep.amount - onBills).toFixed(2))),
       });
+
+      // One payment, shown once: the part on bills in these cycles, and the
+      // part no bill has claimed yet as its own line. The two add up to what
+      // was paid, less anything that went to cycles outside this report.
+      if (Math.abs(countedInScope) >= 0.005) {
+        lines.push({
+          id: rep.id,
+          date: rep.date,
+          kind: 'credit-repayment',
+          detail: creditor?.name || 'Creditor',
+          note: rep.notes || undefined,
+          cycles: [...perSeason.keys()].map(seasonLabel),
+          isSplit: perSeason.size > 1 || outsideScope > 0.005,
+          paidIn: countedInScope,
+          received: 0,
+        });
+      }
+      const advance = Math.max(0, Number((rep.amount - onBills).toFixed(2)));
+      if (advance > 0.005) {
+        lines.push({
+          id: `${rep.id}-advance`,
+          date: rep.date,
+          kind: 'advance',
+          detail: creditor?.name || 'Creditor',
+          note: rep.notes || undefined,
+          cycles: [],
+          isSplit: false,
+          paidIn: advance,
+          received: 0,
+        });
+      }
     });
 
   revenues
-    .filter(r => r.receivedByMemberId === memberId && inScope.has(r.seasonId))
+    .filter(r => amountReceivedBy(r, r.saleAmount, memberId) > 0 && inScope.has(r.seasonId))
     .forEach(r => {
       lines.push({
         id: r.id,
@@ -348,23 +416,27 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
         cycles: [seasonLabel(r.seasonId)],
         isSplit: false,
         paidIn: 0,
-        received: r.saleAmount,
+        received: amountReceivedBy(r, r.saleAmount, memberId),
       });
     });
 
-  lines.sort((a, b) => a.date.localeCompare(b.date) || a.kind.localeCompare(b.kind));
+  // Same-day rows group by kind; a payment's advance follows the part of it on bills.
+  const kindOrder = (kind: PartnerLineKind) => (kind === 'advance' ? 'credit-repayment~' : kind);
+  lines.sort((a, b) => a.date.localeCompare(b.date) || kindOrder(a.kind).localeCompare(kindOrder(b.kind)));
 
   const stockPurchases: PartnerStockPurchase[] = purchases
-    .filter(p => !p.isCredit && p.paidByMemberId === memberId)
+    .filter(p => amountPaidBy(p, p.totalCost, memberId) > 0)
     .map(p => {
       const item = stockItems.find(si => si.id === p.stockItemId);
+      // Of a purchase several partners paid for, only this partner's part.
+      const share = shareOfPaymentBy(p, p.totalCost, memberId);
       return {
         id: p.id,
         date: p.date,
         itemName: item?.name || 'Unknown item',
-        quantity: p.quantity,
+        quantity: p.quantity * share,
         unit: item?.unit || '',
-        totalCost: p.totalCost,
+        totalCost: p.totalCost * share,
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -403,6 +475,7 @@ export function buildPartnerLedger(input: PartnerLedgerInput): PartnerLedger {
     lines,
     stockPurchases,
     creditPayments: creditPayments.sort((a, b) => String(a.date).localeCompare(String(b.date))),
+    advances: summariseAdvances(creditPayments),
     totals: {
       paidIn: Number(paidIn.toFixed(2)),
       costShare,

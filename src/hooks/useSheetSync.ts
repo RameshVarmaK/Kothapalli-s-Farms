@@ -10,13 +10,15 @@ import {
   saveDatabase,
   addAuditLog,
   LocalDatabase,
-  isPlaceholderSpreadsheetId
+  isPlaceholderSpreadsheetId,
+  mergeAuditLogs
 } from '../utils/database';
-import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges, collectionsToPush } from '../utils/syncConflict';
+import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges, collectionsToPush, mergeLocalIntoCloud } from '../utils/syncConflict';
 import { classifySyncError, isRetryable, retryDelayMs, SyncErrorKind } from '../utils/syncErrors';
-import { logError, logWarning } from '../utils/errorLogging';
+import { logError, logInfo, logWarning } from '../utils/errorLogging';
 import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet, extractSpreadsheetId, fetchSpreadsheetTitle, describeSheetLinkError } from '../utils/googleSheets';
 import { pickSpreadsheet } from '../utils/googlePicker';
+import { saveSafetyCopy, SAFETY_REASONS } from '../utils/safetyBackup';
 import { normalizeCloudDb } from '../app/normalizeCloudDb';
 import { hasChosenLedger, rememberLedgerChoice } from '../app/ledgerChoice';
 
@@ -60,6 +62,10 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
   // guards against overlapping pushes.
   const isSyncingRef = useRef(false);
   const syncQueueRef = useRef<LocalDatabase | null>(null);
+  // The newest db, for code that runs after an await and so would otherwise
+  // read the one from the render it started in.
+  const dbRef = useRef(db);
+  dbRef.current = db;
   const isReconcilingRef = useRef(false);
 
   const syncDatabaseAcrossCloud = async (currentDb?: LocalDatabase) => {
@@ -67,13 +73,13 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
     if (!accessToken || !dbToSync) return;
 
     if (loadingData) {
-      console.log('Postponing cloud sync because database is currently loading data...');
+      logInfo('sync_postponed', 'Database is currently loading data');
       return;
     }
 
     const targetSheetId = dbToSync.settings?.linkedSpreadsheetId;
     if (!targetSheetId || isPlaceholderSpreadsheetId(targetSheetId)) {
-      console.log('Postponing cloud sync because spreadsheet ID is absent or placeholder. Auto-fetch will resolve this.');
+      logInfo('sync_postponed', 'Spreadsheet ID is absent or placeholder; auto-fetch will resolve this');
       return;
     }
 
@@ -145,18 +151,23 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
 
           // Write only the tabs that changed since the last sync (or that
           // differ from what the check just read), not all fifteen.
+          // The sheet keeps the full audit history; this device only holds the
+          // latest 500. Push the union, and without a fresh read of the sheet
+          // leave the audit tab alone rather than shrink it.
+          let collections = collectionsToPush(nextDb, getLastSyncedFingerprint(), cloudBeforePush);
+          if (!cloudBeforePush && collections) collections = collections.filter(c => c !== 'auditLogs');
           await pushDataToSpreadsheet(
             accessToken,
             targetSheetId,
-            nextDb,
-            collectionsToPush(nextDb, getLastSyncedFingerprint(), cloudBeforePush)
+            { ...nextDb, auditLogs: mergeAuditLogs(nextDb.auditLogs, cloudBeforePush?.auditLogs) },
+            collections
           );
           setLastSyncedFingerprint(nextDb);
           setSyncErrorKind(null);
           retryAttemptRef.current = 0;
           setSyncingState('success');
           setSyncMessage('Successfully synced with cloud Sheets!');
-          setTimeout(() => setSyncingState('idle'), 3000);
+          setTimeout(() => setSyncingState(state => (state === 'success' ? 'idle' : state)), 3000);
         } catch (err: any) {
           logError('sync_to_sheets_failed', err, { sheetId: targetSheetId });
           const kind = classifySyncError(err, navigator.onLine);
@@ -188,30 +199,46 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
   // one poll interval stale before the pre-push conflict check runs. Skips
   // quietly while a push is in flight/queued (avoid racing our own write) or
   // the tab is backgrounded (avoid burning API calls for nothing).
+  /**
+   * Compares a fresh pull with this device's data and either takes the sheet's,
+   * keeps this device's, or raises the conflict prompt.
+   *
+   * The decision is made here, once, and only then applied. It used to run
+   * inside the state updater passed to setDb, which also saved to storage and
+   * moved the sync baseline. React runs updaters twice in development to catch
+   * exactly that: on the second run the baseline had already moved to the
+   * sheet's data, so a local copy that was merely out of date looked like
+   * "records deleted here". The app then kept the stale copy, believed it had
+   * unsynced changes, and its next push would have erased the sheet's newer
+   * records.
+   */
+  const adoptOrKeep = (sheetData: any, targetSheetId: string) => {
+    const current = dbRef.current;
+    const finalDb = normalizeCloudDb(sheetData, current || getInitialDatabase(), targetSheetId);
+    const decision = current ? classifySync(finalDb, current, getLastSyncedFingerprint()) : 'adopt-cloud';
+
+    if (decision === 'conflict') {
+      setConflictData({ isOpen: true, cloudData: finalDb });
+      return;
+    }
+    // Cloud hasn't moved since our last known sync, but this browser has
+    // unsynced local edits: keep them. The normal debounced push sends them
+    // up rather than clobbering local state with a stale pull.
+    if (decision === 'keep-local') return;
+
+    saveDatabase(finalDb);
+    setLastSyncedFingerprint(finalDb);
+    // Pure: it only swaps the state this decision was made against.
+    setDb(prev => (prev === current ? finalDb : prev));
+  };
+
   const reconcileWithCloud = async (targetSheetId: string) => {
     if (!accessToken || isReconcilingRef.current || isSyncingRef.current || syncQueueRef.current) return;
     isReconcilingRef.current = true;
     try {
       const sheetData = await pullDataFromSpreadsheet(accessToken, targetSheetId);
       if (!sheetData) return;
-      setDb(prev => {
-        const base = prev || getInitialDatabase();
-        const finalDb = normalizeCloudDb(sheetData, base, targetSheetId);
-        const decision = classifySync(finalDb, base, getLastSyncedFingerprint());
-        if (decision === 'conflict') {
-          setConflictData({ isOpen: true, cloudData: finalDb });
-          return prev;
-        }
-        if (decision === 'keep-local') {
-          // Cloud hasn't moved since our last known sync, but this browser has
-          // unsynced local edits — keep them; the normal debounced push will
-          // send them up rather than clobbering local state with a stale pull.
-          return prev;
-        }
-        saveDatabase(finalDb);
-        setLastSyncedFingerprint(finalDb);
-        return finalDb;
-      });
+      adoptOrKeep(sheetData, targetSheetId);
     } catch (err) {
       logWarning('background_reconcile_failed', err instanceof Error ? err.message : String(err), { sheetId: targetSheetId });
     } finally {
@@ -257,10 +284,10 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
           const resolveSheet = async (): Promise<{ sheetId: string; data: any } | null> => {
             const foundId = await findExistingSpreadsheet(accessToken);
             if (foundId) {
-              console.log(`Found existing spreadsheet: ${foundId}`);
+              logInfo('ledger_found', `Found existing spreadsheet: ${foundId}`);
               return { sheetId: foundId, data: await pullDataFromSpreadsheet(accessToken, foundId) };
             }
-            console.log('No ledger found on Drive. Asking how to set one up...');
+            logInfo('ledger_not_found', 'No ledger found on Drive; asking how to set one up');
             setNeedsSheetSetup(true);
             return null;
           };
@@ -310,38 +337,20 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
             }
 
             if (isSheetDataEmpty && isLocalDataNotEmpty) {
-              console.log("Newly linked Google Sheet is empty, but local database has valuable offline records. Pushing local state to Sheets to prevent data clearing...");
+              logInfo('empty_sheet_seeded', 'Linked sheet is empty but this device has records; pushing them up');
               await pushDataToSpreadsheet(accessToken, targetSheetId!, currentLocalDb);
               sheetData = {
                 ...currentLocalDb,
               };
             }
 
-            setDb(prev => {
-              const base = prev || getInitialDatabase();
-              const finalDb = normalizeCloudDb(sheetData, base, targetSheetId!);
-
-              // Reconcile against the last state this browser is known to have
-              // agreed with the cloud on. Without that, a stale local cache
-              // (e.g. reopening the app after other edits happened elsewhere)
-              // reads as a "conflict" every time, when it's really just this
-              // browser's cache being behind — which should silently adopt the
-              // cloud data, not prompt the user.
-              if (prev) {
-                const decision = classifySync(finalDb, prev, getLastSyncedFingerprint());
-                if (decision === 'conflict') {
-                  setConflictData({ isOpen: true, cloudData: finalDb });
-                  return prev;
-                }
-                if (decision === 'keep-local') {
-                  return prev;
-                }
-              }
-
-              saveDatabase(finalDb);
-              setLastSyncedFingerprint(finalDb);
-              return finalDb;
-            });
+            // Reconcile against the last state this browser is known to have
+            // agreed with the cloud on. Without that, a stale local cache
+            // (e.g. reopening the app after other edits happened elsewhere)
+            // reads as a "conflict" every time, when it's really just this
+            // browser's cache being behind — which should silently adopt the
+            // cloud data, not prompt the user.
+            adoptOrKeep(sheetData, targetSheetId!);
           } else {
             throw new Error("No data returned from Google Sheets layout reader.");
           }
@@ -465,6 +474,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
     if (!sheetData) {
       throw new Error('That spreadsheet could not be read. Check the link and try again.');
     }
+    if (db) saveSafetyCopy(SAFETY_REASONS.deviceBeforeSheet, db);
     const finalDb = normalizeCloudDb(sheetData, db || getInitialDatabase(), sheetId);
     saveDatabase(finalDb);
     setLastSyncedFingerprint(finalDb);
@@ -524,6 +534,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
       // Go through the same normalizer as the login pull and the background
       // reconciler so a manual pull can't leave the three paths disagreeing
       // about what the cloud holds.
+      if (db) saveSafetyCopy(SAFETY_REASONS.deviceBeforeSheet, db);
       const pulledDb = normalizeCloudDb(sheetData, db || getInitialDatabase(), spreadsheetId);
       const finalDb = addAuditLog(
         pulledDb,
@@ -540,62 +551,73 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
     }
   };
 
-  const handleResolveConflict = (resolution: 'local' | 'cloud' | 'merge') => {
+  const handleResolveConflict = async (resolution: 'local' | 'cloud' | 'merge') => {
     const cloudData = conflictData.cloudData;
     if (!cloudData || !db) {
       setConflictData({ isOpen: false, cloudData: null });
       return;
     }
 
-    let finalDb: LocalDatabase = db;
+    const finalDb: LocalDatabase =
+      resolution === 'cloud' ? cloudData
+      : resolution === 'merge' ? mergeLocalIntoCloud(cloudData, db)
+      : db;
 
-    if (resolution === 'cloud') {
-      // Use cloud version entirely
-      finalDb = cloudData;
-    } else if (resolution === 'merge') {
-      // Smart merge: keep new local entries, accept cloud updates
-      finalDb = {
-        ...cloudData,
-        // Merge expenses: keep local additions, accept cloud updates
-        expenses: [
-          ...cloudData.expenses,
-          ...(db.expenses || []).filter(
-            local => !cloudData.expenses?.some(cloud => cloud.id === local.id)
-          )
-        ],
-        // Merge labour entries
-        labours: [
-          ...cloudData.labours,
-          ...(db.labours || []).filter(
-            local => !cloudData.labours?.some(cloud => cloud.id === local.id)
-          )
-        ],
-        // Keep local revenues too
-        revenues: [
-          ...cloudData.revenues,
-          ...(db.revenues || []).filter(
-            local => !cloudData.revenues?.some(cloud => cloud.id === local.id)
-          )
-        ]
-      };
+    if (resolution === 'merge') {
       logWarning('conflict_resolved_merge', 'Merged local and cloud data');
     }
-    // else: keep local (do nothing)
-
+    // Keep whichever side is about to be overwritten, so a wrong pick can be undone.
+    if (resolution === 'cloud') saveSafetyCopy(SAFETY_REASONS.deviceBeforeSheet, db);
+    else saveSafetyCopy(SAFETY_REASONS.sheetBeforeOverwrite, cloudData);
     setDb(finalDb);
     saveDatabase(finalDb);
-    // Whatever the user picked is now this browser's agreed-upon state with
-    // the cloud (the next push will reconcile "local" back up; "cloud"/"merge"
-    // already reflect it) — record it so future opens don't re-flag the same
-    // resolved difference as a conflict again.
-    setLastSyncedFingerprint(finalDb);
     setConflictData({ isOpen: false, cloudData: null });
 
-    if (resolution !== 'local') {
-      logWarning('conflict_resolved', `Conflict resolved using: ${resolution}`, {
-        resolution,
-        cloudEntriesMerged: resolution === 'merge'
+    if (resolution === 'cloud') {
+      // The cloud is what this browser now holds, so it is the agreed baseline.
+      setLastSyncedFingerprint(finalDb);
+    } else {
+      // "Keep mine" and "merge" leave records the sheet does not have. They
+      // must be written before the baseline moves to them: recording it first
+      // made this browser look unchanged against a sheet that had moved on,
+      // so the next background poll adopted the cloud and discarded the very
+      // choice the user had just made. If the write fails the old baseline
+      // stays, the changes keep counting as unsynced, and the retry sends them.
+      await pushResolvedDatabase(finalDb, cloudData.auditLogs);
+    }
+
+    logWarning('conflict_resolved', `Conflict resolved using: ${resolution}`, {
+      resolution,
+      cloudEntriesMerged: resolution === 'merge'
+    });
+  };
+
+  const pushResolvedDatabase = async (resolved: LocalDatabase, conflictCloudAuditLogs: LocalDatabase['auditLogs']) => {
+    const sheetId = resolved.settings?.linkedSpreadsheetId;
+    if (!accessToken || !sheetId || isPlaceholderSpreadsheetId(sheetId)) return;
+    isSyncingRef.current = true;
+    setSyncingState('syncing');
+    try {
+      await pushDataToSpreadsheet(accessToken, sheetId, {
+        ...resolved,
+        auditLogs: mergeAuditLogs(resolved.auditLogs, conflictCloudAuditLogs)
       });
+      setLastSyncedFingerprint(resolved);
+      setSyncErrorKind(null);
+      retryAttemptRef.current = 0;
+      setSyncingState('success');
+      setSyncMessage('Successfully synced with cloud Sheets!');
+      setTimeout(() => setSyncingState(state => (state === 'success' ? 'idle' : state)), 3000);
+    } catch (err: any) {
+      logError('sync_conflict_resolution_push_failed', err, { sheetId });
+      const kind = classifySyncError(err, navigator.onLine);
+      setSyncErrorKind(kind);
+      setSyncingState('failed');
+      setSyncMessage(err?.message || String(err));
+      if (kind === 'auth') clearGoogleAccessToken();
+      syncQueueRef.current = resolved;
+    } finally {
+      isSyncingRef.current = false;
     }
   };
 

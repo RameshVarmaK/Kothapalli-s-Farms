@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { LocalDatabase, safeStorageGet, safeStorageSet } from './database';
+import { DATABASE_COLLECTIONS, LocalDatabase, RecordList, recordsOf, safeStorageGet, safeStorageSet } from './database';
 import { SHEET_COLUMNS, parseSheetRows, toSheetRows } from './googleSheets';
 
 // Every collection that holds user-entered records. All of them must be
@@ -50,7 +50,7 @@ export interface SyncFingerprint {
   sigs: Record<DiffKey, string[]>;
 }
 
-function idsOf(list: any[] | undefined): string[] {
+function idsOf(list: RecordList | undefined): string[] {
   if (!Array.isArray(list)) return [];
   return list
     .map((r, i) => (r && r.id != null ? String(r.id) : `__noid_${i}`))
@@ -91,7 +91,7 @@ function hashString(text: string): string {
  * pulled copy therefore hash alike, while local-only fields and type quirks
  * (TRUE vs true, "70" vs 70, '' vs undefined) never read as an edit.
  */
-function sigsOf(key: DiffKey, list: any[] | undefined): string[] {
+function sigsOf(key: DiffKey, list: RecordList | undefined): string[] {
   if (!Array.isArray(list)) return [];
   const columns = SHEET_COLUMNS[key];
   const records = list.filter(Boolean);
@@ -111,7 +111,7 @@ export function makeSyncFingerprint(db: LocalDatabase): SyncFingerprint {
   const ids = {} as Record<DiffKey, string[]>;
   const sigs = {} as Record<DiffKey, string[]>;
   DIFF_KEYS.forEach(key => {
-    const list = (db as any)[key] as any[] | undefined;
+    const list = recordsOf(db, key);
     counts[key] = list?.length || 0;
     ids[key] = idsOf(list);
     sigs[key] = sigsOf(key, list);
@@ -208,6 +208,28 @@ export function collectionsToPush(
     return !!cloudFp && !sameIds(local.sigs[key], cloudFp.sigs[key]);
   });
   return [...changed, ...UNTRACKED_PUSH_KEYS];
+}
+
+/**
+ * The "merge" conflict resolution: the cloud's database, plus every local
+ * record whose id the cloud does not have. Where both hold an id the cloud's
+ * copy wins ("accept cloud updates"); settings come from the cloud too.
+ * Walks every collection, so nothing entered here on one tab is dropped
+ * because a hand-written list forgot it.
+ */
+export function mergeLocalIntoCloud(cloud: LocalDatabase, local: LocalDatabase): LocalDatabase {
+  const merged: Record<string, unknown> = { ...cloud };
+  for (const key of DATABASE_COLLECTIONS) {
+    const cloudList: RecordList = recordsOf(cloud, key) || [];
+    const localList: RecordList = recordsOf(local, key) || [];
+    if (cloudList.length === 0 && localList.length === 0 && !(key in cloud) && !(key in local)) continue;
+    const cloudIds = new Set(cloudList.filter(r => r && r.id != null).map(r => String(r.id)));
+    merged[key] = [
+      ...cloudList,
+      ...localList.filter(r => r && (r.id == null || !cloudIds.has(String(r.id)))),
+    ];
+  }
+  return merged as unknown as LocalDatabase;
 }
 
 export type SyncDecision = 'adopt-cloud' | 'keep-local' | 'conflict';

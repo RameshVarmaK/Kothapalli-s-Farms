@@ -52,6 +52,14 @@ export interface LocalDatabase {
  * list. Code that walks the collections generically reads them from here, and
  * a test asserts this list still matches the interface.
  */
+/** A collection's records, read without a cast. Records are only inspected by
+ * id and content here, so their exact type does not matter. */
+export type RecordList = Record<string, unknown>[];
+
+export function recordsOf(db: LocalDatabase, key: (typeof DATABASE_COLLECTIONS)[number]): RecordList | undefined {
+  return db[key] as unknown as RecordList | undefined;
+}
+
 export const DATABASE_COLLECTIONS = [
   'members',
   'fields',
@@ -337,6 +345,20 @@ export function saveDatabase(db: LocalDatabase): boolean {
  * Creates an audit log entry in the database.
  * Keeps recent 500 logs in active storage; archives older ones to localStorage.
  */
+/**
+ * Every audit entry either side knows of, newest first. The local list is
+ * trimmed to the latest 500 but the sheet's AuditLogs tab is rewritten from
+ * whatever a push carries, so pushing the trimmed list alone erased the older
+ * history from the sheet. Merging in the sheet's own rows first keeps it.
+ */
+export function mergeAuditLogs(local: AuditLog[] = [], cloud: AuditLog[] = []): AuditLog[] {
+  const byId = new Map<string, AuditLog>();
+  [...cloud, ...local].forEach(log => {
+    if (log && log.id != null) byId.set(String(log.id), log);
+  });
+  return [...byId.values()].sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+}
+
 export function addAuditLog(
   db: LocalDatabase,
   actionType: 'create' | 'edit' | 'delete',

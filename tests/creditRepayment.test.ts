@@ -92,20 +92,23 @@ describe('credit purchase then repayment', () => {
     expect(paidByX([manureOnCredit], [repay(400)])).toBe(400);
   });
 
-  it('spreads a repayment across every season carrying that creditor debt', () => {
-    // The same creditor also financed 600 on field B. A repayment is not tied
-    // to a particular bill: it is apportioned by each season's share of that
-    // creditor's total credit, so field A receives 400/1000 of the 300.
+  it('settles the oldest bill first, so the season that ran it up is credited first', () => {
+    // The same creditor also financed 600 on field B, later. A repayment that
+    // names no bill clears the oldest one: the 400 of manure on field A, then
+    // the diesel. So 300 goes entirely to field A, and 700 clears manure and
+    // puts 300 on the diesel.
     const dieselOnCredit: Expense = {
       ...manureOnCredit,
       id: 'exp_diesel',
+      date: '2026-06-20',
       amount: 600,
       category: 'Diesel',
       targetFieldId: 'field_b',
       targetSeasonId: 'season_b'
     };
 
-    expect(paidByX([manureOnCredit, dieselOnCredit], [repay(300)], [seasonA, seasonB])).toBe(120);
+    expect(paidByX([manureOnCredit, dieselOnCredit], [repay(300)], [seasonA, seasonB])).toBe(300);
+    expect(paidByX([manureOnCredit, dieselOnCredit], [repay(700)], [seasonA, seasonB])).toBe(400);
   });
 });
 

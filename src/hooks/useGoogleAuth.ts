@@ -6,6 +6,8 @@
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, googleSignInRedirect, logout } from '../utils/auth';
+import { logInfo } from '../utils/errorLogging';
+import { clearSafetyCopies } from '../utils/safetyBackup';
 import {
   getInitialDatabase,
   LocalDatabase,
@@ -44,8 +46,9 @@ export function useGoogleAuth(setDb: Dispatch<SetStateAction<LocalDatabase | nul
       (currentUser, token) => {
         setUser(prevUser => {
           if (prevUser && prevUser.uid !== currentUser.uid) {
-            console.log("Detected Google profile switch. Purging old database local cache...");
+            logInfo('profile_switch', 'Detected Google profile switch; purging old database local cache');
             safeStorageRemove('farm_ledger_database');
+            clearSafetyCopies();
             LEGACY_CLEARANCE_KEYS.forEach(safeStorageRemove);
             setDb(getInitialDatabase());
           }
@@ -73,8 +76,9 @@ export function useGoogleAuth(setDb: Dispatch<SetStateAction<LocalDatabase | nul
       const result = await googleSignIn();
       if (result) {
         if (user && user.uid !== result.user.uid) {
-          console.log("Logged in different user. Cleaning stale local state cache...");
+          logInfo('user_changed', 'Different user signed in; cleaning stale local state cache');
           safeStorageRemove('farm_ledger_database');
+          clearSafetyCopies();
           setDb(getInitialDatabase());
         }
         setUser(result.user);
@@ -97,8 +101,9 @@ export function useGoogleAuth(setDb: Dispatch<SetStateAction<LocalDatabase | nul
       await logout();
       setUser(null);
       setAccessToken(null);
-      console.log("Logged out active slot. Removing local storage cache cleanly...");
+      logInfo('logout', 'Signed out; removing local storage cache');
       safeStorageRemove('farm_ledger_database');
+      clearSafetyCopies();
       setDb(getInitialDatabase());
     } catch (error) {
       console.error('Unified Google Auth Disconnect error:', error);

@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { amountPaidBy, amountReceivedBy, paymentsFor, shareOfPaymentBy } from './payers';
+import { creditBills, attributeRepayments, CreditBill, RepaymentAttribution } from './creditBills';
 import {
   Member,
   Field,
@@ -60,7 +62,6 @@ export function computeStockLevels(
         const p = event.data as StockPurchase;
         const purchaseQty = p.quantity;
         const purchaseCost = p.totalCost;
-        const memberId = p.paidByMemberId;
 
         if (quantity + purchaseQty > 0) {
           avgCost = (quantity * avgCost + purchaseCost) / (quantity + purchaseQty);
@@ -75,9 +76,10 @@ export function computeStockLevels(
         // contribution — the same rule expenses and labour already follow.
         // Crediting it here would pay the member twice: once as funding, and
         // again when their repayment to the creditor is attributed.
-        if (!p.isCredit) {
-          funding[memberId] = (funding[memberId] || 0) + purchaseCost;
-        }
+        // Where several partners paid for it, each is credited what they paid.
+        paymentsFor(p, purchaseCost).forEach(payment => {
+          funding[payment.memberId] = (funding[payment.memberId] || 0) + payment.amount;
+        });
       } else {
         const u = event.data as StockUsage;
         const qtyUsed = u.quantityUsed;
@@ -145,6 +147,27 @@ export function splitStockCostByFunder(
 }
 
 /**
+ * Splits `amount` in proportion to `weights`, in whole paise, so the parts add
+ * up to the amount exactly. Each part is rounded down and the paise left over
+ * go one apiece to the parts that lost the most to rounding (ties to the
+ * later parts). Rounding every share and dumping the difference on the last
+ * one could leave it negative: ₹0.03 across five fields gave −₹0.01.
+ */
+function splitInCents(amount: number, weights: number[]): number[] {
+  const sign = amount < 0 ? -1 : 1;
+  const total = Math.round(Math.abs(amount) * 100);
+  const weightSum = weights.reduce((sum, w) => sum + w, 0);
+  const exact = weights.map(w => (total * w) / weightSum);
+  const parts = exact.map(Math.floor);
+  let leftover = total - parts.reduce((sum, p) => sum + p, 0);
+  const byLoss = exact
+    .map((value, index) => ({ index, loss: value - Math.floor(value) }))
+    .sort((a, b) => b.loss - a.loss || b.index - a.index);
+  for (let i = 0; leftover > 0 && i < byLoss.length; i++, leftover--) parts[byLoss[i].index] += 1;
+  return parts.map(p => (p === 0 ? 0 : (sign * p) / 100));
+}
+
+/**
  * Executes Common Cost Allocation for a specific Expense or StockUsage.
  * Default splitting options:
  * - 'area': split proportional to field areas of participating seasons.
@@ -160,14 +183,11 @@ export function calculateAllocations(
   if (targetSeasons.length === 0) return [];
 
   if (rule === 'equal') {
-    const share = Number((amount / targetSeasons.length).toFixed(2));
-    let distributed = 0;
-    return targetSeasons.map((s, idx) => {
-      const isLast = idx === targetSeasons.length - 1;
-      const finalAmt = isLast ? Number((amount - distributed).toFixed(2)) : share;
-      distributed += finalAmt;
-      return { fieldId: s.fieldId, seasonId: s.seasonId, amount: finalAmt };
-    });
+    return splitInCents(amount, targetSeasons.map(() => 1)).map((amt, i) => ({
+      fieldId: targetSeasons[i].fieldId,
+      seasonId: targetSeasons[i].seasonId,
+      amount: amt
+    }));
   }
 
   if (rule === 'area') {
@@ -176,22 +196,17 @@ export function calculateAllocations(
       // Fallback to equal
       return calculateAllocations(amount, 'equal', targetSeasons);
     }
-    let distributed = 0;
-    return targetSeasons.map((s, idx) => {
-      const isLast = idx === targetSeasons.length - 1;
-      const proportion = s.fieldArea / totalArea;
-      const finalAmt = isLast ? Number((amount - distributed).toFixed(2)) : Number((amount * proportion).toFixed(2));
-      distributed += finalAmt;
-      return { fieldId: s.fieldId, seasonId: s.seasonId, amount: finalAmt };
-    });
+    return splitInCents(amount, targetSeasons.map(s => s.fieldArea)).map((amt, i) => ({
+      fieldId: targetSeasons[i].fieldId,
+      seasonId: targetSeasons[i].seasonId,
+      amount: amt
+    }));
   }
 
   if (rule === 'manual' && manualAmounts) {
-    let distributed = 0;
     return targetSeasons.map((s) => {
       const key = `${s.fieldId}_${s.seasonId}`;
       const assetAmt = Number((manualAmounts[key] || 0).toFixed(2));
-      distributed += assetAmt;
       return { fieldId: s.fieldId, seasonId: s.seasonId, amount: assetAmt };
     });
   }
@@ -247,6 +262,17 @@ export function buildSettlementLedger(
   const safePurchases = purchases || [];
   const safeSelectedSeasonIds = selectedSeasonIds || [];
   const safeCreditRepayments = creditRepayments || [];
+
+  // Who has paid what towards each creditor's bills. Global, not per cycle: a
+  // bill's repayments are the same whichever cycle's ledger is being built.
+  const creditAttribution = new Map<string, { bills: CreditBill[]; attribution: RepaymentAttribution }>();
+  new Set(safeCreditRepayments.map(r => r.creditAccountId)).forEach(accountId => {
+    const bills = creditBills(accountId, safeExpenses, safeLabours);
+    creditAttribution.set(accountId, {
+      bills,
+      attribution: attributeRepayments(bills, safeCreditRepayments.filter(r => r.creditAccountId === accountId)),
+    });
+  });
 
   const activeSeasons = safeSeasons.filter(s => safeSelectedSeasonIds.includes(s.id));
   const computedStockItems = computeStockLevels(safeStockItems, safePurchases, safeUsages);
@@ -321,18 +347,20 @@ export function buildSettlementLedger(
       const entitledAmount = Number((shareRatio * netProfit).toFixed(2));
 
       // Paid_m = (direct field non-credit expenses paid by m) + (allocated common non-credit expenses paid by m) + (non-credit labour paid by m) + (stock funded by m consumed here) + (m's crop-proportional credit repayments)
-      const mDirectExp = directExpenses.filter(e => !e.isCredit && e.paidByMemberId === m.id).reduce((sum, e) => sum + e.amount, 0);
+      const mDirectExp = directExpenses.reduce((sum, e) => sum + amountPaidBy(e, e.amount, m.id), 0);
       
-      const mCommonAllocExp = allocatedExpenses.filter(e => !e.isCredit && e.paidByMemberId === m.id).reduce((sum, e) => {
+      // A split entry shows up in each cycle as that cycle's share; a partner
+      // who paid part of it paid that part of each share.
+      const mCommonAllocExp = allocatedExpenses.reduce((sum, e) => {
         const alloc = e.allocations?.find(al => al.seasonId === season.id);
-        return sum + (alloc ? alloc.amount : 0);
+        return sum + (alloc ? alloc.amount * shareOfPaymentBy(e, e.amount, m.id) : 0);
       }, 0);
 
-      const mDirectLabour = directLabour.filter(l => !l.isCredit && l.paidByMemberId === m.id).reduce((sum, l) => sum + l.totalCost, 0);
+      const mDirectLabour = directLabour.reduce((sum, l) => sum + amountPaidBy(l, l.totalCost, m.id), 0);
 
-      const mCommonLabour = commonLabour.filter(l => !l.isCredit && l.paidByMemberId === m.id).reduce((sum, l) => {
+      const mCommonLabour = commonLabour.reduce((sum, l) => {
         const alloc = l.allocations?.find(al => al.seasonId === season.id);
-        return sum + (alloc ? alloc.amount : 0);
+        return sum + (alloc ? alloc.amount * shareOfPaymentBy(l, l.totalCost, m.id) : 0);
       }, 0);
 
       const mLabour = mDirectLabour + mCommonLabour;
@@ -354,51 +382,17 @@ export function buildSettlementLedger(
         return sum + mStockShare(info, allocatedQty * (info ? info.weightedAverageCost : 0));
       }, 0);
 
-      // Distribute credit repayments from member m to this season proportionally
+      // Repayments reach a crop cycle through the bills they were paid
+      // against: any the payer ticked go to those bills, the rest is spread
+      // over the account's unpaid bills (see creditBills.ts).
       let mCreditRepaymentsAttributed = 0;
-      if (safeCreditRepayments && safeCreditRepayments.length > 0) {
-        const mRepayments = safeCreditRepayments.filter(r => r.memberId === m.id);
-        
-        mRepayments.forEach(rep => {
-          const credId = rep.creditAccountId;
-          
-          // Find all credit expenses/labours globally to determine total volume for that creditor
-          const credExp = safeExpenses.filter(e => e.isCredit && e.creditAccountId === credId);
-          const credLab = safeLabours.filter(l => l.isCredit && l.creditAccountId === credId);
-          
-          let totalCredIncurredGlobal = 0;
-          credExp.forEach(e => { totalCredIncurredGlobal += e.amount; });
-          credLab.forEach(l => { totalCredIncurredGlobal += l.totalCost; });
-
-          // Find credit incurred specifically in this season
-          let credIncurredInThisSeason = 0;
-          credExp.forEach(e => {
-            if (e.targetType === 'single' && e.targetSeasonId === season.id) {
-              credIncurredInThisSeason += e.amount;
-            } else if (e.targetType === 'common') {
-              const alloc = e.allocations?.find(al => al.seasonId === season.id);
-              if (alloc) {
-                credIncurredInThisSeason += alloc.amount;
-              }
-            }
-          });
-          credLab.forEach(l => {
-            if (l.targetType !== 'common' && l.seasonId === season.id) {
-              credIncurredInThisSeason += l.totalCost;
-            } else if (l.targetType === 'common') {
-              const alloc = l.allocations?.find(al => al.seasonId === season.id);
-              if (alloc) {
-                credIncurredInThisSeason += alloc.amount;
-              }
-            }
-          });
-
-          if (totalCredIncurredGlobal > 0) {
-            const proportion = credIncurredInThisSeason / totalCredIncurredGlobal;
-            mCreditRepaymentsAttributed += rep.amount * proportion;
-          }
+      creditAttribution.forEach(({ bills, attribution }) => {
+        bills.forEach(bill => {
+          const paid = attribution.get(bill.key)?.get(m.id);
+          if (!paid || bill.amount <= 0) return;
+          mCreditRepaymentsAttributed += (paid * bill.amountInSeason(season.id)) / bill.amount;
         });
-      }
+      });
 
       // Kept unrounded so that rounding their sum below reproduces
       // paidAmount exactly — the season report shows these as the four lines
@@ -413,7 +407,7 @@ export function buildSettlementLedger(
       const paidAmount = Number((mDirectExp + mCommonAllocExp + mLabour + mDirectStockFunding + mCommonStockFunding + mCreditRepaymentsAttributed).toFixed(2));
 
       // Received_m = revenue actually received by m
-      const receivedAmount = fieldRevenues.filter(r => r.receivedByMemberId === m.id).reduce((sum, r) => sum + r.saleAmount, 0);
+      const receivedAmount = fieldRevenues.reduce((sum, r) => sum + amountReceivedBy(r, r.saleAmount, m.id), 0);
 
       // Settlement_m = entitled - (received - paid) = entitled - received + paid
       const netPosition = Number((entitledAmount - (receivedAmount - paidAmount)).toFixed(2));

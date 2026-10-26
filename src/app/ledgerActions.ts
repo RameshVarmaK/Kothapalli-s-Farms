@@ -17,6 +17,8 @@ import {
   validateSeasonShares
 } from '../utils/validation';
 import { logWarning } from '../utils/errorLogging';
+import { isNamedPayer, isNamedReceiver } from '../utils/payers';
+import { saveSafetyCopy, SAFETY_REASONS } from '../utils/safetyBackup';
 import { sendBulkNotifications } from '../utils/notifications';
 import {
   Member,
@@ -364,7 +366,7 @@ export function createLedgerActions({
     const finalDb = addAuditLog(
       newDb,
       'create',
-      'CreditAccount' as any,
+      'CreditAccount',
       acc.id,
       `Registered creditor profile: "${acc.name}" (${acc.type})`
     );
@@ -377,7 +379,7 @@ export function createLedgerActions({
     const finalDb = addAuditLog(
       newDb,
       'edit',
-      'CreditAccount' as any,
+      'CreditAccount',
       updatedAcc.id,
       `Updated creditor profile details: "${updatedAcc.name}" (${updatedAcc.type})`
     );
@@ -392,7 +394,7 @@ export function createLedgerActions({
       const finalDb = addAuditLog(
         newDb,
         'delete',
-        'CreditAccount' as any,
+        'CreditAccount',
         id,
         `Removed creditor: "${target.name}"`
       );
@@ -410,7 +412,7 @@ export function createLedgerActions({
     const finalDb = addAuditLog(
       newDb,
       'create',
-      'CreditRepayment' as any,
+      'CreditRepayment',
       rep.id,
       `Paid settlement repayment of ${settings.currency}${rep.amount} to creditor "${creditor ? creditor.name : 'Unknown'}" by partner "${memberName}"`,
       rep.memberId
@@ -426,7 +428,7 @@ export function createLedgerActions({
     const finalDb = addAuditLog(
       newDb,
       'edit',
-      'CreditRepayment' as any,
+      'CreditRepayment',
       updatedRep.id,
       `Updated settlement repayment of ${settings.currency}${updatedRep.amount} to creditor "${creditor ? creditor.name : 'Unknown'}" by partner "${memberName}"`,
       updatedRep.memberId
@@ -443,7 +445,7 @@ export function createLedgerActions({
       const finalDb = addAuditLog(
         newDb,
         'delete',
-        'CreditRepayment' as any,
+        'CreditRepayment',
         id,
         `Voided repayment of ${settings.currency}${target.amount} to creditor "${creditor ? creditor.name : 'Unknown'}"`,
         target.memberId
@@ -945,10 +947,10 @@ export function createLedgerActions({
     // because every paidBy/receivedBy id would now point at a ghost. Refuse
     // and tell the user exactly where the references live so they can clean
     // up (re-assign or delete) first.
-    const expRefs = expenses.filter(e => e.paidByMemberId === id).length;
-    const labRefs = labours.filter(l => l.paidByMemberId === id).length;
-    const revRefs = revenues.filter(r => r.receivedByMemberId === id).length;
-    const purRefs = purchases.filter(p => p.paidByMemberId === id).length;
+    const expRefs = expenses.filter(e => isNamedPayer(e, id)).length;
+    const labRefs = labours.filter(l => isNamedPayer(l, id)).length;
+    const revRefs = revenues.filter(r => isNamedReceiver(r, id)).length;
+    const purRefs = purchases.filter(p => isNamedPayer(p, id)).length;
     const repRefs = creditRepayments.filter(r => r.memberId === id).length;
     const fieldRefs = fields.filter(f => (f.shares || []).some(sh => sh.memberId === id)).length;
     const seasonRefs = seasons.filter(
@@ -1000,6 +1002,7 @@ export function createLedgerActions({
 
   // ACTIONS: Import Backups JSON
   const handleImportDatabase = (nextData: any) => {
+    saveSafetyCopy(SAFETY_REASONS.deviceBeforeRestore, db);
     // A backup taken before auto-generated timeline rows were dropped would
     // otherwise restore them.
     handleUpdateDatabase({ ...nextData, activities: stripAutoActivities(nextData.activities || []) });

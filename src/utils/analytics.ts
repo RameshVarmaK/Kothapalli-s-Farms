@@ -1,3 +1,4 @@
+import { paymentsFor, receiptsFor } from './payers';
 import { LocalDatabase } from './database';
 
 export interface CropProfitability {
@@ -132,26 +133,27 @@ export function calculateMemberContribution(db: LocalDatabase): MemberContributi
 
   // Expenses paid
   (db.expenses || []).forEach(exp => {
-    const contrib = contributions.get(exp.paidByMemberId);
-    if (contrib) {
-      contrib.expensesPaid += exp.amount;
-    }
+    paymentsFor(exp, exp.amount).forEach(payment => {
+      const contrib = contributions.get(payment.memberId);
+      if (contrib) contrib.expensesPaid += payment.amount;
+    });
   });
 
   // Labour hours (assume 8-hour workday, wageRate per worker)
   (db.labours || []).forEach(lab => {
-    const contrib = contributions.get(lab.paidByMemberId);
-    if (contrib) {
-      contrib.hoursWorked += lab.workersCount * 8; // simplification
-    }
+    paymentsFor(lab, lab.totalCost).forEach(payment => {
+      const contrib = contributions.get(payment.memberId);
+      // simplification: a partner is credited the hours in proportion to what they paid
+      if (contrib) contrib.hoursWorked += lab.workersCount * 8 * (lab.totalCost > 0 ? payment.amount / lab.totalCost : 1);
+    });
   });
 
   // Revenue received
   (db.revenues || []).forEach(rev => {
-    const contrib = contributions.get(rev.receivedByMemberId);
-    if (contrib) {
-      contrib.revenueReceived += rev.saleAmount;
-    }
+    receiptsFor(rev, rev.saleAmount).forEach(receipt => {
+      const contrib = contributions.get(receipt.memberId);
+      if (contrib) contrib.revenueReceived += receipt.amount;
+    });
   });
 
   // Calculate net position (overly simplified; real settlement is more complex)

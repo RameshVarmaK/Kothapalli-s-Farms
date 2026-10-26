@@ -81,6 +81,12 @@ export interface Expense {
   date: string;
   amount: number;
   paidByMemberId: string;
+  /**
+   * Set when several partners paid this entry together, with what each paid
+   * (adding up to the total). `paidByMemberId` then holds the first of them.
+   * Absent means `paidByMemberId` paid all of it.
+   */
+  payers?: Payment[];
   category: string;
   linkedActivityId?: string;
   targetType: 'single' | 'common';
@@ -114,6 +120,8 @@ export interface StockPurchase {
   totalCost: number;
   date: string;
   paidByMemberId: string;
+  /** Set when several partners paid for this purchase; see Expense.payers. */
+  payers?: Payment[];
   isCredit?: boolean;
   creditAccountId?: string;
 }
@@ -146,6 +154,12 @@ export interface Labour {
   wageRate: number; // per worker rate
   totalCost: number; // lump sum or workersCount * wageRate
   paidByMemberId: string;
+  /**
+   * Set when several partners paid this entry together, with what each paid
+   * (adding up to the total). `paidByMemberId` then holds the first of them.
+   * Absent means `paidByMemberId` paid all of it.
+   */
+  payers?: Payment[];
   /** What work was done — required for new entries; absent on rows logged
    * before it was asked for. */
   description?: string;
@@ -170,6 +184,12 @@ export interface HarvestRevenue {
   buyerName?: string;
   saleAmount: number;
   receivedByMemberId: string;
+  /**
+   * Set when the sale money went to several partners, with what each
+   * received (adding up to the sale amount). `receivedByMemberId` then holds
+   * the first of them.
+   */
+  receivers?: Payment[];
   linkedActivityId?: string;
 }
 
@@ -267,6 +287,19 @@ export interface CreditAccount {
   notes?: string;
 }
 
+/** What one partner paid towards an entry that several partners paid for. */
+export interface Payment {
+  memberId: string;
+  amount: number;
+}
+
+/** Part of a repayment the payer said settles one particular bill. */
+export interface RepaymentBillAllocation {
+  /** `expense:<id>` or `labour:<id>`, see creditBills.ts. */
+  billKey: string;
+  amount: number;
+}
+
 export interface CreditRepayment {
   id: string;
   creditAccountId: string;
@@ -274,6 +307,12 @@ export interface CreditRepayment {
   amount: number;
   date: string;
   notes?: string;
+  /**
+   * The bills this payment was made against. Absent (or covering only part of
+   * the amount) means the rest is spread over the account's unsettled bills in
+   * proportion to their size, which is how every repayment used to be treated.
+   */
+  billAllocations?: RepaymentBillAllocation[];
 }
 
 export type NotificationChannel = 'sms' | 'whatsapp' | 'none';

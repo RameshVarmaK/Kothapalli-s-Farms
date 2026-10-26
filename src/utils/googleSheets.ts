@@ -198,12 +198,12 @@ export async function createSpreadsheet(accessToken: string): Promise<string> {
       { properties: { title: 'Fields', gridProperties: { columnCount: 10, rowCount: 100 } } },
       { properties: { title: 'Seasons', gridProperties: { columnCount: 10, rowCount: 150 } } },
       { properties: { title: 'Activities', gridProperties: { columnCount: 10, rowCount: 1000 } } },
-      { properties: { title: 'Expenses', gridProperties: { columnCount: 15, rowCount: 1000 } } },
-      { properties: { title: 'Labor', gridProperties: { columnCount: 15, rowCount: 1000 } } },
+      { properties: { title: 'Expenses', gridProperties: { columnCount: 20, rowCount: 1000 } } },
+      { properties: { title: 'Labor', gridProperties: { columnCount: 20, rowCount: 1000 } } },
       { properties: { title: 'StockItems', gridProperties: { columnCount: 10, rowCount: 200 } } },
-      { properties: { title: 'StockPurchases', gridProperties: { columnCount: 10, rowCount: 1000 } } },
+      { properties: { title: 'StockPurchases', gridProperties: { columnCount: 12, rowCount: 1000 } } },
       { properties: { title: 'StockUsage', gridProperties: { columnCount: 10, rowCount: 1000 } } },
-      { properties: { title: 'HarvestRevenue', gridProperties: { columnCount: 10, rowCount: 1000 } } },
+      { properties: { title: 'HarvestRevenue', gridProperties: { columnCount: 12, rowCount: 1000 } } },
       { properties: { title: 'AuditLogs', gridProperties: { columnCount: 10, rowCount: 5000 } } },
     ],
   };
@@ -317,12 +317,12 @@ export async function ensureSheetsExist(
     { title: 'Fields', columnCount: 10, rowCount: 100 },
     { title: 'Seasons', columnCount: 10, rowCount: 150 },
     { title: 'Activities', columnCount: 10, rowCount: 1000 },
-    { title: 'Expenses', columnCount: 15, rowCount: 1000 },
-    { title: 'Labor', columnCount: 15, rowCount: 1000 },
+    { title: 'Expenses', columnCount: 20, rowCount: 1000 },
+    { title: 'Labor', columnCount: 20, rowCount: 1000 },
     { title: 'StockItems', columnCount: 10, rowCount: 200 },
-    { title: 'StockPurchases', columnCount: 10, rowCount: 1000 },
+    { title: 'StockPurchases', columnCount: 12, rowCount: 1000 },
     { title: 'StockUsage', columnCount: 10, rowCount: 1000 },
-    { title: 'HarvestRevenue', columnCount: 10, rowCount: 1000 },
+    { title: 'HarvestRevenue', columnCount: 12, rowCount: 1000 },
     { title: 'AuditLogs', columnCount: 10, rowCount: 5000 },
     { title: 'CreditAccounts', columnCount: 10, rowCount: 500 },
     { title: 'CreditRepayments', columnCount: 10, rowCount: 1000 },
@@ -404,16 +404,18 @@ export const SHEET_COLUMNS: Record<string, string[]> = {
   // 'receiptPhoto' is kept only so later columns don't move; it is always
   // written blank (see toSheetRows). 'attachments' (Drive receipt metadata)
   // goes last so existing sheets keep every column where it was.
-  expenses: ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId', 'attachments'],
+  expenses: ['id', 'date', 'amount', 'paidByMemberId', 'category', 'linkedActivityId', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'receiptPhoto', 'isCredit', 'creditAccountId', 'attachments', 'payers'],
   // 'description' goes last so existing sheets keep every column where it was.
-  labours: ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations', 'description'],
+  labours: ['id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost', 'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations', 'description', 'payers'],
   stockItems: ['id', 'name', 'type', 'unit', 'quantityOnHand', 'weightedAverageCost', 'totalCostSpent', 'fundingByMember'],
-  purchases: ['id', 'stockItemId', 'quantity', 'totalCost', 'date', 'paidByMemberId', 'isCredit', 'creditAccountId'],
+  purchases: ['id', 'stockItemId', 'quantity', 'totalCost', 'date', 'paidByMemberId', 'isCredit', 'creditAccountId', 'payers'],
   usages: ['id', 'stockItemId', 'quantityUsed', 'date', 'targetType', 'targetFieldId', 'targetSeasonId', 'commonAllocationRule', 'allocations', 'linkedActivityId'],
-  revenues: ['id', 'date', 'fieldId', 'seasonId', 'crop', 'quantity', 'buyerName', 'saleAmount', 'receivedByMemberId'],
+  revenues: ['id', 'date', 'fieldId', 'seasonId', 'crop', 'quantity', 'buyerName', 'saleAmount', 'receivedByMemberId', 'receivers'],
   auditLogs: ['id', 'timestamp', 'actionType', 'entityType', 'entityId', 'description', 'memberId'],
   creditAccounts: ['id', 'name', 'phone', 'type', 'notes'],
-  creditRepayments: ['id', 'creditAccountId', 'memberId', 'amount', 'date', 'notes'],
+  // 'billAllocations' (the bills a payment was ticked against) goes last so
+  // existing sheets keep every column where it was.
+  creditRepayments: ['id', 'creditAccountId', 'memberId', 'amount', 'date', 'notes', 'billAllocations'],
   settlementClearances: ['id', 'scope', 'key', 'clearedAt'],
   notificationPreferences: ['memberId', 'channel', 'phoneNumber', 'enabledEvents'],
 };
@@ -567,7 +569,7 @@ const SHEET_ID_FIELDS: Record<string, string> = {
  * stock usage charged to one crop cycle has a blank 'allocations' cell, and
  * that '' crashed the partner ledger into a blank screen.
  */
-const STRUCTURED_COLUMNS = new Set(['allocations', 'shares', 'attachments', 'photos', 'enabledEvents', 'fundingByMember']);
+const STRUCTURED_COLUMNS = new Set(['allocations', 'shares', 'attachments', 'photos', 'enabledEvents', 'fundingByMember', 'billAllocations', 'payers', 'receivers']);
 
 export function parseSheetRows<T>(rows: any[][], idField: string = 'id'): T[] {
   if (!rows || rows.length <= 1) return [];

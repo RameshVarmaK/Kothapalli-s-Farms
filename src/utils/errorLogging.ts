@@ -16,3 +16,12 @@ export function logWarning(
 ): void {
   console.warn(`[${context}]`, message, data);
 }
+
+// Log routine progress (what the sync or auth code decided and why).
+export function logInfo(
+  context: string,
+  message: string,
+  data?: Record<string, any>
+): void {
+  console.info(`[${context}]`, message, data);
+}

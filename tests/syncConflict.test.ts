@@ -362,3 +362,43 @@ describe('countUnsyncedChanges', () => {
     expect(countUnsyncedChanges(local, baseline)).toBe(3);
   });
 });
+
+describe('mergeLocalIntoCloud', () => {
+  it('keeps every local-only record in every collection, not just money ones', async () => {
+    const { mergeLocalIntoCloud } = await import('../src/utils/syncConflict');
+    const cloud = makeDb({ members: makeMembers(2), purchases: makeRecords(1, 'cloudP') });
+    const local = makeDb({
+      members: [...makeMembers(2), ...makeMembers(1, 'new')],
+      stockItems: makeRecords(2, 'item'),
+      purchases: makeRecords(1, 'localP'),
+      creditAccounts: makeRecords(1, 'cr'),
+    });
+
+    const merged = mergeLocalIntoCloud(cloud, local);
+
+    expect(merged.members.map(m => m.id)).toEqual(['m0', 'm1', 'new0']);
+    expect(merged.stockItems).toHaveLength(2);
+    expect(merged.purchases.map((p: any) => p.id)).toEqual(['cloudP0', 'localP0']);
+    expect(merged.creditAccounts).toHaveLength(1);
+  });
+
+  it("prefers the cloud's copy of a record both sides hold", async () => {
+    const { mergeLocalIntoCloud } = await import('../src/utils/syncConflict');
+    const cloud = makeDb({ members: [{ id: 'm0', name: 'Cloud name' }] });
+    const local = makeDb({ members: [{ id: 'm0', name: 'Local name' }] });
+
+    expect(mergeLocalIntoCloud(cloud, local).members).toEqual([{ id: 'm0', name: 'Cloud name' }]);
+  });
+});
+
+describe('mergeAuditLogs', () => {
+  it('unions both sides by id, newest first, without duplicates', async () => {
+    const { mergeAuditLogs } = await import('../src/utils/database');
+    const mk = (id: string, timestamp: string) => ({ id, timestamp }) as any;
+    const merged = mergeAuditLogs(
+      [mk('b', '2025-02-01'), mk('shared', '2025-01-15')],
+      [mk('a', '2025-01-01'), mk('shared', '2025-01-15')]
+    );
+    expect(merged.map(l => l.id)).toEqual(['b', 'shared', 'a']);
+  });
+});

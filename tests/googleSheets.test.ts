@@ -337,8 +337,8 @@ describe('labour work description', () => {
     expect(restored[0].description).toBe('Transplanting paddy');
   });
 
-  it('is the last Labor column, so existing sheets keep their layout', () => {
-    expect(SHEET_COLUMNS.labours[SHEET_COLUMNS.labours.length - 1]).toBe('description');
+  it('keeps description (then payers) as the last Labor columns, so existing sheets keep their layout', () => {
+    expect(SHEET_COLUMNS.labours.slice(-2)).toEqual(['description', 'payers']);
     expect(SHEET_COLUMNS.labours.slice(0, 14)).toEqual([
       'id', 'date', 'fieldId', 'seasonId', 'linkedActivityId', 'workersCount', 'wageRate', 'totalCost',
       'paidByMemberId', 'isCredit', 'creditAccountId', 'targetType', 'commonAllocationRule', 'allocations',
@@ -379,12 +379,12 @@ describe('ensureSheetsExist', () => {
     await ensureSheetsExist('token', 'sheet');
     const update = calls.find(c => c.url.endsWith(':batchUpdate'))!;
     expect(update.body.requests).toEqual([
-      { appendDimension: { sheetId: 105, dimension: 'COLUMNS', length: 1 } },
+      { appendDimension: { sheetId: 105, dimension: 'COLUMNS', length: 6 } },
     ]);
   });
 
   it('leaves a sheet that is already wide enough untouched', async () => {
-    const calls = stubSheets(15);
+    const calls = stubSheets(20);
     await ensureSheetsExist('token', 'sheet');
     expect(calls.some(c => c.url.endsWith(':batchUpdate'))).toBe(false);
   });
@@ -493,7 +493,7 @@ describe('sheet sizes follow the data', () => {
     const calls = stubSheets();
     await pushDataToSpreadsheet('token', 'sheet', makeDb({ expenses: makeExpenses(2) }), ['expenses']);
     const write = calls.find(c => c.url.endsWith('/values:batchUpdate'))!;
-    expect(write.body.data.map((d: any) => d.range)).toEqual(['Expenses!A1:O3']);
+    expect(write.body.data.map((d: any) => d.range)).toEqual(['Expenses!A1:P3']);
     const clears = calls.filter(c => c.url.endsWith(':clear'));
     expect(clears.map(c => c.url.split('/values/')[1])).toEqual(['Expenses!A4:Z:clear']);
   });
