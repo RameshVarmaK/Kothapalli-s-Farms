@@ -7,6 +7,7 @@ import { teStock } from './te.stock';
 import { teSettings } from './te.settings';
 import { teNotifications } from './te.notifications';
 import { teToasts } from './te.toasts';
+import { tePartner } from './te.partner';
 
 // Flat English-text-as-key -> Telugu dictionary, assembled from per-area
 // files so independent areas can be extended without touching each other.
@@ -20,4 +21,5 @@ export const te: Record<string, string> = {
   ...teSettings,
   ...teNotifications,
   ...teToasts,
+  ...tePartner,
 };

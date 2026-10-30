@@ -12,7 +12,7 @@ export type { PayerRow } from '../../utils/payers';
 /** Every field of the quick-entry form (expense, labour and harvest sale),
  * with the setters React hands back. Kept apart from MoneyTab so the tab and
  * the modal can share it without a prop per field. */
-export function useMoneyEntryForm(members: Member[]) {
+export function useMoneyEntryForm(members: Member[], defaultPayerId?: string) {
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
   const [addTab, setAddTab] = useState<'expense' | 'labour' | 'revenue'>('expense');
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -20,7 +20,8 @@ export function useMoneyEntryForm(members: Member[]) {
   // Form states
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState('');
-  const [paidBy, setPaidBy] = useState(members[0]?.id || '');
+  // The signed-in partner, when the ledger knows who that is; else the first.
+  const [paidBy, setPaidBy] = useState(defaultPayerId || members[0]?.id || '');
   // Paid by several partners rather than one.
   const [splitPayers, setSplitPayers] = useState(false);
   const [payerRows, setPayerRows] = useState<PayerRow[]>([]);

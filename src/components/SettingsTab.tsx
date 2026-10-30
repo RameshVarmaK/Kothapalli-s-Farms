@@ -23,6 +23,7 @@ import { BackupRestoreCard } from './settings/BackupRestoreCard';
 import { downloadSafetyCopy, listSafetyCopies } from '../utils/safetyBackup';
 import { GoogleSheetsSyncPanel } from './settings/GoogleSheetsSyncPanel';
 import { AuditLogTable } from './settings/AuditLogTable';
+import { useAccess } from '../hooks/useAccess';
 import { PullConfirmModal } from './settings/PullConfirmModal';
 import { SheetsConflictModal } from './settings/SheetsConflictModal';
 
@@ -60,6 +61,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   notificationPreferences = [],
   onSaveNotificationPreferences
 }) => {
+  const access = useAccess();
   const [currency, setCurrency] = useState(settings.currency);
   const [showPullConfirm, setShowPullConfirm] = useState(false);
   const [conflictData, setConflictData] = useState<{
@@ -70,10 +72,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [deliveries, setDeliveries] = useState<NotificationDelivery[]>(getNotificationDeliveries());
 
-  // Get current user's notification preference (using first member as proxy for now)
-  const currentUserPref = members.length > 0
-    ? notificationPreferences.find(p => p.memberId === members[0].id) || {
-        memberId: members[0].id,
+  // The signed-in partner's notification preference. Falls back to the first
+  // partner only while no partner has an email on record.
+  const notificationMember = access.member || (members.length > 0 ? members[0] : null);
+  const currentUserPref = notificationMember
+    ? notificationPreferences.find(p => p.memberId === notificationMember.id) || {
+        memberId: notificationMember.id,
         channel: 'none' as const,
         enabledEvents: []
       }
@@ -231,6 +235,10 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   const handleJSONImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!access.can('restore')) {
+      setBackupMessage({ text: access.reason('restore'), isError: true });
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -305,6 +313,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
    * also earns this app durable access to that file, so future devices find
    * it without the user doing anything. */
   const handleBrowseDrive = async () => {
+    if (!access.can('sheet-admin')) {
+      setSyncStatus('failed');
+      setStatusMessage(access.reason('sheet-admin'));
+      return;
+    }
     const activeToken = accessToken || customAccessToken;
     if (!activeToken) {
       setSyncStatus('failed');
@@ -341,6 +354,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
    * device's state, rather than this device's state being pushed over them.
    */
   const handleLinkSheet = async (rawInput: string) => {
+    if (!access.can('sheet-admin')) {
+      setSyncStatus('failed');
+      setStatusMessage(access.reason('sheet-admin'));
+      return;
+    }
     const activeToken = accessToken || customAccessToken;
     const sheetId = extractSpreadsheetId(rawInput);
 
@@ -379,6 +397,11 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
   };
 
   const handleGooglePull = async () => {
+    if (!access.can('sheet-admin')) {
+      setSyncStatus('failed');
+      setStatusMessage(access.reason('sheet-admin'));
+      return;
+    }
     const activeToken = accessToken || customAccessToken;
     if (!activeToken || !linkedSheetId) {
       setSyncStatus('failed');
@@ -532,6 +555,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           backupMessage={backupMessage}
           onExport={handleJSONExport}
           onImport={handleJSONImport}
+          canRestore={access.can('restore')}
           safetyCopies={safetyCopies}
           onDownloadSafetyCopy={downloadSafetyCopy}
         />
@@ -556,13 +580,13 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
         onPull={handleGooglePull}
       />
 
-      <AuditLogTable auditLogs={auditLogs} />
+      <AuditLogTable auditLogs={auditLogs} members={members} />
 
       {/* NOTIFICATION SETTINGS */}
       {currentUserPref && members.length > 0 && (
         <div className="space-y-4">
           <NotificationPreferencesPanel
-            member={members[0]}
+            member={notificationMember!}
             preference={currentUserPref}
             onSave={(prefs) => {
               if (onSaveNotificationPreferences) {

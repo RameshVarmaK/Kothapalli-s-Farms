@@ -10,6 +10,7 @@ import { safeStorageSet, safeStorageRemove, isPlaceholderSpreadsheetId } from '.
 import { spreadsheetUrl } from '../../utils/googleSheets';
 import { Cloud, CheckCircle, ExternalLink, RefreshCw, Download, Eye, Link2, Copy, Check, FolderOpen } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { devToolsEnabled } from '../../dev/devTools';
 
 const formatErrorTextWithLinks = (text: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -279,6 +280,8 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
               )}
             </div>
 
+            {/* Developer-only overrides. Hidden from partners; see src/dev/devTools.ts. */}
+            {devToolsEnabled() && (<>
             {/* Collapsible Manual Access Token Override */}
             <div id="manual-token-override" className="pt-2 border-t border-slate-100">
               <details className="group">
@@ -368,6 +371,7 @@ export const GoogleSheetsSyncPanel: React.FC<GoogleSheetsSyncPanelProps> = ({
                 </div>
               </details>
             </div>
+            </>)}
           </div>
         </div>
 

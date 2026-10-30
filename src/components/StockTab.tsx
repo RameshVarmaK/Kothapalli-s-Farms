@@ -19,6 +19,7 @@ import { computeStockLevels, calculateAllocations, allocationDiscrepancy } from 
 import { validatePurchase, validateUsage } from '../utils/validation';
 import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
+import { useAccess } from '../hooks/useAccess';
 import { StockLevelsSegment } from './stock/StockLevelsSegment';
 import { PurchasesSegment } from './stock/PurchasesSegment';
 import { UsagesSegment } from './stock/UsagesSegment';
@@ -59,6 +60,7 @@ export const StockTab: React.FC<StockTabProps> = ({
   onUpdateUsage
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   const [activeSegment, setActiveSegment] = useState<'levels' | 'purchases' | 'usages'>('levels');
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
   const [modalType, setModalType] = useState<'item' | 'purchase' | 'usage'>('purchase');
@@ -433,6 +435,7 @@ export const StockTab: React.FC<StockTabProps> = ({
             ))}
           </div>
 
+          {access.can('write') && (
           <button
             onClick={() => {
               setSelectedItemId(stockItems[0]?.id || '');
@@ -445,6 +448,7 @@ export const StockTab: React.FC<StockTabProps> = ({
             <Plus size={14} />
             <span>{t('Record Ledger')}</span>
           </button>
+          )}
         </div>
       </div>
 

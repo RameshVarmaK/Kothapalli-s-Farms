@@ -136,4 +136,10 @@ export const teShell: Record<string, string> = {
   'Your entries are not affected. Try again, or open another tab.':
     'మీ నమోదులకు ఏమీ కాలేదు. మళ్లీ ప్రయత్నించండి, లేదా వేరే ట్యాబ్ తెరవండి.',
   'Try again': 'మళ్లీ ప్రయత్నించండి',
+
+  // Added 2026-10-27: partner roles and view-only access.
+  'View only': 'చూడటం మాత్రమే',
+  'Owner': 'యజమాని',
+  'Editor': 'ఎడిటర్',
+  'Viewer': 'వీక్షకుడు',
 };

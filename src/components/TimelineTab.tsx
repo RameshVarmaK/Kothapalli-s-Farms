@@ -17,6 +17,7 @@ import {
 } from '../types';
 import { Calendar, Filter, Users, Package, DollarSign, CloudSun, Plus, X, Sprout } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
+import { useAccess } from '../hooks/useAccess';
 import { Dialog } from './shell/Dialog';
 
 interface TimelineTabProps {
@@ -45,6 +46,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
   onAddActivity
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('all');
   const [selectedActivityType, setSelectedActivityType] = useState<string>('all');
 
@@ -121,6 +123,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
           <h2 className="text-base font-extrabold text-slate-800">{t('Farm Activity Logs & Timeline')}</h2>
           <p className="text-xs text-slate-400 font-medium mt-0.5">{t('Track field treatments, irrigation periods, weeding, harvest work, or maintenance events.')}</p>
         </div>
+        {access.can('write') && (
         <button
           onClick={() => {
             setActSeasonId(seasons.filter(s => !s.isClosed)[0]?.id || seasons[0]?.id || '');
@@ -132,6 +135,7 @@ export const TimelineTab: React.FC<TimelineTabProps> = ({
           <Plus size={15} />
           <span>{t('Record Farm Activity')}</span>
         </button>
+        )}
       </div>
 
       {/* Manual Activity Creation Modal */}

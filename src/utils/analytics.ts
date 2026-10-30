@@ -1,5 +1,8 @@
 import { paymentsFor, receiptsFor } from './payers';
 import { LocalDatabase } from './database';
+import { buildSettlementLedger, computeStockLevels } from './calculations';
+import { formatMoney } from './format';
+import { FieldSeasonLedger } from '../types';
 
 export interface CropProfitability {
   cropName: string;
@@ -8,7 +11,8 @@ export interface CropProfitability {
   revenue: number;
   expenses: number;
   profit: number;
-  profitMargin: number; // percentage
+  /** Percentage of revenue. null until the season has recorded a sale. */
+  profitMargin: number | null;
   quantity: number;
   costPerUnit: number;
 }
@@ -17,7 +21,8 @@ export interface MemberContribution {
   memberId: string;
   memberName: string;
   expensesPaid: number;
-  hoursWorked: number;
+  /** Wages this partner paid out of pocket (cash, not credit). */
+  labourPaid: number;
   revenueReceived: number;
   netPosition: number; // positive = owed, negative = owes
   sharePercentage: number;
@@ -31,7 +36,8 @@ export interface FieldPerformance {
   totalRevenue: number;
   totalExpenses: number;
   netProfit: number;
-  roi: number; // percentage
+  /** Percentage return on cost. null until the field has recorded a sale. */
+  roi: number | null;
   revenuePerAcre: number;
   expensesPerAcre: number;
 }
@@ -56,57 +62,48 @@ export interface YieldTrend {
 }
 
 /**
+ * Per-season ledgers from the same engine the Home tab, the Settle tab and
+ * the season report use. Reports used to add up expenses on its own and
+ * left out stock consumed from inventory and labour split across fields,
+ * so its "Total Expenses" disagreed with every other tab.
+ */
+export function seasonLedgers(db: LocalDatabase): FieldSeasonLedger[] {
+  const seasons = db.seasons || [];
+  return buildSettlementLedger(
+    db.fields || [],
+    seasons,
+    db.members || [],
+    db.expenses || [],
+    db.labours || [],
+    db.revenues || [],
+    db.usages || [],
+    db.stockItems || [],
+    db.purchases || [],
+    seasons.map(s => s.id),
+    db.creditAccounts || [],
+    db.creditRepayments || []
+  ).ledgers;
+}
+
+/**
  * Calculate profitability for each crop/season/field combination
  */
 export function calculateCropProfitability(db: LocalDatabase): CropProfitability[] {
-  const profitability: CropProfitability[] = [];
-
-  (db.seasons || []).forEach((season) => {
-    const field = db.fields?.find(f => f.id === season.fieldId);
-    if (!field) return;
-
-    // Revenue for this season
-    const seasonRevenue = (db.revenues || [])
-      .filter(r => r.seasonId === season.id)
-      .reduce((sum, r) => sum + r.saleAmount, 0);
-
-    // Expenses for this season (single + allocated)
-    const singleExpenses = (db.expenses || [])
-      .filter(e => e.targetType === 'single' && e.targetSeasonId === season.id)
-      .reduce((sum, e) => sum + e.amount, 0);
-
-    const allocatedExpenses = (db.expenses || [])
-      .filter(e => e.targetType === 'common' && e.allocations?.some(a => a.seasonId === season.id))
-      .reduce((sum, e) => {
-        const alloc = e.allocations?.find(a => a.seasonId === season.id);
-        return sum + (alloc?.amount || 0);
-      }, 0);
-
-    // Labour for this season
-    const labourCosts = (db.labours || [])
-      .filter(l => l.seasonId === season.id)
-      .reduce((sum, l) => sum + l.totalCost, 0);
-
-    const totalExpenses = singleExpenses + allocatedExpenses + labourCosts;
-    const profit = seasonRevenue - totalExpenses;
-    const profitMargin = seasonRevenue > 0 ? (profit / seasonRevenue) * 100 : 0;
-
-    // Quantity and cost per unit
-    const harvests = db.revenues?.filter(r => r.seasonId === season.id) || [];
+  const profitability: CropProfitability[] = seasonLedgers(db).map(ledger => {
+    const harvests = (db.revenues || []).filter(r => r.seasonId === ledger.seasonId);
     const totalQuantity = harvests.reduce((sum, h) => sum + h.quantity, 0);
-    const costPerUnit = totalQuantity > 0 ? totalExpenses / totalQuantity : 0;
 
-    profitability.push({
-      cropName: season.cropName,
-      seasonId: season.id,
-      fieldName: field.name,
-      revenue: seasonRevenue,
-      expenses: totalExpenses,
-      profit,
-      profitMargin,
+    return {
+      cropName: ledger.cropName,
+      seasonId: ledger.seasonId,
+      fieldName: ledger.fieldName,
+      revenue: ledger.totalRevenue,
+      expenses: ledger.totalExpense,
+      profit: ledger.netProfit,
+      profitMargin: ledger.totalRevenue > 0 ? (ledger.netProfit / ledger.totalRevenue) * 100 : null,
       quantity: totalQuantity,
-      costPerUnit
-    });
+      costPerUnit: totalQuantity > 0 ? ledger.totalExpense / totalQuantity : 0
+    };
   });
 
   return profitability.sort((a, b) => b.profit - a.profit);
@@ -124,7 +121,7 @@ export function calculateMemberContribution(db: LocalDatabase): MemberContributi
       memberId: member.id,
       memberName: member.name,
       expensesPaid: 0,
-      hoursWorked: 0,
+      labourPaid: 0,
       revenueReceived: 0,
       netPosition: 0,
       sharePercentage: 0
@@ -139,12 +136,13 @@ export function calculateMemberContribution(db: LocalDatabase): MemberContributi
     });
   });
 
-  // Labour hours (assume 8-hour workday, wageRate per worker)
+  // Wages paid. The old "hours worked" column multiplied workers by an
+  // assumed 8-hour day; nothing in the ledger records hours, so it was a
+  // made-up number. What is recorded is who paid the wages.
   (db.labours || []).forEach(lab => {
     paymentsFor(lab, lab.totalCost).forEach(payment => {
       const contrib = contributions.get(payment.memberId);
-      // simplification: a partner is credited the hours in proportion to what they paid
-      if (contrib) contrib.hoursWorked += lab.workersCount * 8 * (lab.totalCost > 0 ? payment.amount / lab.totalCost : 1);
+      if (contrib) contrib.labourPaid += payment.amount;
     });
   });
 
@@ -158,7 +156,9 @@ export function calculateMemberContribution(db: LocalDatabase): MemberContributi
 
   // Calculate net position (overly simplified; real settlement is more complex)
   const members = contributions.values();
-  const avgExpenses = Array.from(members).reduce((sum, m) => sum + m.expensesPaid, 0) / contributions.size;
+  const avgExpenses = contributions.size > 0
+    ? Array.from(members).reduce((sum, m) => sum + m.expensesPaid, 0) / contributions.size
+    : 0;
 
   Array.from(contributions.values()).forEach(contrib => {
     contrib.netPosition = contrib.expensesPaid - avgExpenses;
@@ -171,34 +171,15 @@ export function calculateMemberContribution(db: LocalDatabase): MemberContributi
  * Calculate field performance metrics
  */
 export function calculateFieldPerformance(db: LocalDatabase): FieldPerformance[] {
+  const ledgers = seasonLedgers(db);
   return (db.fields || []).map(field => {
     const fieldSeasons = (db.seasons || []).filter(s => s.fieldId === field.id);
     const activeSeasons = fieldSeasons.filter(s => !s.isClosed).length;
 
-    // Revenue from this field
-    const revenue = (db.revenues || [])
-      .filter(r => r.fieldId === field.id)
-      .reduce((sum, r) => sum + r.saleAmount, 0);
-
-    // Expenses for this field
-    const fieldExpenses = (db.expenses || [])
-      .filter(e => e.targetType === 'single' && e.targetFieldId === field.id)
-      .reduce((sum, e) => sum + e.amount, 0);
-
-    const seasonExpenses = (db.expenses || [])
-      .filter(e => e.targetType === 'common' && e.allocations?.some(a => a.fieldId === field.id))
-      .reduce((sum, e) => {
-        const alloc = e.allocations?.find(a => a.fieldId === field.id);
-        return sum + (alloc?.amount || 0);
-      }, 0);
-
-    const labourCosts = (db.labours || [])
-      .filter(l => l.fieldId === field.id)
-      .reduce((sum, l) => sum + l.totalCost, 0);
-
-    const totalExpenses = fieldExpenses + seasonExpenses + labourCosts;
+    const fieldLedgers = ledgers.filter(l => l.fieldId === field.id);
+    const revenue = fieldLedgers.reduce((sum, l) => sum + l.totalRevenue, 0);
+    const totalExpenses = fieldLedgers.reduce((sum, l) => sum + l.totalExpense, 0);
     const profit = revenue - totalExpenses;
-    const roi = totalExpenses > 0 ? (profit / totalExpenses) * 100 : 0;
 
     return {
       fieldId: field.id,
@@ -208,7 +189,7 @@ export function calculateFieldPerformance(db: LocalDatabase): FieldPerformance[]
       totalRevenue: revenue,
       totalExpenses,
       netProfit: profit,
-      roi,
+      roi: revenue > 0 && totalExpenses > 0 ? (profit / totalExpenses) * 100 : null,
       revenuePerAcre: field.area > 0 ? revenue / field.area : 0,
       expensesPerAcre: field.area > 0 ? totalExpenses / field.area : 0
     };
@@ -216,55 +197,63 @@ export function calculateFieldPerformance(db: LocalDatabase): FieldPerformance[]
 }
 
 /**
- * Calculate seasonal trends (month-by-month expenses/revenue)
+ * Calculate seasonal trends (month-by-month expenses/revenue). Expenses here
+ * are everything a month cost: cash expenses, wages, and stock drawn from
+ * inventory valued at its weighted-average cost.
  */
 export function calculateSeasonalTrends(db: LocalDatabase): SeasonalTrend[] {
   const trends: Map<string, SeasonalTrend> = new Map();
 
-  // Process expenses
-  (db.expenses || []).forEach(exp => {
-    const date = new Date(exp.date);
+  const bucketFor = (dateText: string): SeasonalTrend | null => {
+    const date = new Date(dateText);
+    if (Number.isNaN(date.getTime())) return null;
     const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
-    const season = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
-
     if (!trends.has(key)) {
       trends.set(key, {
-        season,
-        month: date.getMonth(),
+        // Fixed to English so the label does not change with the device locale ("Sept" vs "Sep").
+        season: `${date.toLocaleString('en', { month: 'short' })} ${date.getFullYear()}`,
+        // Months are sorted across years, so January 2027 follows December 2026.
+        month: date.getFullYear() * 12 + date.getMonth(),
         totalExpenses: 0,
         totalRevenue: 0,
         netProfit: 0,
         expenseCount: 0
       });
     }
+    return trends.get(key)!;
+  };
 
-    const trend = trends.get(key)!;
+  (db.expenses || []).forEach(exp => {
+    const trend = bucketFor(exp.date);
+    if (!trend) return;
     trend.totalExpenses += exp.amount;
     trend.expenseCount += 1;
   });
 
-  // Process revenue
+  (db.labours || []).forEach(lab => {
+    const trend = bucketFor(lab.date);
+    if (!trend) return;
+    trend.totalExpenses += lab.totalCost;
+    trend.expenseCount += 1;
+  });
+
+  const stockCost = new Map(
+    computeStockLevels(db.stockItems || [], db.purchases || [], db.usages || [])
+      .map(item => [item.id, item.weightedAverageCost])
+  );
+  (db.usages || []).forEach(usage => {
+    const trend = bucketFor(usage.date);
+    if (!trend) return;
+    trend.totalExpenses += usage.quantityUsed * (stockCost.get(usage.stockItemId) || 0);
+    trend.expenseCount += 1;
+  });
+
   (db.revenues || []).forEach(rev => {
-    const date = new Date(rev.date);
-    const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
-    const season = `${date.toLocaleString('default', { month: 'short' })} ${date.getFullYear()}`;
-
-    if (!trends.has(key)) {
-      trends.set(key, {
-        season,
-        month: date.getMonth(),
-        totalExpenses: 0,
-        totalRevenue: 0,
-        netProfit: 0,
-        expenseCount: 0
-      });
-    }
-
-    const trend = trends.get(key)!;
+    const trend = bucketFor(rev.date);
+    if (!trend) return;
     trend.totalRevenue += rev.saleAmount;
   });
 
-  // Calculate profit and sort
   return Array.from(trends.values())
     .map(t => ({ ...t, netProfit: t.totalRevenue - t.totalExpenses }))
     .sort((a, b) => a.month - b.month);
@@ -304,7 +293,7 @@ export function calculateYieldTrends(db: LocalDatabase): YieldTrend[] {
  * Format currency for display
  */
 export function formatCurrency(amount: number, currency: string = '₹'): string {
-  return `${currency}${Math.round(amount).toLocaleString()}`;
+  return formatMoney(amount, currency);
 }
 
 /**
@@ -314,8 +303,10 @@ export interface DashboardStats {
   totalRevenue: number;
   totalExpenses: number;
   netProfit: number;
-  profitMargin: number;
-  averageROI: number;
+  /** null until any sale is recorded. */
+  profitMargin: number | null;
+  /** null until any sale is recorded. */
+  averageROI: number | null;
   mostProfitableCrop: CropProfitability | null;
   topContributor: MemberContribution | null;
 }
@@ -328,8 +319,11 @@ export function calculateDashboardStats(db: LocalDatabase): DashboardStats {
   const totalRevenue = crops.reduce((sum, c) => sum + c.revenue, 0);
   const totalExpenses = crops.reduce((sum, c) => sum + c.expenses, 0);
   const netProfit = totalRevenue - totalExpenses;
-  const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-  const avgROI = fields.length > 0 ? fields.reduce((sum, f) => sum + f.roi, 0) / fields.length : 0;
+  const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : null;
+  const fieldsWithRoi = fields.filter((f): f is FieldPerformance & { roi: number } => f.roi !== null);
+  const avgROI = fieldsWithRoi.length > 0
+    ? fieldsWithRoi.reduce((sum, f) => sum + f.roi, 0) / fieldsWithRoi.length
+    : null;
 
   return {
     totalRevenue,

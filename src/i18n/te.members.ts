@@ -212,4 +212,11 @@ export const teMembers: Record<string, string> = {
     'అప్పుదారుకు చేసిన చెల్లింపు, ఆ అప్పుదారు అప్పులో ఏ పంట కాలం ఎంత వాడిందో ఆ నిష్పత్తిలో లెక్కించబడుతుంది. "ఈ నివేదికలో లెక్కించినది" అంటే చూపిన పంట కాలాలకు వచ్చే భాగం.',
   'paid by': 'చెల్లింపు:',
   'held by': 'స్వీకర్త:',
+
+  // Added 2026-10-27: partner roles and view-only access.
+  'Google account email (optional)': 'Google ఖాతా ఇమెయిల్ (ఐచ్ఛికం)',
+  'Links this partner to the Google account they sign in with, so their entries and role are theirs.': 'ఈ భాగస్వామిని వారు సైన్ ఇన్ చేసే Google ఖాతాతో లింక్ చేస్తుంది, తద్వారా వారి నమోదులు మరియు పాత్ర వారివే అవుతాయి.',
+  'Role': 'పాత్ర',
+  'Editor (default)': 'ఎడిటర్ (డిఫాల్ట్)',
+  'Owners settle, close seasons, change shares and manage partners. Editors log entries. Viewers only read.': 'యజమానులు పరిష్కరిస్తారు, సీజన్లు ముగిస్తారు, వాటాలు మారుస్తారు, భాగస్వాములను నిర్వహిస్తారు. ఎడిటర్లు నమోదులు చేస్తారు. వీక్షకులు చూడటం మాత్రమే.',
 };

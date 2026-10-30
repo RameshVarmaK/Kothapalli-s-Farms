@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { te } from '../i18n/te';
 
 type Language = 'en' | 'te';
@@ -19,6 +19,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     }
     return 'en';
   });
+
+  // Screen readers, spell-checkers and font fallbacks read the document's
+  // language from <html lang>; it stayed "en" while the whole UI was Telugu.
+  useEffect(() => {
+    if (typeof document !== 'undefined') document.documentElement.lang = language;
+  }, [language]);
 
   const setLanguage = (next: Language) => {
     setLanguageState(next);

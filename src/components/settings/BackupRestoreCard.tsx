@@ -12,12 +12,14 @@ interface BackupRestoreCardProps {
   backupMessage: { text: string; isError: boolean } | null;
   onExport: () => void;
   onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Restoring overwrites the live ledger; owner only. Defaults to allowed. */
+  canRestore?: boolean;
   /** Copies of data an earlier action overwrote, newest first. */
   safetyCopies?: SafetyCopyInfo[];
   onDownloadSafetyCopy?: (id: string) => void;
 }
 
-export const BackupRestoreCard: React.FC<BackupRestoreCardProps> = ({ backupMessage, onExport, onImport, safetyCopies = [], onDownloadSafetyCopy }) => {
+export const BackupRestoreCard: React.FC<BackupRestoreCardProps> = ({ backupMessage, onExport, onImport, safetyCopies = [], onDownloadSafetyCopy, canRestore = true }) => {
   const { t } = useLanguage();
   return (
     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -43,6 +45,7 @@ export const BackupRestoreCard: React.FC<BackupRestoreCardProps> = ({ backupMess
           <span>{t('Backup JSON')}</span>
         </button>
 
+        {canRestore && (
         <label className="flex items-center justify-center gap-1.5 p-3 rounded-xl border border-dashed border-emerald-300 text-xs font-bold text-emerald-800 bg-emerald-50/20 hover:bg-emerald-50/40 cursor-pointer text-center">
           <Upload size={14} />
           <span>{t('Restore Backup')}</span>
@@ -53,6 +56,7 @@ export const BackupRestoreCard: React.FC<BackupRestoreCardProps> = ({ backupMess
             className="hidden"
           />
         </label>
+        )}
       </div>
 
       {safetyCopies.length > 0 && onDownloadSafetyCopy && (

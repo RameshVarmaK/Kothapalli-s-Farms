@@ -6,8 +6,10 @@
 import React, { useState } from 'react';
 import { Member, SettlementSummary } from '../../types';
 import { Users, Pencil, Trash2, FileText } from 'lucide-react';
+import { ROLE_LABELS } from '../../app/access';
 import { EmptyState } from './EmptyState';
 import { useLanguage } from '../../hooks/useLanguage';
+import { useAccess } from '../../hooks/useAccess';
 
 interface PartnersDirectoryProps {
   members: Member[];
@@ -29,6 +31,7 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
   onViewReport,
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   const [expandedMemberId, setExpandedMemberId] = useState<string | null>(null);
 
   return (
@@ -67,7 +70,11 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                     </span>
                     <div>
                       <h4 className="font-bold text-slate-800 text-sm leading-snug">{member.name}</h4>
-                      <p className="text-[11px] text-slate-400 font-bold mt-1 uppercase tracking-wide">{member.phone || t('No phone recorded')}</p>
+                      <p className="text-[11px] text-slate-400 font-bold mt-1 uppercase tracking-wide">
+                        {member.phone || t('No phone recorded')}
+                        {member.email && <span className="normal-case"> · {member.email}</span>}
+                        {access.rolesConfigured && <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[9px]">{t(ROLE_LABELS[member.role || 'editor'])}</span>}
+                      </p>
                     </div>
                   </div>
 
@@ -86,6 +93,7 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                     >
                       <FileText size={14} />
                     </button>
+                    {(access.can('manage-members') || (access.member?.id === member.id && access.can('write'))) && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onEditMember(member); }}
                       className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
@@ -93,12 +101,15 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                     >
                       <Pencil size={14} />
                     </button>
+                    )}
+                    {access.can('manage-members') && (
                     <button aria-label={`${t('Delete')} ${member.name}`}
                       onClick={(e) => { e.stopPropagation(); onDeleteMember(member.id, member.name); }}
                       className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
                     >
                       <Trash2 size={14} />
                     </button>
+                    )}
                   </div>
                 </div>
 

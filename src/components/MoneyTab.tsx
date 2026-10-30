@@ -30,6 +30,7 @@ import { resolvePayers } from '../utils/payers';
 import { exportLedgerCsv } from '../utils/csv';
 import { buildLedgerItems, filterLedger, LedgerItem } from '../utils/moneyLedger';
 import { useLanguage } from '../hooks/useLanguage';
+import { useAccess } from '../hooks/useAccess';
 import { Dialog } from './shell/Dialog';
 
 interface MoneyTabProps {
@@ -86,7 +87,8 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
   const [filterMemberId, setFilterMemberId] = useState<string>('all');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const form = useMoneyEntryForm(members);
+  const access = useAccess();
+  const form = useMoneyEntryForm(members, access.member?.id);
   const {
     isOpenAddModal,
     setIsOpenAddModal,
@@ -638,6 +640,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
           <Download size={14} />
           <span>{t('Export CSV')}</span>
         </button>
+        {access.can('write') && (
         <button
           onClick={handleNewEntry}
           className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 cursor-pointer"
@@ -645,6 +648,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
           <Plus size={15} />
           <span>+ {t('New Entry')}</span>
         </button>
+        )}
         </div>
       </div>
 

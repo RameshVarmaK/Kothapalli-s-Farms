@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { LocalDatabase } from './utils/database';
 import { NotificationPreferences } from './types';
 import { ConflictResolutionModal } from './components/ConflictResolutionModal';
@@ -20,8 +20,13 @@ import { MobileBottomNav, DesktopSidebarNav, GroupTabSwitcher } from './componen
 import { TabRouter } from './components/shell/TabRouter';
 import { ConfirmDialog } from './components/shell/ConfirmDialog';
 import { AuthErrorModal } from './components/shell/AuthErrorModal';
+import { UnlinkedAccountScreen } from './components/shell/UnlinkedAccountScreen';
+import { PartnerHomeTab } from './components/PartnerHomeTab';
+import { seasonsOfPartner } from './utils/partnerScope';
 import { ViewModeProvider } from './hooks/useViewMode';
 import { LanguageProvider } from './hooks/useLanguage';
+import { AccessProvider, useSheetAccess } from './hooks/useAccess';
+import { resolveAccess } from './app/access';
 import { useReceiptUploads } from './hooks/useReceiptUploads';
 import { useGoogleAuth } from './hooks/useGoogleAuth';
 import { useSheetSync } from './hooks/useSheetSync';
@@ -29,9 +34,32 @@ import { createLedgerActions, ledgerCollections, ConfirmDialogState } from './ap
 import { TabId, TAB_GROUPS } from './app/navigation';
 import { rememberLedgerChoice } from './app/ledgerChoice';
 
+const TAB_IDS = new Set<string>(TAB_GROUPS.flatMap(g => g.tabs.map(tab => tab.id)));
+
+/** The tab named in the URL hash (#settle), or the dashboard. */
+function tabFromHash(): TabId {
+  if (typeof window === 'undefined') return 'dashboard';
+  const name = window.location.hash.replace(/^#\/?/, '');
+  return TAB_IDS.has(name) ? (name as TabId) : 'dashboard';
+}
+
 function AppShell() {
   const [db, setDb] = useState<LocalDatabase | null>(null);
-  const [activeTab, setActiveTab] = useState<TabId>('dashboard');
+  // The tab lives in the URL hash so a refresh stays put, the phone's back
+  // button steps back through tabs, and a partner can be sent a link
+  // straight to Settle. Every tab used to be the bare "/".
+  const [activeTab, setActiveTabState] = useState<TabId>(tabFromHash);
+  const setActiveTab = (tab: TabId) => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined' && tabFromHash() !== tab) {
+      window.location.hash = tab;
+    }
+  };
+  useEffect(() => {
+    const onHashChange = () => setActiveTabState(tabFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   const {
     user,
@@ -45,6 +73,15 @@ function AppShell() {
     handleLogout
   } = useGoogleAuth(setDb);
   useReceiptUploads(db, setDb, accessToken);
+  // Who this Google account is in the ledger and what it may do. Drive's
+  // share setting on the sheet is the enforced part; the partner's role on
+  // the Members tab refines it.
+  const linkedSpreadsheetId = db?.settings?.linkedSpreadsheetId;
+  const { sheetAccess, ownedByMe } = useSheetAccess(accessToken, linkedSpreadsheetId);
+  const access = useMemo(
+    () => resolveAccess({ sheetAccess, sheetOwnedByMe: ownedByMe, members: db?.members || [], email: user?.email }),
+    [sheetAccess, ownedByMe, db?.members, user?.email]
+  );
   const {
     loadingData,
     syncingState,
@@ -63,7 +100,7 @@ function AppShell() {
     handleBrowseDrive,
     handleCreateNewSheet,
     handleTriggerPull
-  } = useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchError });
+  } = useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchError, canWriteSheet: !access.readOnly });
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences[]>(
@@ -97,16 +134,67 @@ function AppShell() {
     );
   }
 
+  // Roles are in use and this Google account is none of the partners:
+  // show nothing from the ledger.
+  if (access.shell === 'unlinked') {
+    return <UnlinkedAccountScreen email={user?.email} onLogout={handleLogout} />;
+  }
+
+  // A partner with the viewer role gets only their own spend and the fields
+  // they are part of. No navigation, no other partners' balances, no
+  // inventory, creditors, reports or settings.
+  if (access.shell === 'partner' && access.member) {
+    const c = ledgerCollections(db);
+    return (
+      <AccessProvider value={access}>
+        <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col antialiased">
+          <AppHeader
+            accessToken={accessToken}
+            syncingState={syncingState}
+            syncMessage={syncMessage}
+            pendingChanges={pendingChanges}
+            seasons={seasonsOfPartner(access.member.id, c.fields, c.seasons)}
+            onSyncNow={() => undefined}
+          />
+          <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-6 md:p-8">
+            <PartnerHomeTab
+              member={access.member}
+              email={user?.email}
+              members={c.members}
+              fields={c.fields}
+              seasons={c.seasons}
+              expenses={c.expenses}
+              labours={c.labours}
+              revenues={c.revenues}
+              usages={c.usages}
+              stockItems={c.stockItems}
+              purchases={c.purchases}
+              creditAccounts={c.creditAccounts}
+              creditRepayments={c.creditRepayments}
+              settlementClearances={c.settlementClearances}
+              currency={c.settings.currency}
+              areaUnit={c.settings.areaUnit}
+              onLogout={handleLogout}
+            />
+          </main>
+          {authError && <AuthErrorModal authError={authError} onDismiss={() => setAuthError(null)} />}
+        </div>
+      </AccessProvider>
+    );
+  }
+
   const { seasons } = ledgerCollections(db);
   const ledgerActions = createLedgerActions({
     db,
     setDb,
     setConfirmDialog,
     notificationPreferences,
-    setNotificationPreferences
+    setNotificationPreferences,
+    access
   });
 
   return (
+    <AccessProvider value={access}>
     <div className="min-h-screen md:h-screen bg-slate-50 font-sans text-slate-900 flex flex-col antialiased">
       {/* Mobile-first top navigation banner bar */}
       <AppHeader
@@ -214,6 +302,7 @@ function AppShell() {
         <AuthErrorModal authError={authError} onDismiss={() => setAuthError(null)} />
       )}
     </div>
+    </AccessProvider>
   );
 }
 

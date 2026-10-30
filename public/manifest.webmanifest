@@ -1,0 +1,13 @@
+{
+  "name": "Kothapalli's Farms",
+  "short_name": "Farm Ledger",
+  "description": "Partnership farm ledger: expenses, labour, stock, credit and settlements shared across partners.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#059669",
+  "lang": "en",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

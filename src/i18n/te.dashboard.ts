@@ -39,4 +39,12 @@ export const teDashboard: Record<string, string> = {
   'Sowing Date:': 'విత్తిన తేదీ:',
   'Closed:': 'ముగిసింది:',
 
+
+  // Added 2026-10-27: Reports totals, revenue-less states, notifications notice.
+  'No sales recorded yet': 'ఇంకా అమ్మకాలు నమోదు కాలేదు',
+  'Ledger imbalance detected': 'లెడ్జర్‌లో అసమతుల్యత గుర్తించబడింది',
+  'acre': 'ఎకరం',
+  'hectare': 'హెక్టారు',
+  'bigha': 'బీఘా',
+  'cent': 'సెంటు',
 };

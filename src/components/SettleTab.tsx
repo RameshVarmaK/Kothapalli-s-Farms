@@ -24,6 +24,7 @@ import { advancesByPartner, unpaidCreditInSeasons } from '../utils/creditBills';
 import { CheckCircle2, AlertOctagon, Download, Share2, Printer, ClipboardCheck } from 'lucide-react';
 import { convertToCSV, downloadFile } from '../utils/database';
 import { useLanguage } from '../hooks/useLanguage';
+import { useAccess } from '../hooks/useAccess';
 
 interface SettleTabProps {
   fields: Field[];
@@ -59,6 +60,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
   onUpdateClearances
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   const [selectedSeasonIds, setSelectedSeasonIds] = useState<string[]>(
     seasons.map(s => s.id)
   );
@@ -536,20 +538,26 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                           <span className="text-[10px] font-extrabold tracking-wider text-emerald-700 uppercase bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-3xs">
                             {t('✓ Cleared')}
                           </span>
+                          {access.can('settle') && (
                           <button
                             onClick={() => handleUnclearMainDebt(debt, subEntries)}
                             className="text-[9px] text-slate-500 hover:text-red-500 hover:underline font-bold cursor-pointer transition-colors"
                           >
                             {t('Mark Uncleared')}
                           </button>
+                          )}
                         </div>
-                      ) : (
+                      ) : access.can('settle') ? (
                         <button
                           onClick={() => handleClearMainDebt(debt, subEntries)}
                           className="w-full md:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-800 font-bold text-white rounded-xl text-[10px] shadow-xs active:scale-95 cursor-pointer transition-all uppercase tracking-wider"
                         >
                           {t('Mark Transferred')}
                         </button>
+                      ) : (
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg" title={access.reason('settle')}>
+                          {t('Pending')}
+                        </span>
                       )}
                     </div>
                   </div>
@@ -584,6 +592,7 @@ export const SettleTab: React.FC<SettleTabProps> = ({
                                 <input
                                   type="checkbox"
                                   checked={isSubCleared}
+                                  disabled={!access.can('settle')}
                                   onChange={() => toggleClearedSubEntry(sub, debtKey)}
                                   className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-400 cursor-pointer"
                                 />

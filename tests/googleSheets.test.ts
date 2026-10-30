@@ -477,7 +477,7 @@ describe('sheet sizes follow the data', () => {
     const expenses = write.body.data.find((d: any) => d.range.startsWith('Expenses!'));
     expect(expenses.range).toBe(`Expenses!A1:${columnLetter(SHEET_COLUMNS.expenses.length)}1501`);
     expect(expenses.values).toHaveLength(1501);
-    expect(write.body.data.find((d: any) => d.range.startsWith('Members!')).range).toBe('Members!A1:D1');
+    expect(write.body.data.find((d: any) => d.range.startsWith('Members!')).range).toBe(`Members!A1:${columnLetter(SHEET_COLUMNS.members.length)}1`);
 
     // The resize has to land before the write, or the write runs off the grid.
     expect(calls.indexOf(grow)).toBeLessThan(calls.indexOf(write));

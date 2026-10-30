@@ -7,6 +7,7 @@ import React from 'react';
 import { StockItem } from '../../types';
 import { Plus, Archive, Pencil } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { useAccess } from '../../hooks/useAccess';
 
 interface StockLevelsSegmentProps {
   computedStockList: StockItem[];
@@ -22,16 +23,19 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
   onEditItem
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4.5 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
         <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400">{t('Stock Reserves Valuation')}</h3>
+        {access.can('write') && (
         <button
           onClick={onCreateItemType}
           className="text-xs text-emerald-700 hover:text-emerald-900 font-bold uppercase tracking-wider cursor-pointer"
         >
           {t('+ Create Input Type')}
         </button>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -58,6 +62,7 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
                   <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-5">
                     {t('Register seed, fertilizer, pesticide, or fuel types here first — then log purchases and field usage against them.')}
                   </p>
+                  {access.can('write') && (
                   <button
                     onClick={onCreateItemType}
                     className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
@@ -65,6 +70,7 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
                     <Plus size={14} />
                     {t('Create First Input Type')}
                   </button>
+                  )}
                 </div>
               </td>
             </tr>
@@ -89,6 +95,7 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
                     {currency}{Math.round(val).toLocaleString('en-IN')}
                   </td>
                   <td className="px-6 py-4 text-right">
+                    {access.can('write') && (
                     <button
                       onClick={() => onEditItem(item)}
                       className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
@@ -96,6 +103,7 @@ export const StockLevelsSegment: React.FC<StockLevelsSegmentProps> = ({
                     >
                       <Pencil size={13} />
                     </button>
+                    )}
                   </td>
                 </tr>
               );

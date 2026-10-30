@@ -23,7 +23,9 @@ import {
 import { buildSettlementLedger, simplifySeasonDebts } from '../utils/calculations';
 import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
+import { useAccess } from '../hooks/useAccess';
 import { Plus, Users, Grid, Sprout } from 'lucide-react';
+import type { MemberRole } from '../types';
 import { PartnersDirectory } from './members/PartnersDirectory';
 import { FieldsList } from './members/FieldsList';
 import { SeasonsList } from './members/SeasonsList';
@@ -86,6 +88,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   onDeleteSeason
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   const [activeTab, setActiveTab] = useState<'directory' | 'fields' | 'seasons'>('seasons');
   const [isOpenAddModal, setIsOpenAddModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -103,6 +106,8 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   // Form states - Member
   const [memberName, setMemberName] = useState('');
   const [memberPhone, setMemberPhone] = useState('');
+  const [memberEmail, setMemberEmail] = useState('');
+  const [memberRole, setMemberRole] = useState<MemberRole | ''>('');
 
   // Form states - Field
   const [fieldName, setFieldName] = useState('');
@@ -208,7 +213,9 @@ export const MembersTab: React.FC<MembersTabProps> = ({
       const updatedMember: Member = {
         ...editingMember,
         name: memberName,
-        phone: memberPhone || undefined
+        phone: memberPhone || undefined,
+        email: memberEmail.trim().toLowerCase() || undefined,
+        role: memberRole || undefined
       };
       if (!onUpdateMember(updatedMember)) return;
       setToastMessage(t('Partner updated'));
@@ -216,7 +223,9 @@ export const MembersTab: React.FC<MembersTabProps> = ({
       const newMember: Member = {
         id: `m_${Date.now()}`,
         name: memberName,
-        phone: memberPhone || undefined
+        phone: memberPhone || undefined,
+        email: memberEmail.trim().toLowerCase() || undefined,
+        role: memberRole || undefined
       };
       if (!onAddMember(newMember)) return;
       setToastMessage(t('Partner added'));
@@ -228,6 +237,8 @@ export const MembersTab: React.FC<MembersTabProps> = ({
     setEditingMember(member);
     setMemberName(member.name);
     setMemberPhone(member.phone || '');
+    setMemberEmail(member.email || '');
+    setMemberRole(member.role || '');
     setIsOpenAddModal(true);
   };
 
@@ -350,6 +361,8 @@ export const MembersTab: React.FC<MembersTabProps> = ({
   const closeAndReset = () => {
     setIsOpenAddModal(false);
     setEditingMember(null);
+    setMemberEmail('');
+    setMemberRole('');
     setEditingField(null);
     setEditingSeason(null);
     setMemberName('');
@@ -409,6 +422,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           </button>
         </div>
 
+        {(activeTab === 'directory' ? access.can('manage-members') : access.can('write')) && (
         <button
           onClick={() => {
             setSeasonFieldId(fields[0]?.id || '');
@@ -419,6 +433,7 @@ export const MembersTab: React.FC<MembersTabProps> = ({
           <Plus size={14} />
           {activeTab === 'directory' ? t('Add Partner') : activeTab === 'fields' ? t('New Field') : t('Sow Crop')}
         </button>
+        )}
       </div>
 
       {activeTab === 'directory' && (
@@ -470,6 +485,11 @@ export const MembersTab: React.FC<MembersTabProps> = ({
         members={members}
         fields={fields}
         isEditingMember={!!editingMember}
+        memberEmail={memberEmail}
+        setMemberEmail={setMemberEmail}
+        memberRole={memberRole}
+        setMemberRole={setMemberRole}
+        canSetRole={access.isOwner}
         isEditingField={!!editingField}
         isEditingSeason={!!editingSeason}
         onClose={closeAndReset}

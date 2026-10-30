@@ -8,6 +8,7 @@ import { CreditAccount, CreditRepayment, Expense, Labour, Member, Season, Field 
 import { Plus, Pencil, Trash2, CreditCard, Calculator, User, Search, AlertCircle, Coins, ArrowUpRight } from 'lucide-react';
 import { Toast } from './Toast';
 import { useLanguage } from '../hooks/useLanguage';
+import { useAccess } from '../hooks/useAccess';
 import { Dialog } from './shell/Dialog';
 import { allocateToBills, attributeRepayments, billKey, billOutstanding, creditBills } from '../utils/creditBills';
 
@@ -45,6 +46,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
   onDeleteCreditRepayment
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'repayments'>('overview');
   const [selectedCreditorId, setSelectedCreditorId] = useState<string | null>(
     creditAccounts.length > 0 ? creditAccounts[0].id : null
@@ -65,7 +67,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
 
   // Form states - Repayment
   const [repCreditorId, setRepCreditorId] = useState(selectedCreditorId || creditAccounts[0]?.id || '');
-  const [repMemberId, setRepMemberId] = useState(members[0]?.id || '');
+  const [repMemberId, setRepMemberId] = useState(access.member?.id || members[0]?.id || '');
   const [repAmount, setRepAmount] = useState('');
   const [repDate, setRepDate] = useState(new Date().toISOString().split('T')[0]);
   const [repNotes, setRepNotes] = useState('');
@@ -334,6 +336,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
         </div>
 
         <div className="flex gap-2">
+          {access.can('write') && (
           <button
             onClick={() => {
               setEditingAccountId(null);
@@ -348,12 +351,14 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             <Plus size={14} className="stroke-[2.5]" />
             <span>{t('Add Creditor')}</span>
           </button>
+          )}
 
+          {access.can('write') && (
           <button
             onClick={() => {
               setEditingRepaymentId(null);
               setRepCreditorId(selectedCreditorId || creditAccounts[0]?.id || '');
-              setRepMemberId(members[0]?.id || '');
+              setRepMemberId(access.member?.id || members[0]?.id || '');
               setRepAmount('');
               setRepTickedBills([]);
               setRepDate(new Date().toISOString().split('T')[0]);
@@ -371,6 +376,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
             <Coins size={14} className="stroke-[2.5]" />
             <span>{t('Record Part Payment')}</span>
           </button>
+          )}
         </div>
       </div>
 
@@ -462,6 +468,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                   </div>
 
                   <div className="flex items-center gap-1 self-end sm:self-auto">
+                    {access.can('write') && (
                     <button
                       onClick={() => handleOpenEditAccount(selectedReport.account)}
                       className="p-2.5 text-slate-500 hover:bg-slate-100 rounded-xl hover:text-slate-700 transition-all cursor-pointer"
@@ -469,6 +476,8 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     >
                       <Pencil size={16} />
                     </button>
+                    )}
+                    {access.can('delete-any') && (
                     <button
                       onClick={() => {
                         if (confirm('Are you sure you want to delete this creditor profile? All credit history records will lose connection.')) {
@@ -481,6 +490,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     >
                       <Trash2 size={16} />
                     </button>
+                    )}
                   </div>
                 </div>
 
@@ -533,7 +543,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="font-black text-slate-800">{currency}{e.amount.toLocaleString()}</div>
+                                <div className="font-black text-slate-800">{currency}{Math.round(e.amount).toLocaleString('en-IN')}</div>
                                 {renderBillStatus(billKey('expense', e.id))}
                               </div>
                             </div>
@@ -552,7 +562,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="font-black text-slate-800">{currency}{l.totalCost.toLocaleString()}</div>
+                                <div className="font-black text-slate-800">{currency}{Math.round(l.totalCost).toLocaleString('en-IN')}</div>
                                 {renderBillStatus(billKey('labour', l.id))}
                               </div>
                             </div>
@@ -588,7 +598,8 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 )}
                               </div>
                               <div className="flex items-center gap-3">
-                                <span className="font-extrabold text-emerald-700">-{currency}{r.amount.toLocaleString()}</span>
+                                <span className="font-extrabold text-emerald-700">-{currency}{Math.round(r.amount).toLocaleString('en-IN')}</span>
+                                {access.can('write') && (<>
                                 <button
                                   onClick={() => handleOpenEditRepayment(r)}
                                   className="text-slate-500 hover:text-emerald-600 p-2 transition-all cursor-pointer"
@@ -607,6 +618,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 >
                                   <Trash2 size={13} />
                                 </button>
+                                </>)}
                               </div>
                             </div>
                           );
@@ -674,14 +686,17 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           {member ? member.name : t('Unknown Partner')}
                         </td>
                         <td className="p-4 text-slate-500 max-w-xs truncate">{rep.notes || '—'}</td>
-                        <td className="p-4 text-right font-black text-slate-900">{currency}{rep.amount.toLocaleString()}</td>
+                        <td className="p-4 text-right font-black text-slate-900">{currency}{Math.round(rep.amount).toLocaleString('en-IN')}</td>
                         <td className="p-4 text-center">
+                          {access.can('write') && (
                           <button
                             onClick={() => handleOpenEditRepayment(rep)}
                             className="p-2 px-2.5 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
                           >
                             {t('Edit')}
                           </button>
+                          )}
+                          {access.can('write') && (
                           <button
                             onClick={() => {
                               if (confirm('Are you sure you want to delete this repayment record?')) {
@@ -692,6 +707,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           >
                             {t('Delete')}
                           </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -812,7 +828,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                       const due = creditorReports.find(r => r.account.id === c.id)?.outstandingBalance || 0;
                       return (
                         <option key={c.id} value={c.id}>
-                          {c.name} ({t(c.type)} - {t('Due')}: {currency}{due.toLocaleString()})
+                          {c.name} ({t(c.type)} - {t('Due')}: {currency}{Math.round(due).toLocaleString('en-IN')})
                         </option>
                       );
                     })}

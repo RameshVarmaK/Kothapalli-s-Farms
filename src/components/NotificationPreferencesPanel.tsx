@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Bell, MessageCircle, Phone, AlertCircle, Check } from 'lucide-react';
 import { NotificationPreferences, NotificationEvent, Member } from '../types';
 import { useLanguage } from '../hooks/useLanguage';
+import { isNotificationDeliveryConfigured } from '../utils/notifications';
 
 interface NotificationPreferencesPanelProps {
   member: Member;
@@ -76,6 +77,15 @@ export function NotificationPreferencesPanel({
           Notifications for {member.name}
         </h3>
       </div>
+
+      {!isNotificationDeliveryConfigured() && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3" role="status">
+          <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" aria-hidden="true" />
+          <p className="text-sm text-amber-800">
+            {t('SMS and WhatsApp delivery is not connected on this deployment yet. Your preferences are saved, but no messages will be sent until a messaging relay is configured.')}
+          </p>
+        </div>
+      )}
 
       {/* Channel Selection */}
       <div className="space-y-3">

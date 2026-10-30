@@ -30,6 +30,9 @@ interface SheetSyncOptions {
   accessToken: string | null;
   setAccessToken: Dispatch<SetStateAction<string | null>>;
   setFetchError: Dispatch<SetStateAction<string | null>>;
+  /** False when Drive gave this account view-only access to the sheet: pulls
+   * still run, pushes are skipped instead of failing with 403 every edit. */
+  canWriteSheet?: boolean;
 }
 
 /**
@@ -39,7 +42,7 @@ interface SheetSyncOptions {
  * retries, and the conflict prompt. Also links, creates or pulls a sheet
  * on request.
  */
-export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchError }: SheetSyncOptions) {
+export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchError, canWriteSheet = true }: SheetSyncOptions) {
   const [loadingData, setLoadingData] = useState(false);
   const [syncingState, setSyncingState] = useState<SyncingState>('idle');
   const [syncMessage, setSyncMessage] = useState('');
@@ -67,6 +70,13 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
   const dbRef = useRef(db);
   dbRef.current = db;
   const isReconcilingRef = useRef(false);
+  // The exact db object the sheet was last known to match (adopted from it or
+  // pushed to it). The debounced push skips it: without this, every sign-in
+  // pulled the sheet, adopted it, and then — because adopting changes `db` —
+  // scheduled a push whose pre-check pulled the whole sheet again, twice over
+  // once the receipt normaliser also touched `db`. Three full reads per load
+  // with nothing to write.
+  const lastSyncedDbRef = useRef<LocalDatabase | null>(null);
 
   const syncDatabaseAcrossCloud = async (currentDb?: LocalDatabase) => {
     const dbToSync = currentDb || db;
@@ -80,6 +90,11 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
     const targetSheetId = dbToSync.settings?.linkedSpreadsheetId;
     if (!targetSheetId || isPlaceholderSpreadsheetId(targetSheetId)) {
       logInfo('sync_postponed', 'Spreadsheet ID is absent or placeholder; auto-fetch will resolve this');
+      return;
+    }
+    if (!canWriteSheet) {
+      logInfo('sync_skipped_view_only', 'This account has view-only access to the sheet; not pushing', { sheetId: targetSheetId });
+      setSyncMessage('View-only access: changes stay on this device.');
       return;
     }
 
@@ -131,6 +146,9 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
                 if (!holdsSameRecords(normalizedCloud, nextDb)) {
                   saveDatabase(normalizedCloud);
                   setDb(normalizedCloud);
+                  lastSyncedDbRef.current = normalizedCloud;
+                } else {
+                  lastSyncedDbRef.current = nextDb;
                 }
                 setLastSyncedFingerprint(normalizedCloud);
                 setSyncErrorKind(null);
@@ -163,6 +181,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
             collections
           );
           setLastSyncedFingerprint(nextDb);
+          lastSyncedDbRef.current = nextDb;
           setSyncErrorKind(null);
           retryAttemptRef.current = 0;
           setSyncingState('success');
@@ -228,6 +247,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
 
     saveDatabase(finalDb);
     setLastSyncedFingerprint(finalDb);
+    lastSyncedDbRef.current = finalDb;
     // Pure: it only swaps the state this decision was made against.
     setDb(prev => (prev === current ? finalDb : prev));
   };
@@ -384,6 +404,9 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
   useEffect(() => {
     if (!accessToken || !db) return;
     if (loadingData) return;
+    // Nothing has changed since the sheet and this device last agreed.
+    // "Sync Now" still forces a push: it calls syncDatabaseAcrossCloud directly.
+    if (db === lastSyncedDbRef.current) return;
 
     // Debounce pushing data to Google Sheets after making changes
     const delayDebounceFn = setTimeout(() => {
@@ -478,6 +501,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
     const finalDb = normalizeCloudDb(sheetData, db || getInitialDatabase(), sheetId);
     saveDatabase(finalDb);
     setLastSyncedFingerprint(finalDb);
+    lastSyncedDbRef.current = finalDb;
     setDb(finalDb);
     rememberLedgerChoice();
     setNeedsSheetSetup(false);
@@ -576,6 +600,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
     if (resolution === 'cloud') {
       // The cloud is what this browser now holds, so it is the agreed baseline.
       setLastSyncedFingerprint(finalDb);
+      lastSyncedDbRef.current = finalDb;
     } else {
       // "Keep mine" and "merge" leave records the sheet does not have. They
       // must be written before the baseline moves to them: recording it first
@@ -603,6 +628,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
         auditLogs: mergeAuditLogs(resolved.auditLogs, conflictCloudAuditLogs)
       });
       setLastSyncedFingerprint(resolved);
+      lastSyncedDbRef.current = resolved;
       setSyncErrorKind(null);
       retryAttemptRef.current = 0;
       setSyncingState('success');

@@ -20,6 +20,7 @@ import { logWarning } from '../utils/errorLogging';
 import { isNamedPayer, isNamedReceiver } from '../utils/payers';
 import { saveSafetyCopy, SAFETY_REASONS } from '../utils/safetyBackup';
 import { sendBulkNotifications } from '../utils/notifications';
+import { Access, AccessAction, FULL_ACCESS, sharesChanged } from './access';
 import {
   Member,
   Field,
@@ -93,6 +94,8 @@ export interface LedgerActionsContext {
   setConfirmDialog: Dispatch<SetStateAction<ConfirmDialogState | null>>;
   notificationPreferences: NotificationPreferences[];
   setNotificationPreferences: Dispatch<SetStateAction<NotificationPreferences[]>>;
+  /** The signed-in partner's permissions; every write is checked here first. */
+  access?: Access;
 }
 
 /**
@@ -108,7 +111,8 @@ export function createLedgerActions({
   setDb,
   setConfirmDialog,
   notificationPreferences,
-  setNotificationPreferences
+  setNotificationPreferences,
+  access = FULL_ACCESS
 }: LedgerActionsContext) {
   const {
     members,
@@ -125,6 +129,47 @@ export function createLedgerActions({
     creditAccounts,
     creditRepayments
   } = ledgerCollections(db);
+
+  // Every audit entry names the signed-in partner unless the caller names
+  // the partner the entry is about (its payer).
+  const actorId = access.member?.id;
+  const audit = (
+    base: LocalDatabase,
+    actionType: AuditLog['actionType'],
+    entityType: string,
+    entityId: string,
+    description: string,
+    memberId?: string
+  ) => addAuditLog(base, actionType, entityType, entityId, description, memberId ?? actorId);
+
+  // The role check behind every handler. Shows why and reports refusal so
+  // the caller can stop; the tabs also hide what a partner may not do, but
+  // this is where it is actually enforced.
+  const refuse = (action: AccessAction): boolean => {
+    if (access.can(action)) return false;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Not allowed',
+      message: access.reason(action),
+      confirmText: 'OK',
+      onConfirm: () => setConfirmDialog(null)
+    });
+    logWarning('action_refused_by_role', access.reason(action), { action, role: access.role });
+    return true;
+  };
+  const refuseDelete = (payerIds: Array<string | undefined>): boolean => {
+    if (access.canDeleteEntry(payerIds)) return false;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Not allowed',
+      message: access.reason('delete-any'),
+      confirmText: 'OK',
+      onConfirm: () => setConfirmDialog(null)
+    });
+    return true;
+  };
+  const payersOf = (entry: { paidByMemberId?: string; payers?: { memberId: string }[] }) =>
+    [entry.paidByMemberId, ...(entry.payers || []).map(p => p.memberId)];
 
   // Persist helper
   const handleUpdateDatabase = (updatedFields: Partial<LocalDatabase>) => {
@@ -151,12 +196,13 @@ export function createLedgerActions({
 
   // ACTIONS: Expenses
   const handleAddExpense = (exp: Expense): boolean => {
+    if (refuse('write')) return false;
     // Validate expense before saving
     if (refuseInvalidMoneyEntry({ kind: 'expense', record: exp })) return false;
 
     const nextList = [...expenses, exp];
     const newDb = { ...db, expenses: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'Expense',
@@ -184,11 +230,12 @@ export function createLedgerActions({
   };
 
   const handleEditExpense = (updatedExp: Expense): boolean => {
+    if (refuse('write')) return false;
     if (refuseInvalidMoneyEntry({ kind: 'expense', record: updatedExp })) return false;
 
     const nextList = expenses.map(e => e.id === updatedExp.id ? updatedExp : e);
     const newDb = { ...db, expenses: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'Expense',
@@ -202,10 +249,11 @@ export function createLedgerActions({
 
   const handleDeleteExpense = (id: string) => {
     const target = expenses.find(e => e.id === id);
+    if (target && refuseDelete(payersOf(target))) return;
     const nextList = expenses.filter(e => e.id !== id);
     const newDb = { ...db, expenses: nextList };
     if (target) {
-      const finalDb = addAuditLog(
+      const finalDb = audit(
         newDb,
         'delete',
         'Expense',
@@ -221,12 +269,13 @@ export function createLedgerActions({
 
   // ACTIONS: Labour
   const handleAddLabour = (lab: Labour): boolean => {
+    if (refuse('write')) return false;
     // Validate labour before saving
     if (refuseInvalidMoneyEntry({ kind: 'labour', record: lab })) return false;
 
     const nextList = [...labours, lab];
     const newDb = { ...db, labours: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'Labour',
@@ -254,11 +303,12 @@ export function createLedgerActions({
   };
 
   const handleEditLabour = (updatedLab: Labour): boolean => {
+    if (refuse('write')) return false;
     if (refuseInvalidMoneyEntry({ kind: 'labour', record: updatedLab })) return false;
 
     const nextList = labours.map(l => l.id === updatedLab.id ? updatedLab : l);
     const newDb = { ...db, labours: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'Labour',
@@ -272,10 +322,11 @@ export function createLedgerActions({
 
   const handleDeleteLabour = (id: string) => {
     const target = labours.find(l => l.id === id);
+    if (target && refuseDelete(payersOf(target))) return;
     const nextList = labours.filter(l => l.id !== id);
     const newDb = { ...db, labours: nextList };
     if (target) {
-      const finalDb = addAuditLog(
+      const finalDb = audit(
         newDb,
         'delete',
         'Labour',
@@ -291,12 +342,13 @@ export function createLedgerActions({
 
   // ACTIONS: Harvest Sales
   const handleAddRevenue = (rev: HarvestRevenue): boolean => {
+    if (refuse('write')) return false;
     // Validate revenue before saving
     if (refuseInvalidMoneyEntry({ kind: 'revenue', record: rev })) return false;
 
     const nextList = [...revenues, rev];
     const newDb = { ...db, revenues: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'HarvestRevenue',
@@ -324,11 +376,12 @@ export function createLedgerActions({
   };
 
   const handleEditRevenue = (updatedRev: HarvestRevenue): boolean => {
+    if (refuse('write')) return false;
     if (refuseInvalidMoneyEntry({ kind: 'revenue', record: updatedRev })) return false;
 
     const nextList = revenues.map(r => r.id === updatedRev.id ? updatedRev : r);
     const newDb = { ...db, revenues: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'HarvestRevenue',
@@ -342,10 +395,11 @@ export function createLedgerActions({
 
   const handleDeleteRevenue = (id: string) => {
     const target = revenues.find(r => r.id === id);
+    if (target && refuseDelete([target.receivedByMemberId, ...(target.receivers || []).map(r => r.memberId)])) return;
     const nextList = revenues.filter(r => r.id !== id);
     const newDb = { ...db, revenues: nextList };
     if (target) {
-      const finalDb = addAuditLog(
+      const finalDb = audit(
         newDb,
         'delete',
         'HarvestRevenue',
@@ -361,9 +415,10 @@ export function createLedgerActions({
 
   // ACTIONS: Credit Profiles & Repayments
   const handleAddCreditAccount = (acc: CreditAccount) => {
+    if (refuse('write')) return;
     const nextList = [...creditAccounts, acc];
     const newDb = { ...db, creditAccounts: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'CreditAccount',
@@ -374,9 +429,10 @@ export function createLedgerActions({
   };
 
   const handleEditCreditAccount = (updatedAcc: CreditAccount) => {
+    if (refuse('write')) return;
     const nextList = creditAccounts.map(c => c.id === updatedAcc.id ? updatedAcc : c);
     const newDb = { ...db, creditAccounts: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'CreditAccount',
@@ -387,11 +443,12 @@ export function createLedgerActions({
   };
 
   const handleDeleteCreditAccount = (id: string) => {
+    if (refuse('delete-any')) return;
     const target = creditAccounts.find(c => c.id === id);
     const nextList = creditAccounts.filter(c => c.id !== id);
     const newDb = { ...db, creditAccounts: nextList };
     if (target) {
-      const finalDb = addAuditLog(
+      const finalDb = audit(
         newDb,
         'delete',
         'CreditAccount',
@@ -405,11 +462,12 @@ export function createLedgerActions({
   };
 
   const handleAddCreditRepayment = (rep: CreditRepayment) => {
+    if (refuse('write')) return;
     const nextList = [...creditRepayments, rep];
     const newDb = { ...db, creditRepayments: nextList };
     const creditor = creditAccounts.find(c => c.id === rep.creditAccountId);
     const memberName = members.find(m => m.id === rep.memberId)?.name || 'Unknown Partner';
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'CreditRepayment',
@@ -421,11 +479,12 @@ export function createLedgerActions({
   };
 
   const handleUpdateCreditRepayment = (updatedRep: CreditRepayment) => {
+    if (refuse('write')) return;
     const nextList = creditRepayments.map(r => r.id === updatedRep.id ? updatedRep : r);
     const newDb = { ...db, creditRepayments: nextList };
     const creditor = creditAccounts.find(c => c.id === updatedRep.creditAccountId);
     const memberName = members.find(m => m.id === updatedRep.memberId)?.name || 'Unknown Partner';
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'CreditRepayment',
@@ -438,11 +497,12 @@ export function createLedgerActions({
 
   const handleDeleteCreditRepayment = (id: string) => {
     const target = creditRepayments.find(r => r.id === id);
+    if (target && refuseDelete([target.memberId])) return;
     const nextList = creditRepayments.filter(r => r.id !== id);
     const newDb = { ...db, creditRepayments: nextList };
     if (target) {
       const creditor = creditAccounts.find(c => c.id === target.creditAccountId);
-      const finalDb = addAuditLog(
+      const finalDb = audit(
         newDb,
         'delete',
         'CreditRepayment',
@@ -457,6 +517,7 @@ export function createLedgerActions({
   };
 
   const handleSaveNotificationPreferences = (prefs: NotificationPreferences) => {
+    if (refuse('write')) return;
     const updated = notificationPreferences.filter(p => p.memberId !== prefs.memberId);
     updated.push(prefs);
     setNotificationPreferences(updated);
@@ -467,9 +528,10 @@ export function createLedgerActions({
 
   // ACTIONS: Stock Items / Purchases / Usages
   const handleAddStockItem = (item: StockItem) => {
+    if (refuse('write')) return;
     const nextList = [...stockItems, item];
     const newDb = { ...db, stockItems: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'StockItem',
@@ -480,10 +542,11 @@ export function createLedgerActions({
   };
 
   const handleAddPurchase = (purc: StockPurchase) => {
+    if (refuse('write')) return;
     const nextList = [...purchases, purc];
     const item = stockItems.find(i => i.id === purc.stockItemId);
     const newDb = { ...db, purchases: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'StockPurchase',
@@ -495,9 +558,10 @@ export function createLedgerActions({
   };
 
   const handleUpdateStockItem = (updatedItem: StockItem) => {
+    if (refuse('write')) return;
     const nextList = stockItems.map(i => i.id === updatedItem.id ? updatedItem : i);
     const newDb = { ...db, stockItems: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'StockItem',
@@ -508,10 +572,11 @@ export function createLedgerActions({
   };
 
   const handleUpdatePurchase = (updatedPurchase: StockPurchase) => {
+    if (refuse('write')) return;
     const nextList = purchases.map(p => p.id === updatedPurchase.id ? updatedPurchase : p);
     const item = stockItems.find(i => i.id === updatedPurchase.stockItemId);
     const newDb = { ...db, purchases: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'StockPurchase',
@@ -523,10 +588,11 @@ export function createLedgerActions({
   };
 
   const handleAddUsage = (use: StockUsage) => {
+    if (refuse('write')) return;
     const nextList = [...usages, use];
     const item = stockItems.find(i => i.id === use.stockItemId);
     const newDb = { ...db, usages: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'StockUsage',
@@ -537,10 +603,11 @@ export function createLedgerActions({
   };
 
   const handleUpdateUsage = (updatedUsage: StockUsage) => {
+    if (refuse('write')) return;
     const nextList = usages.map(u => u.id === updatedUsage.id ? updatedUsage : u);
     const item = stockItems.find(i => i.id === updatedUsage.stockItemId);
     const newDb = { ...db, usages: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'StockUsage',
@@ -552,6 +619,7 @@ export function createLedgerActions({
 
   // ACTIONS: Field Plots
   const handleAddField = (field: Field): boolean => {
+    if (refuse('write')) return false;
     // Validate field shares sum to 100%
     const validation = validateFieldShares(field);
     if (!validation.valid) {
@@ -568,7 +636,7 @@ export function createLedgerActions({
 
     const nextList = [...fields, field];
     const newDb = { ...db, fields: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'Field',
@@ -580,6 +648,9 @@ export function createLedgerActions({
   };
 
   const handleUpdateField = (updatedField: Field): boolean => {
+    if (refuse('write')) return false;
+    const before = fields.find(x => x.id === updatedField.id);
+    if (before && sharesChanged(before.shares, updatedField.shares) && refuse('manage-shares')) return false;
     const validation = validateFieldShares(updatedField);
     if (!validation.valid) {
       setConfirmDialog({
@@ -595,7 +666,7 @@ export function createLedgerActions({
 
     const nextList = fields.map(f => f.id === updatedField.id ? updatedField : f);
     const newDb = { ...db, fields: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'Field',
@@ -607,6 +678,7 @@ export function createLedgerActions({
   };
 
   const handleDeleteField = (id: string) => {
+    if (refuse('delete-any')) return;
     const target = fields.find(f => f.id === id);
     if (!target) return;
 
@@ -704,7 +776,7 @@ export function createLedgerActions({
           expenses: nextExpenses,
           usages: nextUsages,
         };
-        const finalDb = addAuditLog(
+        const finalDb = audit(
           newDb,
           'delete',
           'Field',
@@ -719,6 +791,7 @@ export function createLedgerActions({
 
   // ACTIONS: Season Crop Cycles
   const handleAddSeason = (season: Season): boolean => {
+    if (refuse('write')) return false;
     // Validate season shares sum to 100% if season-specific
     const validation = validateSeasonShares(season);
     if (!validation.valid) {
@@ -744,7 +817,7 @@ export function createLedgerActions({
     };
 
     const newDb = { ...db, seasons: nextList, activities: [...activities, firstAct] };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'Season',
@@ -756,6 +829,9 @@ export function createLedgerActions({
   };
 
   const handleUpdateSeason = (updatedSeason: Season): boolean => {
+    if (refuse('write')) return false;
+    const before = seasons.find(x => x.id === updatedSeason.id);
+    if (before && sharesChanged(before.shares, updatedSeason.shares) && refuse('manage-shares')) return false;
     const validation = validateSeasonShares(updatedSeason);
     if (!validation.valid) {
       setConfirmDialog({
@@ -771,7 +847,7 @@ export function createLedgerActions({
 
     const nextList = seasons.map(s => s.id === updatedSeason.id ? updatedSeason : s);
     const newDb = { ...db, seasons: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'Season',
@@ -783,6 +859,7 @@ export function createLedgerActions({
   };
 
   const handleCloseSeason = (id: string, endDate: string): boolean => {
+    if (refuse('close-season')) return false;
     const nextList = seasons.map(s => s.id === id ? { ...s, isClosed: true, endDate } : s);
     const target = seasons.find(s => s.id === id);
     if (!target) return false;
@@ -797,7 +874,7 @@ export function createLedgerActions({
     };
 
     const newDb = { ...db, seasons: nextList, activities: [...activities, harvestAct] };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'Season',
@@ -809,6 +886,7 @@ export function createLedgerActions({
   };
 
   const handleDeleteSeason = (id: string) => {
+    if (refuse('delete-any')) return;
     const target = seasons.find(s => s.id === id);
     if (!target) return;
 
@@ -876,7 +954,7 @@ export function createLedgerActions({
           expenses: nextExpenses,
           usages: nextUsages,
         };
-        const finalDb = addAuditLog(
+        const finalDb = audit(
           newDb,
           'delete',
           'Season',
@@ -891,15 +969,17 @@ export function createLedgerActions({
 
   // ACTIONS: Settlement clearances ("Mark Transferred" in the Settle tab)
   const handleUpdateClearances = (next: SettlementClearance[], description: string) => {
+    if (refuse('settle')) return;
     const newDb = { ...db, settlementClearances: next };
-    const finalDb = addAuditLog(newDb, 'edit', 'Settlement', '', description);
+    const finalDb = audit(newDb, 'edit', 'Settlement', '', description);
     setDb(finalDb);
   };
 
   const handleAddActivity = (act: Activity) => {
+    if (refuse('write')) return;
     const nextList = [...activities, act];
     const newDb = { ...db, activities: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'Activity',
@@ -911,9 +991,10 @@ export function createLedgerActions({
 
   // ACTIONS: Partners
   const handleAddMember = (m: Member): boolean => {
+    if (refuse('manage-members')) return false;
     const nextList = [...members, m];
     const newDb = { ...db, members: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'create',
       'Member',
@@ -925,9 +1006,13 @@ export function createLedgerActions({
   };
 
   const handleUpdateMember = (updatedMember: Member): boolean => {
+    const before = members.find(m => m.id === updatedMember.id);
+    const editingSelf = !!access.member && updatedMember.id === access.member.id && before?.role === updatedMember.role;
+    if (!editingSelf && refuse('manage-members')) return false;
+    if (editingSelf && refuse('write')) return false;
     const nextList = members.map(m => m.id === updatedMember.id ? updatedMember : m);
     const newDb = { ...db, members: nextList };
-    const finalDb = addAuditLog(
+    const finalDb = audit(
       newDb,
       'edit',
       'Member',
@@ -939,6 +1024,7 @@ export function createLedgerActions({
   };
 
   const handleDeleteMember = (id: string) => {
+    if (refuse('manage-members')) return;
     const target = members.find(m => m.id === id);
     if (!target) return;
 
@@ -982,7 +1068,7 @@ export function createLedgerActions({
       onConfirm: () => {
         const nextList = members.filter(m => m.id !== id);
         const newDb = { ...db, members: nextList };
-        const finalDb = addAuditLog(
+        const finalDb = audit(
           newDb,
           'delete',
           'Member',
@@ -997,11 +1083,13 @@ export function createLedgerActions({
 
   // ACTIONS: Preferences
   const handleSaveSettings = (nextSettings: Settings) => {
+    if (refuse('write')) return;
     handleUpdateDatabase({ settings: nextSettings });
   };
 
   // ACTIONS: Import Backups JSON
   const handleImportDatabase = (nextData: any) => {
+    if (refuse('restore')) return;
     saveSafetyCopy(SAFETY_REASONS.deviceBeforeRestore, db);
     // A backup taken before auto-generated timeline rows were dropped would
     // otherwise restore them.
@@ -1010,7 +1098,7 @@ export function createLedgerActions({
   };
 
   const handleAudit = (action: AuditLog['actionType'], type: string, desc: string) => {
-    const finalDb = addAuditLog(db, action, type, '', desc);
+    const finalDb = audit(db, action, type, '', desc);
     setDb(finalDb);
   };
 

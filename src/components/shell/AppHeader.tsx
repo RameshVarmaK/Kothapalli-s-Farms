@@ -6,6 +6,8 @@
 import { Sprout, Check, X, RefreshCw, Menu } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
 import { useViewMode } from '../../hooks/useViewMode';
+import { useAccess } from '../../hooks/useAccess';
+import { ROLE_LABELS } from '../../app/access';
 import type { SyncingState } from '../../hooks/useSheetSync';
 import type { Season } from '../../types';
 
@@ -16,7 +18,9 @@ interface AppHeaderProps {
   pendingChanges: number;
   seasons: Season[];
   onSyncNow: () => void;
-  onOpenMobileNav: () => void;
+  /** Opens the phone drawer. Absent when the shell has no navigation (a
+   * viewer's partner home), which also hides the Basic/Power switch. */
+  onOpenMobileNav?: () => void;
 }
 
 export function AppHeader({
@@ -30,14 +34,17 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { mode, setMode } = useViewMode();
   const { language, setLanguage, t } = useLanguage();
+  const access = useAccess();
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-slate-200 px-4 md:px-6 py-3 md:py-4 shrink-0 shadow-xs flex justify-between items-center print:hidden">
-      <button aria-label={t('Menu')}
-        onClick={() => onOpenMobileNav()}
-        className="md:hidden p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
-      >
-        <Menu size={24} className="text-slate-700" />
-      </button>
+      {onOpenMobileNav && (
+        <button aria-label={t('Menu')}
+          onClick={() => onOpenMobileNav()}
+          className="md:hidden p-2 -ml-2 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          <Menu size={24} className="text-slate-700" />
+        </button>
+      )}
 
       <div className="flex items-center gap-2 md:gap-3 flex-1 md:flex-none">
         <span className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-xs shrink-0">
@@ -50,7 +57,20 @@ export function AppHeader({
       </div>
 
       <div className="flex items-center gap-3">
-        {accessToken && (
+        {accessToken && access.readOnly && (
+          <span
+            className="text-[10px] bg-amber-50 text-amber-700 font-bold px-3 py-1.5 rounded-lg border border-amber-200 uppercase tracking-widest"
+            title={access.reason('write')}
+          >
+            {t('View only')}
+          </span>
+        )}
+        {accessToken && !access.readOnly && access.rolesConfigured && (
+          <span className="hidden sm:inline-block text-[10px] bg-slate-50 text-slate-500 font-bold px-3 py-1.5 rounded-lg border border-slate-200 uppercase tracking-widest" title={access.member?.name || ''}>
+            {t(ROLE_LABELS[access.role])}
+          </span>
+        )}
+        {accessToken && !access.readOnly && (
           <div className="flex items-center gap-2">
             {syncingState === 'syncing' && (
               <span className="text-amber-600 flex items-center gap-1.5 text-xs font-semibold">
@@ -94,6 +114,7 @@ export function AppHeader({
           </div>
         )}
 
+        {onOpenMobileNav && (
         <div
           className="hidden md:flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"
           title={t('Basic mode groups tools into 4 hubs. Power mode shows every tool at once.')}
@@ -110,6 +131,7 @@ export function AppHeader({
             </button>
           ))}
         </div>
+        )}
 
         <div
           className="hidden md:flex bg-slate-100 p-0.5 rounded-lg border border-slate-200"

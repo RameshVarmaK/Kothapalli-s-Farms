@@ -8,6 +8,7 @@ import { Field, Member } from '../../types';
 import { Sprout, Pencil, Trash2 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { useLanguage } from '../../hooks/useLanguage';
+import { useAccess } from '../../hooks/useAccess';
 
 interface FieldsListProps {
   fields: Field[];
@@ -27,6 +28,7 @@ export const FieldsList: React.FC<FieldsListProps> = ({
   onDeleteField,
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   if (fields.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -55,6 +57,7 @@ export const FieldsList: React.FC<FieldsListProps> = ({
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">{t('Area size:')} <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md">{field.area} {t('acres')}</span></p>
             </div>
             <div className="flex items-center gap-1">
+              {access.can('write') && (
               <button
                 onClick={() => onEditField(field)}
                 className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"
@@ -62,12 +65,15 @@ export const FieldsList: React.FC<FieldsListProps> = ({
               >
                 <Pencil size={14} />
               </button>
+              )}
+              {access.can('delete-any') && (
               <button aria-label={`${t('Delete')} ${field.name}`}
                 onClick={() => onDeleteField(field.id, field.name)}
                 className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 hover:border hover:border-red-100 transition-colors cursor-pointer"
               >
                 <Trash2 size={14} />
               </button>
+              )}
             </div>
           </div>
 

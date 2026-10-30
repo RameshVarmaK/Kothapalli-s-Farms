@@ -20,4 +20,7 @@ export const teNotifications: Record<string, string> = {
   'Clear Old': 'పాతవి తొలగించండి',
   '← Prev': '← వెనుకకు',
   'Next →': 'తరువాత →',
+
+  // Added 2026-10-27: Reports totals, revenue-less states, notifications notice.
+  'SMS and WhatsApp delivery is not connected on this deployment yet. Your preferences are saved, but no messages will be sent until a messaging relay is configured.': 'ఈ డిప్లాయ్‌మెంట్‌లో SMS మరియు వాట్సాప్ డెలివరీ ఇంకా కనెక్ట్ కాలేదు. మీ ప్రాధాన్యతలు సేవ్ అవుతాయి, కానీ మెసేజింగ్ రిలే సెటప్ అయ్యే వరకు సందేశాలు పంపబడవు.',
 };

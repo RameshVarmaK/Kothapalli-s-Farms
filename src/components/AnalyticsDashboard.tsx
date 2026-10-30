@@ -22,6 +22,9 @@ interface AnalyticsDashboardProps {
   onExport?: (format: 'csv' | 'json') => void;
 }
 
+const percent = (value: number | null, fallback: string) =>
+  value === null ? fallback : `${value.toFixed(1)}%`;
+
 export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboardProps) {
   const { t } = useLanguage();
   const stats = calculateDashboardStats(db);
@@ -30,6 +33,12 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
   const fields = calculateFieldPerformance(db);
   const trends = calculateSeasonalTrends(db);
   const yieldTrends = calculateYieldTrends(db);
+
+  // Until the first harvest is sold every profit is a loss and every margin
+  // is undefined, so the profit charts would only repeat the cost figures
+  // upside down. Show costs directly instead until there is revenue.
+  const hasRevenue = stats.totalRevenue > 0;
+  const noRevenueYet = t('No revenue yet');
 
   const colors = ['#059669', '#10b981', '#34d399', '#6ee7b7', '#d1fae5'];
 
@@ -56,10 +65,10 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         ['Total Revenue', stats.totalRevenue],
         ['Total Expenses', stats.totalExpenses],
         ['Net Profit', stats.netProfit],
-        ['Profit Margin (%)', stats.profitMargin.toFixed(1)],
+        ['Profit Margin (%)', percent(stats.profitMargin, '')],
         [],
-        ['Crop', 'Revenue', 'Expenses', 'Profit', 'Margin (%)'],
-        ...crops.map(c => [c.cropName, c.revenue, c.expenses, c.profit, c.profitMargin.toFixed(1)]),
+        ['Crop', 'Field', 'Revenue', 'Expenses', 'Profit', 'Margin (%)'],
+        ...crops.map(c => [c.cropName, c.fieldName, c.revenue, c.expenses, c.profit, percent(c.profitMargin, '')]),
         [],
         ['Season Crop', 'Field', 'Sown Date', 'Total Quantity', 'Yield / Acre'],
         ...yieldTrends.map(yt => [yt.cropName, yt.fieldName, yt.startDate, yt.totalQuantity, yt.yieldPerAcre.toFixed(2)])
@@ -118,25 +127,26 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         />
         <MetricCard
           label={t('Profit Margin')}
-          value={`${stats.profitMargin.toFixed(1)}%`}
+          value={percent(stats.profitMargin, noRevenueYet)}
           icon={<BarChart3 className="text-blue-600" />}
           color="blue"
+          muted={stats.profitMargin === null}
         />
       </div>
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Crop Profitability */}
+        {/* Crop Profitability (or cost, until there is revenue) */}
         {crops.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900 mb-4">{t('Crop Profitability')}</h3>
+            <h3 className="font-semibold text-slate-900 mb-4">{hasRevenue ? t('Crop Profitability') : t('Cost by Crop Season')}</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={crops.slice(0, 8)}>
+              <BarChart data={(hasRevenue ? crops : [...crops].sort((a, b) => b.expenses - a.expenses)).slice(0, 8)}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="cropName" angle={-45} textAnchor="end" height={100} />
-                <YAxis />
+                <YAxis tickFormatter={(v) => formatCurrency(v as number, currency)} width={80} />
                 <Tooltip formatter={(value) => formatCurrency(value as number, currency)} />
-                <Bar dataKey="profit" fill="#059669" radius={[4, 4, 0, 0]} />
+                <Bar dataKey={hasRevenue ? 'profit' : 'expenses'} name={hasRevenue ? t('Profit') : t('Expenses')} fill={hasRevenue ? '#059669' : '#f59e0b'} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -150,11 +160,11 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
               <LineChart data={trends}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="season" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
+                <YAxis tickFormatter={(v) => formatCurrency(v as number, currency)} width={80} />
                 <Tooltip formatter={(value) => formatCurrency(value as number, currency)} />
                 <Legend />
-                <Line type="monotone" dataKey="totalExpenses" stroke="#f59e0b" />
-                <Line type="monotone" dataKey="totalRevenue" stroke="#10b981" />
+                <Line type="monotone" dataKey="totalExpenses" name={t('Expenses')} stroke="#f59e0b" />
+                <Line type="monotone" dataKey="totalRevenue" name={t('Revenue')} stroke="#10b981" />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -166,14 +176,18 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
         {/* Field Performance */}
         {fields.length > 0 && (
           <div className="bg-white rounded-lg border border-slate-200 p-4">
-            <h3 className="font-semibold text-slate-900 mb-4">{t('Field ROI Performance')}</h3>
+            <h3 className="font-semibold text-slate-900 mb-4">{hasRevenue ? t('Field ROI Performance') : t('Cost per Acre by Field')}</h3>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={fields}>
+              <BarChart data={fields.map(f => ({ ...f, roi: f.roi ?? 0 }))}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="fieldName" angle={-45} textAnchor="end" height={100} />
-                <YAxis label={{ value: 'ROI (%)', angle: -90, position: 'insideLeft' }} />
-                <Tooltip formatter={(value) => `${(value as number).toFixed(1)}%`} />
-                <Bar dataKey="roi" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                {hasRevenue ? (
+                  <YAxis label={{ value: 'ROI (%)', angle: -90, position: 'insideLeft' }} />
+                ) : (
+                  <YAxis tickFormatter={(v) => formatCurrency(v as number, currency)} width={80} />
+                )}
+                <Tooltip formatter={(value) => hasRevenue ? `${(value as number).toFixed(1)}%` : formatCurrency(value as number, currency)} />
+                <Bar dataKey={hasRevenue ? 'roi' : 'expensesPerAcre'} name={hasRevenue ? 'ROI' : t('Cost per acre')} fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -241,26 +255,33 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
           <div className="bg-white rounded-lg border border-slate-200 p-4">
             <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
               <Leaf size={18} className="text-emerald-600" />
-              {t('Top Crops by Profit')}
+              {hasRevenue ? t('Top Crops by Profit') : t('Crop Seasons by Cost')}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="border-b border-slate-200">
                   <tr className="text-left text-slate-600 font-semibold text-xs uppercase">
                     <th className="pb-2">{t('Crop')}</th>
+                    <th className="pb-2 text-right">{t('Expenses')}</th>
                     <th className="pb-2 text-right">{t('Profit')}</th>
                     <th className="pb-2 text-right">{t('Margin')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {crops.slice(0, 5).map((crop, i) => (
-                    <tr key={i} className="hover:bg-slate-50">
-                      <td className="py-2">{crop.cropName}</td>
-                      <td className="py-2 text-right text-emerald-700 font-semibold">
+                  {(hasRevenue ? crops : [...crops].sort((a, b) => b.expenses - a.expenses)).slice(0, 5).map((crop) => (
+                    <tr key={crop.seasonId} className="hover:bg-slate-50">
+                      <td className="py-2">
+                        {crop.cropName}
+                        <span className="text-slate-400 text-xs"> · {crop.fieldName}</span>
+                      </td>
+                      <td className="py-2 text-right text-slate-700">
+                        {formatCurrency(crop.expenses, currency)}
+                      </td>
+                      <td className={`py-2 text-right font-semibold ${crop.profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                         {formatCurrency(crop.profit, currency)}
                       </td>
                       <td className="py-2 text-right text-slate-600">
-                        {crop.profitMargin.toFixed(1)}%
+                        {percent(crop.profitMargin, '—')}
                       </td>
                     </tr>
                   ))}
@@ -283,18 +304,18 @@ export function AnalyticsDashboard({ db, currency, onExport }: AnalyticsDashboar
                   <tr className="text-left text-slate-600 font-semibold text-xs uppercase">
                     <th className="pb-2">{t('Member')}</th>
                     <th className="pb-2 text-right">{t('Expenses')}</th>
-                    <th className="pb-2 text-right">{t('Hours')}</th>
+                    <th className="pb-2 text-right">{t('Labour paid')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {members.slice(0, 5).map((member, i) => (
-                    <tr key={i} className="hover:bg-slate-50">
+                  {members.slice(0, 5).map((member) => (
+                    <tr key={member.memberId} className="hover:bg-slate-50">
                       <td className="py-2">{member.memberName}</td>
                       <td className="py-2 text-right font-semibold">
                         {formatCurrency(member.expensesPaid, currency)}
                       </td>
                       <td className="py-2 text-right text-slate-600">
-                        {member.hoursWorked.toFixed(0)}h
+                        {formatCurrency(member.labourPaid, currency)}
                       </td>
                     </tr>
                   ))}
@@ -314,9 +335,10 @@ interface MetricCardProps {
   icon: React.ReactNode;
   color?: string;
   highlight?: boolean;
+  muted?: boolean;
 }
 
-function MetricCard({ label, value, icon, color = 'slate', highlight }: MetricCardProps) {
+function MetricCard({ label, value, icon, color = 'slate', highlight, muted }: MetricCardProps) {
   const bgColor = `bg-${color}-50`;
   const textColor = `text-${color}-700`;
 
@@ -327,7 +349,7 @@ function MetricCard({ label, value, icon, color = 'slate', highlight }: MetricCa
           <p className={`text-xs font-semibold uppercase tracking-wider text-${color}-600`}>
             {label}
           </p>
-          <p className={`text-xl md:text-2xl font-bold mt-1 ${textColor} ${highlight ? 'text-green-700' : ''}`}>
+          <p className={`${muted ? 'text-sm font-medium text-slate-500 mt-2' : `text-xl md:text-2xl font-bold mt-1 ${textColor}`} ${highlight ? 'text-green-700' : ''}`}>
             {value}
           </p>
         </div>

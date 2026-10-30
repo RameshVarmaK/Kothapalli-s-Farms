@@ -3,11 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+/**
+ * What a partner may do in the app. Owner: everything, including settling,
+ * closing seasons, changing shares, managing partners and the sheet link.
+ * Editor: day-to-day entries (expenses, labour, stock, sales, repayments)
+ * and deleting their own. Viewer: read only. See src/app/access.ts.
+ */
+export type MemberRole = 'owner' | 'editor' | 'viewer';
+
 export interface Member {
   id: string;
   name: string;
   phone?: string;
   photo?: string; // base64 URL or abstract initials
+  /** Google account email; links the signed-in user to this partner. */
+  email?: string;
+  /** Absent means editor once any partner has an email; owner before that. */
+  role?: MemberRole;
 }
 
 export interface MemberShare {

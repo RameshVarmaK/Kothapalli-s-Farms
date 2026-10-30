@@ -8,6 +8,7 @@ import { Field, Season } from '../../types';
 import { Grid, FileText, Pencil, Trash2 } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 import { useLanguage } from '../../hooks/useLanguage';
+import { useAccess } from '../../hooks/useAccess';
 
 interface SeasonsListProps {
   seasons: Season[];
@@ -33,6 +34,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
   onDeleteSeason,
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4.5 border-b border-slate-200 bg-slate-50/50">
@@ -85,6 +87,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                     <FileText size={12} className="text-emerald-600" />
                     <span>{t('View Report')}</span>
                   </button>
+                  {access.can('write') && (
                   <button
                     onClick={() => onEditSeason(s)}
                     className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
@@ -92,13 +95,14 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                   >
                     <Pencil size={13} />
                   </button>
+                  )}
                   {s.isClosed ? (
                     <div className="flex items-center gap-2 justify-end">
                       <span className="inline-flex items-center gap-1 text-[10px] text-slate-500 bg-slate-100 font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 uppercase tracking-wider">
                         {t('Closed')} {s.endDate}
                       </span>
                       {checkSeasonSettled(s.id) ? (
-                        <button
+                        access.can('delete-any') && <button
                           onClick={() => onDeleteSeason(s.id)}
                           className="p-2.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 border border-slate-300 hover:border-red-200 transition-colors cursor-pointer"
                           title={t('Delete Season (Fully Settled)')} aria-label={t('Delete Season (Fully Settled)')}
@@ -112,7 +116,7 @@ export const SeasonsList: React.FC<SeasonsListProps> = ({
                       )}
                     </div>
                   ) : (
-                    <button
+                    access.can('close-season') && <button
                       onClick={() => onCloseCropSeason(s.id)}
                       className="text-[10px] text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 font-bold px-2.5 py-1.5 rounded-lg cursor-pointer transition-all"
                     >

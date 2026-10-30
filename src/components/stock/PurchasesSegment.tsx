@@ -8,6 +8,7 @@ import React from 'react';
 import { StockItem, StockPurchase, Member } from '../../types';
 import { Plus, Coins, Pencil } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { useAccess } from '../../hooks/useAccess';
 
 interface PurchasesSegmentProps {
   purchases: StockPurchase[];
@@ -27,6 +28,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
   onEditPurchase
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
@@ -48,6 +50,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
                 ? t('You need at least one input type (seed, fertilizer, etc.) before you can log a purchase against it.')
                 : t('Log every bag of fertilizer, seed, or fuel bought — it builds the weighted-average cost used across field usage.')}
             </p>
+            {access.can('write') && (
             <button
               onClick={onLogPurchase}
               className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
@@ -55,6 +58,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
               <Plus size={14} />
               {stockItems.length === 0 ? t('Create First Input Type') : t('Log First Purchase')}
             </button>
+            )}
           </div>
         ) : (
           [...purchases].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(p => {
@@ -82,6 +86,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
                       {t('Added')} {p.quantity} {item?.unit}
                     </span>
                   </div>
+                  {access.can('write') && (
                   <button
                     onClick={() => onEditPurchase(p)}
                     className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
@@ -89,6 +94,7 @@ export const PurchasesSegment: React.FC<PurchasesSegmentProps> = ({
                   >
                     <Pencil size={13} />
                   </button>
+                  )}
                 </div>
               </div>
             );

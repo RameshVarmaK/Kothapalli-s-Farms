@@ -20,6 +20,7 @@ import {
   SettlementSummary,
 } from '../types';
 import { buildSettlementLedger } from '../utils/calculations';
+import { formatMoney, formatSignedMoney, singularUnit } from '../utils/format';
 import { useLanguage } from '../hooks/useLanguage';
 import { Sprout, Coins } from 'lucide-react';
 import {
@@ -252,7 +253,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </h2>
           </div>
           <p className="text-xs text-emerald-600 mt-2 font-medium truncate">
-            ● {seasons.filter(s => !s.isClosed).map(s => s.cropName).slice(0, 3).join(', ') || t('No active crop seasons')}
+            ● {Array.from(new Set(seasons.filter(s => !s.isClosed).map(s => s.cropName))).slice(0, 3).join(', ') || t('No active crop seasons')}
           </p>
         </div>
 
@@ -281,7 +282,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </h2>
           </div>
           <p className="text-xs text-amber-600 mt-2 font-medium">
-            {t('Avg cost per')} {areaUnit || 'acre'}: {currency}{Math.round(averageCostPerAcre).toLocaleString('en-IN')}
+            {t('Avg cost per')} {t(singularUnit(areaUnit))}: {formatMoney(averageCostPerAcre, currency)}
           </p>
         </div>
 
@@ -301,7 +302,11 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             ) : (
               <span className="w-2 h-2 rounded-full bg-slate-400" />
             )}
-            <span>{t('Ledgers balanced to zero')}</span>
+            <span>
+              {totalRevenue === 0
+                ? t('No sales recorded yet')
+                : summary.isBalanced ? t('Ledgers balanced to zero') : t('Ledger imbalance detected')}
+            </span>
           </div>
         </div>
       </div>
@@ -477,19 +482,19 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                       <div>
                         <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">{t('Expenses')}</span>
                         <p className="text-sm font-bold font-mono text-slate-800 mt-1">
-                          {currency}{ledger.totalExpense.toLocaleString('en-IN')}
+                          {formatMoney(ledger.totalExpense, currency)}
                         </p>
                       </div>
                       <div>
                         <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">{t('Revenues')}</span>
                         <p className="text-sm font-bold font-mono text-slate-800 mt-1">
-                          {currency}{ledger.totalRevenue.toLocaleString('en-IN')}
+                          {formatMoney(ledger.totalRevenue, currency)}
                         </p>
                       </div>
                       <div>
                         <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">{t('Net Profit')}</span>
                         <p className={`text-sm font-extrabold font-mono mt-1 ${ledger.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                          {ledger.netProfit >= 0 ? '+' : ''}{ledger.netProfit.toLocaleString('en-IN')}
+                          {formatSignedMoney(ledger.netProfit, currency)}
                         </p>
                       </div>
                     </div>
@@ -497,15 +502,15 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                     {/* Operational Metrics */}
                     <div className="grid grid-cols-2 gap-4 text-xs border-b border-slate-100 pb-4 font-medium text-slate-500">
                       <div className="flex justify-between items-center">
-                        <span>{t('Expense /')} {areaUnit}</span>
+                        <span>{t('Expense /')} {t(singularUnit(areaUnit))}</span>
                         <span className="font-bold text-slate-800 font-mono">
-                          {currency}{Math.round(costPerAcre).toLocaleString('en-IN')}
+                          {formatMoney(costPerAcre, currency)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span>{t('Profit /')} {areaUnit}</span>
+                        <span>{t('Profit /')} {t(singularUnit(areaUnit))}</span>
                         <span className={`font-bold font-mono ${profitPerAcre >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                          {currency}{Math.round(profitPerAcre).toLocaleString('en-IN')}
+                          {formatMoney(profitPerAcre, currency)}
                         </span>
                       </div>
                     </div>

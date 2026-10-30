@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import { Field, Member } from '../../types';
+import { Field, Member, MemberRole } from '../../types';
+import { ROLE_LABELS } from '../../app/access';
 import { AlertTriangle } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
 import { Dialog } from '../shell/Dialog';
@@ -23,6 +24,12 @@ interface AddRecordModalProps {
   setMemberName: (v: string) => void;
   memberPhone: string;
   setMemberPhone: (v: string) => void;
+  memberEmail: string;
+  setMemberEmail: (v: string) => void;
+  memberRole: MemberRole | '';
+  setMemberRole: (v: MemberRole | '') => void;
+  /** Only the ledger owner may change roles. */
+  canSetRole: boolean;
   onSubmitMember: (e: React.FormEvent) => void;
 
   fieldName: string;
@@ -63,6 +70,11 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
   setMemberName,
   memberPhone,
   setMemberPhone,
+  memberEmail,
+  setMemberEmail,
+  memberRole,
+  setMemberRole,
+  canSetRole,
   onSubmitMember,
   fieldName,
   setFieldName,
@@ -121,6 +133,33 @@ export const AddRecordModal: React.FC<AddRecordModalProps> = ({
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
               />
             </div>
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Google account email (optional)')}</label>
+              <input
+                type="email"
+                placeholder="name@gmail.com"
+                value={memberEmail}
+                onChange={e => setMemberEmail(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
+              />
+              <p className="text-[10px] text-gray-400 mt-1 leading-snug">{t('Links this partner to the Google account they sign in with, so their entries and role are theirs.')}</p>
+            </div>
+            {canSetRole && (
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Role')}</label>
+                <select
+                  value={memberRole}
+                  onChange={e => setMemberRole(e.target.value as MemberRole | '')}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
+                >
+                  <option value="">{t('Editor (default)')}</option>
+                  {(Object.keys(ROLE_LABELS) as MemberRole[]).map(r => (
+                    <option key={r} value={r}>{t(ROLE_LABELS[r])}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1 leading-snug">{t('Owners settle, close seasons, change shares and manage partners. Editors log entries. Viewers only read.')}</p>
+              </div>
+            )}
 
             <div className="flex gap-3 pt-4 border-t border-gray-50">
               <button

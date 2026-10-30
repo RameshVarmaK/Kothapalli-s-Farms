@@ -8,6 +8,7 @@ import { Plus, Trash2, ArrowUpRight, ArrowDownLeft, Receipt, Pencil, Paperclip }
 import { receiptCount } from '../../utils/attachments';
 import { LedgerItem, LedgerItemType } from '../../utils/moneyLedger';
 import { useLanguage } from '../../hooks/useLanguage';
+import { useAccess } from '../../hooks/useAccess';
 
 interface TransactionFeedProps {
   /** The rows to show, already filtered and sorted. */
@@ -33,6 +34,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
   onDelete
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
 
   return (
   <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -52,6 +54,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
             <p className="text-xs text-slate-400 max-w-xs leading-relaxed mb-5">
               {t('Every expense, labour shift, and harvest sale you record shows up here — one running ledger for the whole partnership.')}
             </p>
+            {access.can('write') && (
             <button
               onClick={onNewEntry}
               className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
@@ -59,6 +62,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
               <Plus size={14} />
               {t('Log First Transaction')}
             </button>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-center py-12 px-6">
@@ -109,6 +113,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
                   </p>
                   <p className="text-[10px] text-slate-500 font-bold uppercase mt-1 break-words">{item.subtext}</p>
                 </div>
+                {access.can('write') && (
                 <div className="flex items-center gap-1 sm:gap-4">
                   <button
                     onClick={() => onEdit(item)}
@@ -125,6 +130,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({
                     <Trash2 size={14} />
                   </button>
                 </div>
+                )}
               </div>
             </div>
           );

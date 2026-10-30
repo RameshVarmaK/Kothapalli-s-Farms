@@ -223,4 +223,16 @@ export const teSettings: Record<string, string> = {
   'Member': 'సభ్యుడు',
   'Expenses': 'ఖర్చులు',
   'Hours': 'గంటలు',
+
+  // Added 2026-10-27: Reports totals, revenue-less states, notifications notice.
+  'No revenue yet': 'ఇంకా ఆదాయం లేదు',
+  'Cost by Crop Season': 'పంట సీజన్ వారీగా ఖర్చు',
+  'Cost per Acre by Field': 'పొలం వారీగా ఎకరానికి ఖర్చు',
+  'Cost per acre': 'ఎకరానికి ఖర్చు',
+  'Crop Seasons by Cost': 'ఖర్చు ప్రకారం పంట సీజన్లు',
+  'Labour paid': 'చెల్లించిన కూలీ',
+  'Revenue': 'ఆదాయం',
+
+  // Added 2026-10-27: partner roles and view-only access.
+  'By': 'ఎవరు',
 };

@@ -7,6 +7,7 @@ import React from 'react';
 import { StockItem, StockUsage, Field, Season } from '../../types';
 import { Plus, Hammer, Pencil } from 'lucide-react';
 import { useLanguage } from '../../hooks/useLanguage';
+import { useAccess } from '../../hooks/useAccess';
 
 interface UsagesSegmentProps {
   usages: StockUsage[];
@@ -32,6 +33,7 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
   onEditUsage
 }) => {
   const { t } = useLanguage();
+  const access = useAccess();
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
@@ -55,6 +57,7 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
                 ? t('There’s nothing on hand to consume yet — log a purchase to bring stock in first.')
                 : t('Record when seed, fertilizer, or pesticide is applied to a field — it charges the cost to that crop cycle automatically.')}
             </p>
+            {access.can('write') && (
             <button
               onClick={onLogUsage}
               className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 font-bold text-white px-4 py-2 rounded-xl text-xs active:scale-95 cursor-pointer shadow-xs"
@@ -62,6 +65,7 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
               <Plus size={14} />
               {stockItems.length === 0 ? t('Create First Input Type') : purchases.length === 0 ? t('Log First Purchase') : t('Log First Usage')}
             </button>
+            )}
           </div>
         ) : (
           [...usages].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(u => {
@@ -95,6 +99,7 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
                       {t('Used')} {u.quantityUsed} {item?.unit}
                     </span>
                   </div>
+                  {access.can('write') && (
                   <button
                     onClick={() => onEditUsage(u)}
                     className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 border border-slate-300 hover:border-emerald-200 transition-colors cursor-pointer"
@@ -102,6 +107,7 @@ export const UsagesSegment: React.FC<UsagesSegmentProps> = ({
                   >
                     <Pencil size={13} />
                   </button>
+                  )}
                 </div>
               </div>
             );

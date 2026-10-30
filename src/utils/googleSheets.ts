@@ -397,7 +397,7 @@ export async function ensureSheetsExist(
  * record the sync fingerprint compares (see syncConflict.ts).
  */
 export const SHEET_COLUMNS: Record<string, string[]> = {
-  members: ['id', 'name', 'phone', 'photo'],
+  members: ['id', 'name', 'phone', 'photo', 'email', 'role'],
   fields: ['id', 'name', 'area', 'locationNote', 'shares'],
   seasons: ['id', 'fieldId', 'cropName', 'startDate', 'endDate', 'isClosed', 'shares'],
   activities: ['id', 'date', 'fieldId', 'seasonId', 'type', 'notes', 'weatherNote', 'photos'],
@@ -730,5 +730,29 @@ export async function pullDataFromSpreadsheet(
   } catch (error) {
     console.error('pullDataFromSpreadsheet error:', error);
     throw error;
+  }
+}
+
+/**
+ * What Google says this account may do with the ledger sheet. Drive's share
+ * setting is the one place a role is enforced for real: a Viewer's writes are
+ * refused by the Sheets API whatever the app shows. Null when Drive would not
+ * answer (no permission to read metadata, network), so the caller can fail
+ * open rather than lock a partner out on a flaky connection.
+ */
+export async function fetchSheetAccess(
+  accessToken: string,
+  spreadsheetId: string
+): Promise<{ canEdit: boolean; ownedByMe: boolean } | null> {
+  try {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(spreadsheetId)}?fields=capabilities/canEdit,ownedByMe&supportsAllDrives=true`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    return { canEdit: json?.capabilities?.canEdit !== false, ownedByMe: !!json?.ownedByMe };
+  } catch {
+    return null;
   }
 }

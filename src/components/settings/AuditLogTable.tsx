@@ -5,15 +5,18 @@
 
 import React from 'react';
 import { FileText } from 'lucide-react';
-import { AuditLog } from '../../types';
+import { AuditLog, Member } from '../../types';
 import { useLanguage } from '../../hooks/useLanguage';
 
 interface AuditLogTableProps {
   auditLogs: AuditLog[];
+  /** To show who made each change, by name. */
+  members?: Member[];
 }
 
-export const AuditLogTable: React.FC<AuditLogTableProps> = ({ auditLogs }) => {
+export const AuditLogTable: React.FC<AuditLogTableProps> = ({ auditLogs, members = [] }) => {
   const { t } = useLanguage();
+  const nameOf = (id?: string) => (id ? members.find(m => m.id === id)?.name : undefined);
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="px-6 py-4.5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
@@ -31,6 +34,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({ auditLogs }) => {
               <th className="px-6 py-3">{t('Timestamp')}</th>
               <th className="px-6 py-3">{t('Action')}</th>
               <th className="px-6 py-3">{t('EntityType')}</th>
+              <th className="px-6 py-3">{t('By')}</th>
               <th className="px-6 py-3">{t('Change Description')}</th>
             </tr>
           </thead>
@@ -50,6 +54,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({ auditLogs }) => {
                     </span>
                   </td>
                   <td className="px-6 py-3.5 font-bold text-[10px] text-slate-700">{log.entityType}</td>
+                  <td className="px-6 py-3.5 text-[10px] text-slate-500 whitespace-nowrap">{nameOf(log.memberId) || '—'}</td>
                   <td className="px-6 py-3.5 text-slate-500 leading-relaxed text-[11px]">{log.description}</td>
                 </tr>
               );
