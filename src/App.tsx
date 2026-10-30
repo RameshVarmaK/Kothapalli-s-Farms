@@ -25,7 +25,7 @@ import { PartnerHomeTab } from './components/PartnerHomeTab';
 import { seasonsOfPartner } from './utils/partnerScope';
 import { ViewModeProvider } from './hooks/useViewMode';
 import { LanguageProvider } from './hooks/useLanguage';
-import { AccessProvider, useSheetAccess } from './hooks/useAccess';
+import { AccessProvider, useSheetAccess, useRolesProtection } from './hooks/useAccess';
 import { resolveAccess } from './app/access';
 import { useReceiptUploads } from './hooks/useReceiptUploads';
 import { useGoogleAuth } from './hooks/useGoogleAuth';
@@ -82,6 +82,20 @@ function AppShell() {
     () => resolveAccess({ sheetAccess, sheetOwnedByMe: ownedByMe, members: db?.members || [], email: user?.email }),
     [sheetAccess, ownedByMe, db?.members, user?.email]
   );
+  // Once roles are in use, the sheet's Members tab is locked to the owners,
+  // so the role column cannot be edited by hand by a sheet Editor. Anyone
+  // who is not an owner then leaves that tab out of their pushes.
+  const ownerEmails = useMemo(
+    () => [user?.email || '', ...(db?.members || []).filter(m => m.role === 'owner' && m.email).map(m => m.email as string)],
+    [db?.members, user?.email]
+  );
+  useRolesProtection({
+    accessToken,
+    spreadsheetId: linkedSpreadsheetId,
+    enabled: ownedByMe && access.rolesConfigured && sheetAccess === 'edit',
+    ownerEmails,
+  });
+  const skipCollections = useMemo(() => (access.isOwner ? [] : ['members']), [access.isOwner]);
   const {
     loadingData,
     syncingState,
@@ -100,7 +114,7 @@ function AppShell() {
     handleBrowseDrive,
     handleCreateNewSheet,
     handleTriggerPull
-  } = useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchError, canWriteSheet: !access.readOnly });
+  } = useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchError, canWriteSheet: !access.readOnly, skipCollections });
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences[]>(

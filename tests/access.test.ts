@@ -140,10 +140,12 @@ describe('ledger actions enforce the role', () => {
     expect(written.auditLogs[written.auditLogs.length - 1].memberId).toBe('m2');
   });
 
-  it('lets a partner edit their own details but not their role', () => {
+  it('keeps partner records owner-only, even a partner\'s own phone, since the Members tab is protected', () => {
     const { actions, setDb } = actionsFor('ganapathi@example.com');
-    expect(actions.handleUpdateMember({ ...editor, phone: '999' })).toBe(true);
+    expect(actions.handleUpdateMember({ ...editor, phone: '999' })).toBe(false);
     expect(actions.handleUpdateMember({ ...editor, role: 'owner' })).toBe(false);
-    expect(setDb).toHaveBeenCalledTimes(1);
+    expect(setDb).not.toHaveBeenCalled();
+    const ownerSide = actionsFor('ramesh@example.com');
+    expect(ownerSide.actions.handleUpdateMember({ ...editor, phone: '999' })).toBe(true);
   });
 });

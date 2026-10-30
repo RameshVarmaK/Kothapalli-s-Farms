@@ -26,7 +26,8 @@ import { Toast } from './Toast';
 import { TransactionFeed } from './money/TransactionFeed';
 import { EntryModal } from './money/EntryModal';
 import { useMoneyEntryForm } from './money/useMoneyEntryForm';
-import { resolvePayers } from '../utils/payers';
+import { resolvePayers, describePayers, describeReceivers } from '../utils/payers';
+import { formatMoney } from '../utils/format';
 import { exportLedgerCsv } from '../utils/csv';
 import { buildLedgerItems, filterLedger, LedgerItem } from '../utils/moneyLedger';
 import { useLanguage } from '../hooks/useLanguage';
@@ -684,6 +685,7 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
           seasons={seasons}
           activities={activities}
           creditAccounts={creditAccounts}
+          categories={expenses.map(e => e.category)}
           currency={currency}
           accessToken={accessToken}
           onSaveExpense={handleSaveExpense}
@@ -701,9 +703,26 @@ export const MoneyTab: React.FC<MoneyTabProps> = ({
                 <AlertTriangle size={24} className="stroke-[2.5]" />
                 <h3 className="font-extrabold text-slate-900 text-sm">{t('Delete Transaction')}</h3>
               </div>
-              <p className="text-slate-600 text-xs leading-relaxed font-semibold mt-2">
-                {t('Permanently delete this ledger transaction? This will instantly recalculate all settlement positions.')}
-              </p>
+              {(() => {
+                const { id, type } = deleteConfirmInfo;
+                const unknown = t('Unknown');
+                const line =
+                  type === 'expense'
+                    ? (() => { const e = expenses.find(x => x.id === id); return e ? `${t('Expense')} · ${e.category} · ${formatMoney(e.amount, currency)} · ${e.isCredit ? t('On credit') : describePayers(e, e.amount, members, currency, unknown)} · ${e.date}` : ''; })()
+                    : type === 'labour'
+                      ? (() => { const l = labours.find(x => x.id === id); return l ? `${t('Labour')} · ${l.description || `${l.workersCount} ${t('workers')}`} · ${formatMoney(l.totalCost, currency)} · ${l.isCredit ? t('On credit') : describePayers(l, l.totalCost, members, currency, unknown)} · ${l.date}` : ''; })()
+                      : (() => { const r = revenues.find(x => x.id === id); return r ? `${t('Sale received')} · ${r.crop} · ${formatMoney(r.saleAmount, currency)} · ${describeReceivers(r, r.saleAmount, members, currency, unknown)} · ${r.date}` : ''; })();
+                return (
+                  <>
+                    {line && <p className="text-slate-800 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{line}</p>}
+                    <p className="text-slate-600 text-xs leading-relaxed font-semibold mt-3">
+                      {t(type === 'revenue'
+                        ? 'This removes the sale from the ledger. The season’s revenue and every partner’s balance are recalculated at once, and the row is removed from the Google Sheet on the next sync. There is no undo.'
+                        : 'This removes the entry from the ledger. Whoever paid it is no longer credited for it, every partner’s balance is recalculated at once, and the row is removed from the Google Sheet on the next sync. There is no undo.')}
+                    </p>
+                  </>
+                );
+              })()}
             </div>
             <div className="flex gap-2.5 px-6 py-4 bg-slate-50 border-t border-slate-100 justify-end">
               <button

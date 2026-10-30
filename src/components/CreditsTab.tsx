@@ -480,10 +480,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                     {access.can('delete-any') && (
                     <button
                       onClick={() => {
-                        if (confirm('Are you sure you want to delete this creditor profile? All credit history records will lose connection.')) {
-                          onDeleteCreditAccount(selectedReport.account.id);
-                          setSelectedCreditorId(null);
-                        }
+                        onDeleteCreditAccount(selectedReport.account.id);
                       }}
                       className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl hover:text-rose-700 transition-all cursor-pointer"
                       title={t('Delete creditor profile')} aria-label={t('Delete creditor profile')}
@@ -609,9 +606,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if (confirm('Delete this repayment entry?')) {
-                                      onDeleteCreditRepayment(r.id);
-                                    }
+                                    onDeleteCreditRepayment(r.id);
                                   }}
                                   className="text-slate-500 hover:text-rose-500 p-2 transition-all cursor-pointer"
                                   title={t('Remove payment record')} aria-label={t('Remove payment record')}
@@ -699,9 +694,7 @@ export const CreditsTab: React.FC<CreditsTabProps> = ({
                           {access.can('write') && (
                           <button
                             onClick={() => {
-                              if (confirm('Are you sure you want to delete this repayment record?')) {
-                                onDeleteCreditRepayment(rep.id);
-                              }
+                              onDeleteCreditRepayment(rep.id);
                             }}
                             className="p-2 px-2.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-all rounded-lg cursor-pointer text-[10px] font-bold"
                           >

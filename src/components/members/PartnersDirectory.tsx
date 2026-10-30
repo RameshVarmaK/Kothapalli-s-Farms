@@ -93,7 +93,7 @@ export const PartnersDirectory: React.FC<PartnersDirectoryProps> = ({
                     >
                       <FileText size={14} />
                     </button>
-                    {(access.can('manage-members') || (access.member?.id === member.id && access.can('write'))) && (
+                    {access.can('manage-members') && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onEditMember(member); }}
                       className="p-2.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 hover:border hover:border-emerald-100 transition-colors cursor-pointer"

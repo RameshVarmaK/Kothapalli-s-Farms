@@ -16,7 +16,7 @@ import {
 import { classifySync, holdsSameRecords, getLastSyncedFingerprint, setLastSyncedFingerprint, countUnsyncedChanges, collectionsToPush, mergeLocalIntoCloud } from '../utils/syncConflict';
 import { classifySyncError, isRetryable, retryDelayMs, SyncErrorKind } from '../utils/syncErrors';
 import { logError, logInfo, logWarning } from '../utils/errorLogging';
-import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet, extractSpreadsheetId, fetchSpreadsheetTitle, describeSheetLinkError } from '../utils/googleSheets';
+import { pullDataFromSpreadsheet, pushDataToSpreadsheet, findExistingSpreadsheet, createSpreadsheet, extractSpreadsheetId, fetchSpreadsheetTitle, describeSheetLinkError, SHEET_COLUMNS } from '../utils/googleSheets';
 import { pickSpreadsheet } from '../utils/googlePicker';
 import { saveSafetyCopy, SAFETY_REASONS } from '../utils/safetyBackup';
 import { normalizeCloudDb } from '../app/normalizeCloudDb';
@@ -33,6 +33,10 @@ interface SheetSyncOptions {
   /** False when Drive gave this account view-only access to the sheet: pulls
    * still run, pushes are skipped instead of failing with 403 every edit. */
   canWriteSheet?: boolean;
+  /** Collections this account must not write, e.g. 'members' for anyone who
+   * is not a ledger owner once the Members tab is protected. A push that
+   * included a protected tab would be refused whole. */
+  skipCollections?: string[];
 }
 
 /**
@@ -42,7 +46,15 @@ interface SheetSyncOptions {
  * retries, and the conflict prompt. Also links, creates or pulls a sheet
  * on request.
  */
-export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchError, canWriteSheet = true }: SheetSyncOptions) {
+export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchError, canWriteSheet = true, skipCollections = [] }: SheetSyncOptions) {
+  const skipRef = useRef<string[]>(skipCollections);
+  skipRef.current = skipCollections;
+  /** The collections a push may write: `wanted` (all when undefined) minus the skipped ones. */
+  const writable = (wanted?: string[]): string[] | undefined => {
+    const skip = skipRef.current;
+    if (skip.length === 0) return wanted;
+    return (wanted ?? Object.keys(SHEET_COLUMNS)).filter(c => !skip.includes(c));
+  };
   const [loadingData, setLoadingData] = useState(false);
   const [syncingState, setSyncingState] = useState<SyncingState>('idle');
   const [syncMessage, setSyncMessage] = useState('');
@@ -178,7 +190,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
             accessToken,
             targetSheetId,
             { ...nextDb, auditLogs: mergeAuditLogs(nextDb.auditLogs, cloudBeforePush?.auditLogs) },
-            collections
+            writable(collections)
           );
           setLastSyncedFingerprint(nextDb);
           lastSyncedDbRef.current = nextDb;
@@ -358,7 +370,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
 
             if (isSheetDataEmpty && isLocalDataNotEmpty) {
               logInfo('empty_sheet_seeded', 'Linked sheet is empty but this device has records; pushing them up');
-              await pushDataToSpreadsheet(accessToken, targetSheetId!, currentLocalDb);
+              await pushDataToSpreadsheet(accessToken, targetSheetId!, currentLocalDb, writable());
               sheetData = {
                 ...currentLocalDb,
               };
@@ -626,7 +638,7 @@ export function useSheetSync({ db, setDb, accessToken, setAccessToken, setFetchE
       await pushDataToSpreadsheet(accessToken, sheetId, {
         ...resolved,
         auditLogs: mergeAuditLogs(resolved.auditLogs, conflictCloudAuditLogs)
-      });
+      }, writable());
       setLastSyncedFingerprint(resolved);
       lastSyncedDbRef.current = resolved;
       setSyncErrorKind(null);

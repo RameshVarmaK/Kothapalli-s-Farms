@@ -219,4 +219,17 @@ export const teMembers: Record<string, string> = {
   'Role': 'పాత్ర',
   'Editor (default)': 'ఎడిటర్ (డిఫాల్ట్)',
   'Owners settle, close seasons, change shares and manage partners. Editors log entries. Viewers only read.': 'యజమానులు పరిష్కరిస్తారు, సీజన్లు ముగిస్తారు, వాటాలు మారుస్తారు, భాగస్వాములను నిర్వహిస్తారు. ఎడిటర్లు నమోదులు చేస్తారు. వీక్షకులు చూడటం మాత్రమే.',
+  // WhatsApp statement (src/utils/whatsapp.ts, PartnerReportModal footer)
+  'Send on WhatsApp': 'వాట్సాప్‌లో పంపండి',
+  'Opens WhatsApp with the statement filled in for': 'స్టేట్‌మెంట్‌తో వాట్సాప్ తెరుస్తుంది —',
+  'Opens WhatsApp with the statement filled in; pick the contact there': 'స్టేట్‌మెంట్‌తో వాట్సాప్ తెరుస్తుంది; అక్కడ కాంటాక్ట్ ఎంచుకోండి',
+  'statement for': 'స్టేట్‌మెంట్ —',
+  'you receive': 'మీరు అందుకోవాలి',
+  'you pay': 'మీరు చెల్లించాలి',
+  'Pending transfers': 'బాకీ ఉన్న చెల్లింపులు',
+  'Pay': 'చెల్లించండి',
+  'to': 'కు',
+  'from': 'నుండి',
+  'No transfers pending.': 'బాకీ చెల్లింపులు ఏవీ లేవు.',
+  'Open the ledger': 'ఖాతా పుస్తకం తెరవండి',
 };

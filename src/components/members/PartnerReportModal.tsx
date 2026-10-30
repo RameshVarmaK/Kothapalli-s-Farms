@@ -5,7 +5,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Printer, Scale, Receipt, Sprout, Package } from 'lucide-react';
+import { X, Printer, Scale, Receipt, Sprout, Package, MessageCircle } from 'lucide-react';
 import {
   Member,
   Field,
@@ -24,6 +24,7 @@ import {
 import { buildPartnerLedger, PartnerLineKind } from '../../utils/partnerLedger';
 import { useLanguage } from '../../hooks/useLanguage';
 import { Dialog } from '../shell/Dialog';
+import { partnerStatementText, whatsappShareUrl } from '../../utils/whatsapp';
 
 interface PartnerReportModalProps {
   memberId: string | null;
@@ -468,6 +469,24 @@ export const PartnerReportModal: React.FC<PartnerReportModalProps> = ({
             className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-700 rounded-xl cursor-pointer"
           >
             {t('Close View')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const text = partnerStatementText({
+                ledger,
+                scopeLabel,
+                currency,
+                appUrl: typeof window !== 'undefined' ? `${window.location.origin}${window.location.pathname}#settle` : undefined,
+                t,
+              });
+              window.open(whatsappShareUrl(text, member.phone), '_blank', 'noopener');
+            }}
+            className="px-5 py-2.5 bg-[#25D366] hover:bg-[#1ebe5d] text-white font-bold text-xs rounded-xl cursor-pointer shadow-xs flex items-center gap-2 active:scale-95 transition-all"
+            title={member.phone ? `${t('Opens WhatsApp with the statement filled in for')} ${member.phone}` : t('Opens WhatsApp with the statement filled in; pick the contact there')}
+          >
+            <MessageCircle size={14} />
+            <span>{t('Send on WhatsApp')}</span>
           </button>
           <button
             type="button"

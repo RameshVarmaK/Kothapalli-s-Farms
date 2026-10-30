@@ -20,6 +20,7 @@ interface EntryModalProps {
   seasons: Season[];
   activities: Activity[];
   creditAccounts: CreditAccount[];
+  categories?: string[];
   currency: string;
   accessToken: string | null;
   onSaveExpense: (e: React.FormEvent) => void;
@@ -36,6 +37,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   seasons,
   activities,
   creditAccounts,
+  categories,
   currency,
   accessToken,
   onSaveExpense: handleSaveExpense,
@@ -109,6 +111,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               seasons={seasons}
               activities={activities}
               creditAccounts={creditAccounts}
+              categories={categories}
               currency={currency}
               accessToken={accessToken}
               onSubmit={handleSaveExpense}

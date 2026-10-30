@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Access, FULL_ACCESS, SheetAccess } from '../app/access';
-import { fetchSheetAccess } from '../utils/googleSheets';
+import { fetchSheetAccess, ensureMembersProtection } from '../utils/googleSheets';
 import { isPlaceholderSpreadsheetId } from '../utils/database';
-import { logWarning } from '../utils/errorLogging';
+import { logWarning, logInfo } from '../utils/errorLogging';
 
 const AccessContext = createContext<Access>(FULL_ACCESS);
 
@@ -42,4 +42,29 @@ export function useSheetAccess(accessToken: string | null, spreadsheetId: string
   }, [accessToken, spreadsheetId]);
 
   return state;
+}
+
+/**
+ * Keeps the sheet's Members tab editable only by the owners, once roles are
+ * in use. Runs from the Drive owner's session, since that account can
+ * always manage protections, and again whenever the set of owners changes.
+ */
+export function useRolesProtection(input: {
+  accessToken: string | null;
+  spreadsheetId: string | undefined;
+  enabled: boolean;
+  ownerEmails: string[];
+}) {
+  const { accessToken, spreadsheetId, enabled } = input;
+  const owners = input.ownerEmails.map(e => e.trim().toLowerCase()).filter(Boolean).sort().join(',');
+  useEffect(() => {
+    if (!enabled || !accessToken || !spreadsheetId || isPlaceholderSpreadsheetId(spreadsheetId) || !owners) return;
+    let cancelled = false;
+    ensureMembersProtection(accessToken, spreadsheetId, owners.split(',')).then(result => {
+      if (cancelled) return;
+      if (result === null) logWarning('roles_protection_failed', 'Could not protect the Members tab', { sheetId: spreadsheetId });
+      else if (result !== 'unchanged') logInfo('roles_protection_' + result, 'Members tab protected for owners only', { sheetId: spreadsheetId, owners });
+    });
+    return () => { cancelled = true; };
+  }, [enabled, accessToken, spreadsheetId, owners]);
 }

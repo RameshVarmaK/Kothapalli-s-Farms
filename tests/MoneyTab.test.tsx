@@ -51,7 +51,9 @@ function renderMoneyTab(seasons: Season[], onAddExpense = vi.fn((_expense: Expen
 function submitNewExpense(amount: string, category: string) {
   fireEvent.click(screen.getByText('+ New Entry'));
   fireEvent.change(screen.getByPlaceholderText('e.g. 5000'), { target: { value: amount } });
-  fireEvent.change(screen.getByPlaceholderText('e.g. Fertilizer batch / Engine repair'), {
+  // The category is a pick list; "Other" opens a text box for anything new.
+  fireEvent.change(screen.getByDisplayValue('-- Choose category --'), { target: { value: 'Other' } });
+  fireEvent.change(screen.getByPlaceholderText('e.g. Engine repair'), {
     target: { value: category },
   });
   const form = screen.getByPlaceholderText('e.g. 5000').closest('form')!;

@@ -123,4 +123,22 @@ export const teMoney: Record<string, string> = {
   'Received by more than one partner': 'ఒకరి కంటే ఎక్కువ భాగస్వాములు అందుకున్నారు',
   'Who received, and how much each': 'ఎవరు అందుకున్నారు, ఎవరు ఎంత',
   'Amount received by': 'అందుకున్న మొత్తం',
+  // Expense category pick list (src/app/expenseCategories.ts)
+  '-- Choose category --': '-- రకం ఎంచుకోండి --',
+  'Other (type below)': 'ఇతరం (కింద టైప్ చేయండి)',
+  'e.g. Engine repair': 'ఉదా. ఇంజన్ మరమ్మత్తు',
+  'Seeds & Saplings': 'విత్తనాలు & మొక్కలు',
+  'Pesticide & Spraying': 'పురుగుమందు & స్ప్రేయింగ్',
+  'Ploughing & Tractor': 'దున్నడం & ట్రాక్టర్',
+  'Irrigation & Electricity': 'నీటిపారుదల & విద్యుత్',
+  'Harvesting': 'కోత',
+  'Equipment & Repairs': 'పరికరాలు & మరమ్మత్తులు',
+  'Land Lease': 'భూమి కౌలు',
+  'Packaging & Market Fees': 'ప్యాకింగ్ & మార్కెట్ రుసుములు',
+  // Delete-transaction dialog: names the entry and says what deleting does
+  'On credit': 'అప్పుపై',
+  'This removes the sale from the ledger. The season’s revenue and every partner’s balance are recalculated at once, and the row is removed from the Google Sheet on the next sync. There is no undo.':
+    'ఇది అమ్మకాన్ని ఖాతా పుస్తకం నుండి తీసేస్తుంది. సీజన్ ఆదాయం మరియు ప్రతి భాగస్వామి నిల్వ వెంటనే తిరిగి లెక్కించబడతాయి; తదుపరి సింక్‌లో గూగుల్ షీట్ నుండి వరుస తొలగించబడుతుంది. దీన్ని వెనక్కి తీసుకోలేరు.',
+  'This removes the entry from the ledger. Whoever paid it is no longer credited for it, every partner’s balance is recalculated at once, and the row is removed from the Google Sheet on the next sync. There is no undo.':
+    'ఇది నమోదును ఖాతా పుస్తకం నుండి తీసేస్తుంది. చెల్లించిన వారికి ఇక దీని క్రెడిట్ ఉండదు, ప్రతి భాగస్వామి నిల్వ వెంటనే తిరిగి లెక్కించబడుతుంది; తదుపరి సింక్‌లో గూగుల్ షీట్ నుండి వరుస తొలగించబడుతుంది. దీన్ని వెనక్కి తీసుకోలేరు.',
 };

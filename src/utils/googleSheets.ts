@@ -756,3 +756,68 @@ export async function fetchSheetAccess(
     return null;
   }
 }
+
+/** The description the app puts on its protected range, used to find it again. */
+export const ROLES_PROTECTION_DESCRIPTION = 'Farm ledger: partner emails and roles. Only ledger owners edit this tab.';
+
+const normaliseEmails = (emails: string[]) =>
+  Array.from(new Set(emails.map(e => e.trim().toLowerCase()).filter(Boolean))).sort();
+
+/**
+ * Makes the Members tab editable only by the ledger owners, so a sheet
+ * Editor cannot promote themselves by typing "owner" into the role column.
+ * Adds the protected range the first time, then keeps its editor list in
+ * step with who the owners are. Idempotent; the spreadsheet's Drive owner
+ * can always edit regardless of the list. Returns null when the sheet could
+ * not be read or changed (no permission, network), which callers log and
+ * otherwise ignore: the app's own checks still apply.
+ */
+export async function ensureMembersProtection(
+  accessToken: string,
+  spreadsheetId: string,
+  ownerEmails: string[]
+): Promise<'added' | 'updated' | 'unchanged' | null> {
+  try {
+    const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' };
+    const metaRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets(properties(sheetId,title),protectedRanges(protectedRangeId,description,editors))`,
+      { headers }
+    );
+    if (!metaRes.ok) return null;
+    const meta = await metaRes.json();
+    const sheet = (meta.sheets || []).find((s: any) => s?.properties?.title === 'Members');
+    if (!sheet) return null;
+
+    const wanted = normaliseEmails(ownerEmails);
+    const editors = { users: wanted, domainUsersCanEdit: false };
+    const existing = (sheet.protectedRanges || []).find((p: any) => p?.description === ROLES_PROTECTION_DESCRIPTION);
+
+    let request: any;
+    if (existing) {
+      const current = new Set(normaliseEmails(existing.editors?.users || []));
+      if (wanted.every(e => current.has(e))) return 'unchanged';
+      request = { updateProtectedRange: { protectedRange: { protectedRangeId: existing.protectedRangeId, editors }, fields: 'editors' } };
+    } else {
+      request = {
+        addProtectedRange: {
+          protectedRange: {
+            range: { sheetId: sheet.properties.sheetId },
+            description: ROLES_PROTECTION_DESCRIPTION,
+            warningOnly: false,
+            editors,
+          },
+        },
+      };
+    }
+
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ requests: [request] }),
+    });
+    if (!res.ok) return null;
+    return existing ? 'updated' : 'added';
+  } catch {
+    return null;
+  }
+}

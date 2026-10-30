@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, Check } from 'lucide-react';
 import { Activity, CommonAllocationType, CreditAccount, Field, Member, Season } from '../../types';
 import { calculateAllocations } from '../../utils/calculations';
@@ -12,6 +12,7 @@ import { allocationRuleHelp } from './allocationRuleHelp';
 import { PayersField } from './PayersField';
 import { MoneyEntryForm } from './useMoneyEntryForm';
 import { useLanguage } from '../../hooks/useLanguage';
+import { categoryOptions, OTHER_CATEGORY } from '../../app/expenseCategories';
 
 interface ExpenseFormProps {
   form: MoneyEntryForm;
@@ -20,6 +21,8 @@ interface ExpenseFormProps {
   seasons: Season[];
   activities: Activity[];
   creditAccounts: CreditAccount[];
+  /** Categories already used in the ledger, kept selectable. */
+  categories?: string[];
   currency: string;
   accessToken: string | null;
   onSubmit: (e: React.FormEvent) => void;
@@ -33,6 +36,7 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
   seasons,
   activities,
   creditAccounts,
+  categories = [],
   currency,
   accessToken,
   onSubmit: handleSaveExpense,
@@ -40,6 +44,10 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
 }) => {
   const { t } = useLanguage();
   const activeSeasons = seasons.filter(s => !s.isClosed);
+  const options = categoryOptions(categories);
+  // "Other" opens a text box; it stays open while the typed value is not one
+  // of the options, and for an old entry whose category is not in the list.
+  const [otherChosen, setOtherChosen] = useState(false);
   const {
     editingRecordId,
     date,
@@ -143,14 +151,45 @@ export const ExpenseForm: React.FC<ExpenseFormProps> = ({
         </div>
         <div>
           <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">{t('Expense category')}</label>
-          <input
-            type="text"
-            required
-            placeholder="e.g. Fertilizer batch / Engine repair"
-            value={category}
-            onChange={e => setCategory(e.target.value)}
-            className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700"
-          />
+          {(() => {
+            const known = category !== '' && options.includes(category) && category !== OTHER_CATEGORY;
+            const showOther = otherChosen || (category !== '' && !known);
+            return (
+              <>
+                <select
+                  required
+                  value={showOther ? OTHER_CATEGORY : category}
+                  onChange={e => {
+                    if (e.target.value === OTHER_CATEGORY) {
+                      setOtherChosen(true);
+                      setCategory('');
+                    } else {
+                      setOtherChosen(false);
+                      setCategory(e.target.value);
+                    }
+                  }}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700 font-bold"
+                >
+                  <option value="">{t('-- Choose category --')}</option>
+                  {options.filter(o => o !== OTHER_CATEGORY).map(o => (
+                    <option key={o} value={o}>{t(o)}</option>
+                  ))}
+                  <option value={OTHER_CATEGORY}>{t('Other (type below)')}</option>
+                </select>
+                {showOther && (
+                  <input
+                    type="text"
+                    required
+                    autoFocus={otherChosen}
+                    placeholder={t('e.g. Engine repair')}
+                    value={category}
+                    onChange={e => setCategory(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs text-gray-700 mt-1.5"
+                  />
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 

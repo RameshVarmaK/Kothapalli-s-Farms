@@ -180,7 +180,8 @@ describe('Money tab: recording an entry paid by several partners', () => {
     );
     fireEvent.click(screen.getByText('+ New Entry'));
     fireEvent.change(screen.getByPlaceholderText('e.g. 5000'), { target: { value: '2400' } });
-    fireEvent.change(screen.getByPlaceholderText('e.g. Fertilizer batch / Engine repair'), { target: { value: 'Tractor' } });
+    fireEvent.change(screen.getByDisplayValue('-- Choose category --'), { target: { value: 'Other' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. Engine repair'), { target: { value: 'Tractor' } });
     return onAddExpense;
   }
   const dialog = () => screen.getByRole('dialog');

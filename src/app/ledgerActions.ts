@@ -446,19 +446,34 @@ export function createLedgerActions({
     if (refuse('delete-any')) return;
     const target = creditAccounts.find(c => c.id === id);
     const nextList = creditAccounts.filter(c => c.id !== id);
-    const newDb = { ...db, creditAccounts: nextList };
-    if (target) {
-      const finalDb = audit(
-        newDb,
-        'delete',
-        'CreditAccount',
-        id,
-        `Removed creditor: "${target.name}"`
-      );
-      setDb(finalDb);
-    } else {
+    if (!target) {
       handleUpdateDatabase({ creditAccounts: nextList });
+      return;
     }
+    const doDelete = () => {
+      setDb(audit({ ...db, creditAccounts: nextList }, 'delete', 'CreditAccount', id, `Removed creditor: "${target.name}"`));
+      setConfirmDialog(null);
+    };
+    const bills = [
+      ...expenses.filter(e => e.isCredit && e.creditAccountId === id).map(e => e.amount),
+      ...labours.filter(l => l.isCredit && l.creditAccountId === id).map(l => l.totalCost),
+    ];
+    const repayments = creditRepayments.filter(r => r.creditAccountId === id);
+    const billTotal = bills.reduce((s, a) => s + a, 0);
+    const repaidTotal = repayments.reduce((s, r) => s + r.amount, 0);
+    const money = (v: number) => `${settings.currency}${Math.round(v).toLocaleString('en-IN')}`;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Creditor',
+      message:
+        `Remove creditor "${target.name}" (${target.type})?\n\n` +
+        (bills.length + repayments.length > 0
+          ? `${bills.length} bill(s) totalling ${money(billTotal)} and ${repayments.length} repayment(s) totalling ${money(repaidTotal)} stay in the ledger but lose their link to this creditor, so what is still owed to them can no longer be tracked here. Partners' balances do not change.\n\n`
+          : 'No bills or repayments are linked to this creditor.\n\n') +
+        'The Google Sheet is updated on the next sync. There is no undo.',
+      confirmText: 'Delete Creditor',
+      onConfirm: doDelete,
+    });
   };
 
   const handleAddCreditRepayment = (rep: CreditRepayment) => {
@@ -499,21 +514,33 @@ export function createLedgerActions({
     const target = creditRepayments.find(r => r.id === id);
     if (target && refuseDelete([target.memberId])) return;
     const nextList = creditRepayments.filter(r => r.id !== id);
-    const newDb = { ...db, creditRepayments: nextList };
-    if (target) {
-      const creditor = creditAccounts.find(c => c.id === target.creditAccountId);
-      const finalDb = audit(
-        newDb,
-        'delete',
-        'CreditRepayment',
-        id,
-        `Voided repayment of ${settings.currency}${target.amount} to creditor "${creditor ? creditor.name : 'Unknown'}"`,
-        target.memberId
-      );
-      setDb(finalDb);
-    } else {
+    if (!target) {
       handleUpdateDatabase({ creditRepayments: nextList });
+      return;
     }
+    const creditor = creditAccounts.find(c => c.id === target.creditAccountId);
+    const payer = members.find(m => m.id === target.memberId)?.name || 'Unknown partner';
+    const money = `${settings.currency}${Math.round(target.amount).toLocaleString('en-IN')}`;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Repayment',
+      message:
+        `Delete the ${money} payment by ${payer} to "${creditor ? creditor.name : 'Unknown'}" on ${target.date}?\n\n` +
+        `What is owed to ${creditor ? creditor.name : 'the creditor'} goes up by ${money}, and ${payer}'s paid-in goes down by ${money}, which moves every partner's balance in the cycles that bill belongs to. ` +
+        'The Google Sheet is updated on the next sync. There is no undo.',
+      confirmText: 'Delete Repayment',
+      onConfirm: () => {
+        setDb(audit(
+          { ...db, creditRepayments: nextList },
+          'delete',
+          'CreditRepayment',
+          id,
+          `Voided repayment of ${settings.currency}${target.amount} to creditor "${creditor ? creditor.name : 'Unknown'}"`,
+          target.memberId
+        ));
+        setConfirmDialog(null);
+      },
+    });
   };
 
   const handleSaveNotificationPreferences = (prefs: NotificationPreferences) => {
@@ -705,17 +732,19 @@ export function createLedgerActions({
 
     setConfirmDialog({
       isOpen: true,
-      title: 'Delete Land Boundary',
+      title: 'Delete Field',
       message:
-        `Are you sure you want to permanently delete field records for "${target.name}"?\n\n` +
+        `Delete the field "${target.name}" (${target.area} ${settings.areaUnit})?\n\n` +
         (dependentCount > 0
-          ? `This will also remove:\n` +
+          ? `This also deletes:\n` +
             `  - ${affectedSeasons.length} crop season(s)\n` +
             `  - ${labCount} labour entries, ${expSingleCount} field-specific expenses, ` +
             `${usgSingleCount} stock usages\n` +
-            `  - ${revCount} harvest revenues and ${actCount} activity log entries\n\n` +
-            `Common expenses/usages that include this field's seasons will have those seasons removed from their allocation list.`
-          : 'No dependent records were found for this field.'),
+            `  - ${revCount} harvest sales and ${actCount} activity log entries\n\n` +
+            `Shared expenses and stock usages that were split across this field's seasons lose those seasons from their split, so their cost falls on the remaining seasons. ` +
+            `Every partner's balance is recalculated, and anything already settled on these seasons is no longer shown.\n\n`
+          : 'No entries are linked to this field.\n\n') +
+        'The Google Sheet is updated on the next sync. There is no undo.',
       confirmText: 'Delete Field & Dependents',
       onConfirm: () => {
         const nextFields = fields.filter(f => f.id !== id);
@@ -899,14 +928,16 @@ export function createLedgerActions({
 
     setConfirmDialog({
       isOpen: true,
-      title: 'Delete Closed Season',
+      title: target.isClosed ? 'Delete Closed Season' : 'Delete Season',
       message:
-        `Are you sure you want to permanently delete the completed cropping season: "${target.cropName}"?\n\n` +
+        `Delete the ${target.isClosed ? 'closed' : 'active'} "${target.cropName}" season on ${fields.find(f => f.id === target.fieldId)?.name || 'this field'}?\n\n` +
         (dependentCount > 0
-          ? `This will also remove ${dependentCount} dependent record(s): ${labCount} labour, ` +
-            `${expSingleCount} expenses, ${usgSingleCount} usages, ${revCount} revenues, ` +
-            `${actCount} activities. Common-allocation entries will have this season unlinked.`
-          : 'No dependent records were found for this season.'),
+          ? `This also deletes ${dependentCount} entries: ${labCount} labour, ` +
+            `${expSingleCount} expenses, ${usgSingleCount} stock usages, ${revCount} harvest sales, ` +
+            `${actCount} activities. Shared expenses split across this season lose it from their split, so their cost falls on the other seasons. ` +
+            `Every partner's balance is recalculated, and anything already settled on this season is no longer shown.\n\n`
+          : 'No entries are linked to this season.\n\n') +
+        'The Google Sheet is updated on the next sync. There is no undo.',
       confirmText: 'Delete Season & Dependents',
       onConfirm: () => {
         const nextSeasons = seasons.filter(s => s.id !== id);
@@ -1006,10 +1037,10 @@ export function createLedgerActions({
   };
 
   const handleUpdateMember = (updatedMember: Member): boolean => {
-    const before = members.find(m => m.id === updatedMember.id);
-    const editingSelf = !!access.member && updatedMember.id === access.member.id && before?.role === updatedMember.role;
-    if (!editingSelf && refuse('manage-members')) return false;
-    if (editingSelf && refuse('write')) return false;
+    // Owner-only, including a partner's own name and phone: the Members tab
+    // is protected in the sheet once roles are in use, so an editor's change
+    // there could never be saved.
+    if (refuse('manage-members')) return false;
     const nextList = members.map(m => m.id === updatedMember.id ? updatedMember : m);
     const newDb = { ...db, members: nextList };
     const finalDb = audit(
@@ -1062,8 +1093,11 @@ export function createLedgerActions({
 
     setConfirmDialog({
       isOpen: true,
-      title: 'Delete Member Profile',
-      message: `Are you sure you want to permanently delete partner profile for "${target.name}"?`,
+      title: 'Delete Partner',
+      message:
+        `Remove "${target.name}" from the partners?\n\n` +
+        `They are on no entry and hold no share, so no balance changes. Their notification preferences are removed, and their sign-in${target.email ? ` (${target.email})` : ''} no longer opens this ledger. ` +
+        'The Google Sheet is updated on the next sync. There is no undo.',
       confirmText: 'Delete Member',
       onConfirm: () => {
         const nextList = members.filter(m => m.id !== id);
